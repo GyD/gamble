@@ -1,0 +1,53 @@
+.app-shell {
+    width: min(100%, 48rem);
+    margin: 0 auto;
+    padding: 1.25rem;
+}
+
+.page-header {
+    padding: var(--space-xl) 0;
+}
+
+.page-header-row,
+.card-actions {
+    display: flex;
+    align-items: center;
+}
+
+.page-header-row {
+    justify-content: space-between;
+    gap: var(--space-lg);
+}
+
+.primary-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-lg);
+}
+
+.card-actions {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.logout-form {
+    margin-top: var(--space-lg);
+}
+
+@media (max-width: 34rem) {
+    .page-header-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .page-header-row .button {
+        width: 100%;
+    }
+}
+
+@media (min-width: 56rem) {
+    .app-shell {
+        width: min(100%, 72rem);
+    }
+}

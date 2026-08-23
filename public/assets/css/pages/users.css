@@ -1,0 +1,51 @@
+.user-list {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+.user-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+}
+
+.user-card h2,
+.user-card p {
+    margin: 0;
+}
+
+.user-card-header > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-card-header p,
+.self-label {
+    color: var(--color-text-subtle);
+}
+
+.avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+}
+
+.user-meta {
+    display: grid;
+    gap: var(--space-sm);
+    margin: var(--space-lg) 0;
+}
+
+.user-meta div {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+}
+
+.user-meta dt {
+    color: var(--color-text-subtle);
+}
+
+.user-meta dd {
+    margin: 0;
+}

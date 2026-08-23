@@ -1,0 +1,58 @@
+.contacts-layout,
+.contact-list {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+.contact-form h2 {
+    margin: 0;
+}
+
+.contact-create-panel > summary {
+    list-style: none;
+}
+
+.contact-create-panel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.contact-create-panel[open] > summary {
+    margin-bottom: var(--space-lg);
+}
+
+.contact-card h2,
+.contact-card p {
+    margin: 0;
+}
+
+.contact-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+}
+
+.contact-note {
+    margin-top: var(--space-md) !important;
+    color: var(--color-text-subtle);
+    white-space: pre-wrap;
+}
+
+.contact-card .card-actions {
+    margin-top: var(--space-lg);
+}
+
+.contact-card-archived {
+    background: var(--color-background);
+}
+
+@media (min-width: 56rem) {
+    .contacts-layout {
+        grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .contacts-layout-list-only {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,93 @@
+.access-form,
+.contact-form {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+.form-section {
+    margin: 0;
+}
+
+.form-section legend {
+    padding: 0 0.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.form-field {
+    display: grid;
+    gap: var(--space-xs);
+}
+
+.form-field label {
+    font-weight: 700;
+}
+
+.form-field label span,
+.form-help,
+.choice-row small,
+.permission-row small {
+    color: var(--color-text-subtle);
+}
+
+.form-field input,
+.form-field textarea {
+    width: 100%;
+    padding: var(--space-md);
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+}
+
+.choice-grid {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.permission-list {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+.choice-row {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+}
+
+.choice-row span,
+.permission-row span,
+.choice-row small,
+.permission-row small {
+    display: block;
+}
+
+.permission-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.permission-row select {
+    min-height: 2.5rem;
+    padding: var(--space-xs);
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+}
+
+@media (max-width: 34rem) {
+    .permission-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .permission-row select {
+        width: 100%;
+    }
+}
