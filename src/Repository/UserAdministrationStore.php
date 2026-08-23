@@ -11,6 +11,9 @@ interface UserAdministrationStore
 {
     public function findById(int $id): ?User;
 
+    /** @return list<array<string, mixed>> */
+    public function findAllWithRoles(): array;
+
     /** @return list<array{id: int, name: string, label: string}> */
     public function findAllRoles(): array;
 

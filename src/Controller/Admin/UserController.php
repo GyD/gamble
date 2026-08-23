@@ -6,7 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Domain\User\User;
 use App\Domain\User\UserStatus;
-use App\Repository\UserRepository;
+use App\Repository\UserAdministrationStore;
 use App\Service\UserAdministrationService;
 use App\Security\AuthorizationService;
 use InvalidArgumentException;
@@ -18,7 +18,7 @@ use ValueError;
 final readonly class UserController
 {
     public function __construct(
-        private UserRepository $users,
+        private UserAdministrationStore $users,
         private UserAdministrationService $administration,
         private AuthorizationService $authorization,
         private Environment $twig,
@@ -140,7 +140,13 @@ final readonly class UserController
             throw new InvalidArgumentException('Invalid role list.');
         }
 
-        return array_values(array_unique(array_filter($value, 'is_string')));
+        foreach ($value as $roleName) {
+            if (!is_string($roleName)) {
+                throw new InvalidArgumentException('Invalid role value.');
+            }
+        }
+
+        return array_values(array_unique($value));
     }
 
     /** @return array<string, string> */

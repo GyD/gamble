@@ -34,10 +34,9 @@ final readonly class UserAdministrationService
             throw new InvalidArgumentException('Invalid managed status.');
         }
 
-        $target = $this->users->findById($targetUserId)
-            ?? throw new InvalidArgumentException('Unknown user.');
-
-        $this->transactional(function () use ($actorUserId, $target, $status, $ipAddress): void {
+        $this->transactional(function () use ($actorUserId, $targetUserId, $status, $ipAddress): void {
+            $target = $this->users->findById($targetUserId)
+                ?? throw new InvalidArgumentException('Unknown user.');
             $this->users->updateStatus($target->id, $status);
             $this->auditLogs->record(
                 $actorUserId,
@@ -66,9 +65,13 @@ final readonly class UserAdministrationService
             throw new InvalidArgumentException('You cannot change your own access.');
         }
 
-        if ($this->users->findById($targetUserId) === null) {
-            throw new InvalidArgumentException('Unknown user.');
+        foreach ($roleNames as $roleName) {
+            if (!is_string($roleName)) {
+                throw new InvalidArgumentException('Invalid role list.');
+            }
         }
+
+        $roleNames = array_values(array_unique($roleNames));
 
         $allowedRoles = array_column($this->users->findAllRoles(), 'name');
         if (array_diff($roleNames, $allowedRoles) !== []) {
@@ -86,10 +89,6 @@ final readonly class UserAdministrationService
             }
         }
 
-        $before = [
-            'roles' => $this->users->roleNamesFor($targetUserId),
-            'permissions' => $this->users->permissionEffectsFor($targetUserId),
-        ];
         sort($roleNames);
         ksort($permissionEffects);
 
@@ -98,9 +97,16 @@ final readonly class UserAdministrationService
             $targetUserId,
             $roleNames,
             $permissionEffects,
-            $before,
             $ipAddress,
         ): void {
+            if ($this->users->findById($targetUserId) === null) {
+                throw new InvalidArgumentException('Unknown user.');
+            }
+
+            $before = [
+                'roles' => $this->users->roleNamesFor($targetUserId),
+                'permissions' => $this->users->permissionEffectsFor($targetUserId),
+            ];
             $this->users->replaceAccess($targetUserId, $roleNames, $permissionEffects);
             $this->auditLogs->record(
                 $actorUserId,

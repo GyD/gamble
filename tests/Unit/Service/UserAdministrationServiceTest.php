@@ -108,12 +108,42 @@ final class UserAdministrationServiceTest extends TestCase
         self::assertSame([], $this->auditLogs->entries);
     }
 
+    public function testDuplicateRolesAreNormalizedBeforeMutation(): void
+    {
+        $this->service->replaceAccess(1, 2, ['admin', 'admin'], [], null);
+
+        self::assertSame(['admin'], $this->users->rolesByUser[2]);
+        self::assertSame(['admin'], $this->auditLogs->entries[0]['after']['roles']);
+    }
+
+    public function testNonStringRoleIsRejectedBeforeMutation(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid role list.');
+
+        /** @phpstan-ignore argument.type */
+        $this->service->replaceAccess(1, 2, ['admin', 42], [], null);
+    }
+
     public function testUnknownPermissionIsRejectedBeforeMutation(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unknown permission.');
 
         $this->service->replaceAccess(1, 2, [], ['root.access' => 'allow'], null);
+    }
+
+    public function testUnknownUserDoesNotLeaveTransactionOpen(): void
+    {
+        try {
+            $this->service->replaceAccess(1, 999, [], [], null);
+            self::fail('Unknown user should have been rejected.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertSame('Unknown user.', $exception->getMessage());
+        }
+
+        self::assertFalse($this->pdo->inTransaction());
+        self::assertSame([], $this->auditLogs->entries);
     }
 
     public function testTransactionIsRolledBackWhenAuditFails(): void
@@ -163,6 +193,11 @@ class InMemoryUserAdministrationStore implements UserAdministrationStore
     public function findById(int $id): ?User
     {
         return $this->users[$id] ?? null;
+    }
+
+    public function findAllWithRoles(): array
+    {
+        return [];
     }
 
     public function findAllRoles(): array
