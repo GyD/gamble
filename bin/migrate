@@ -1,0 +1,24 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Support\Migrator;
+use DI\ContainerBuilder;
+use Dotenv\Dotenv;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+$builder = new ContainerBuilder();
+$builder->addDefinitions(require dirname(__DIR__) . '/config/container.php');
+$container = $builder->build();
+$settings = $container->get('settings');
+
+$count = (new Migrator(
+    $container->get(PDO::class),
+    $settings['paths']['migrations'],
+))->migrate();
+
+fwrite(STDOUT, sprintf("Applied %d migration(s).\n", $count));

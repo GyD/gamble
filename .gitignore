@@ -1,0 +1,7 @@
+/.env
+/.idea/
+/vendor/
+/.phpunit.cache/
+/var/cache/
+/var/log/*.log
+!/var/log/.gitkeep
