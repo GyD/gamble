@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 use App\Controller\AuthController;
 use App\Controller\Admin\UserController;
+use App\Controller\ContactController;
 use App\Controller\HealthController;
 use App\Controller\HomeController;
 use App\Middleware\RequireActiveUserMiddleware;
+use App\Middleware\RequireContactsCreatePermissionMiddleware;
+use App\Middleware\RequireContactsDeletePermissionMiddleware;
+use App\Middleware\RequireContactsEditPermissionMiddleware;
+use App\Middleware\RequireContactsViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Middleware\RequireUsersViewPermissionMiddleware;
@@ -23,6 +28,31 @@ return static function (App $app): void {
     $app->get('/access/pending', [AuthController::class, 'pending'])->setName('access.pending');
     $app->get('/access/suspended', [AuthController::class, 'suspended'])->setName('access.suspended');
     $app->post('/auth/logout', [AuthController::class, 'logout'])->setName('auth.logout');
+
+    $app->get('/contacts', [ContactController::class, 'index'])
+        ->add(RequireContactsViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('contacts');
+    $app->post('/contacts', [ContactController::class, 'create'])
+        ->add(RequireContactsCreatePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('contacts.create');
+    $app->get('/contacts/{id}/edit', [ContactController::class, 'edit'])
+        ->add(RequireContactsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('contacts.edit');
+    $app->post('/contacts/{id}', [ContactController::class, 'update'])
+        ->add(RequireContactsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('contacts.update');
+    $app->post('/contacts/{id}/archive', [ContactController::class, 'archive'])
+        ->add(RequireContactsDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('contacts.archive');
+    $app->post('/contacts/{id}/delete', [ContactController::class, 'delete'])
+        ->add(RequireContactsDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('contacts.delete');
 
     $app->get('/admin/users', [UserController::class, 'index'])
         ->add(RequireUsersViewPermissionMiddleware::class)

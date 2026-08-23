@@ -1,0 +1,84 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Contacts · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div>
+            <p class="eyebrow">Participants</p>
+            <h1>Contacts</h1>
+        </div>
+        <a class="button button-secondary" href="/">Retour</a>
+    </header>
+
+    {% if saved %}
+        <p class="notice notice-success" role="status">Modification enregistrée.</p>
+    {% endif %}
+
+    <div class="contacts-layout{% if not can_create %} contacts-layout-list-only{% endif %}">
+        {% if can_create %}
+            <details class="contact-create-panel form-section">
+                <summary class="button button-primary">Ajouter un contact</summary>
+                <form method="post" action="/contacts" class="contact-form">
+                    <h2>Nouveau contact</h2>
+                    <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                    <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                    <div class="form-field">
+                        <label for="contact-name">Nom</label>
+                        <input id="contact-name" name="name" type="text" maxlength="120" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="contact-phone-number">Numéro de téléphone</label>
+                        <input id="contact-phone-number" name="phone_number" type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="contact-note">Note <span>(facultative)</span></label>
+                        <textarea id="contact-note" name="note" maxlength="2000" rows="3"></textarea>
+                    </div>
+                    <button class="button button-primary" type="submit">Ajouter le contact</button>
+                </form>
+            </details>
+        {% endif %}
+
+        <div class="contact-list">
+        {% for contact in contacts %}
+            <article class="contact-card{% if contact.archived %} contact-card-archived{% endif %}">
+                <div class="contact-card-header">
+                    <h2>{{ contact.name }}</h2>
+                    <span class="status {{ contact.archived ? 'status-suspended' : 'status-active' }}">
+                        {{ contact.archived ? 'Archivé' : 'Actif' }}
+                    </span>
+                </div>
+                <p class="contact-phone-number">Téléphone : {{ contact.phoneNumber }}</p>
+                {% if contact.note %}<p class="contact-note">{{ contact.note }}</p>{% endif %}
+                {% if can_edit or can_archive %}
+                    <div class="card-actions">
+                        {% if can_edit %}
+                            <a class="button button-secondary" href="/contacts/{{ contact.id }}/edit">Modifier</a>
+                        {% endif %}
+                        {% if can_archive %}
+                            <form method="post" action="/contacts/{{ contact.id }}/archive">
+                                <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                                <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                <input type="hidden" name="archived" value="{{ contact.archived ? '0' : '1' }}">
+                                <button class="button {{ contact.archived ? 'button-secondary' : 'button-danger' }}" type="submit">
+                                    {{ contact.archived ? 'Réactiver' : 'Archiver' }}
+                                </button>
+                            </form>
+                            {% if contact.archived %}
+                                <form method="post" action="/contacts/{{ contact.id }}/delete">
+                                    <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                                    <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                    <button class="button button-danger" type="submit" onclick="return confirm('Supprimer définitivement ce contact ? Cette action est irréversible.')">Supprimer définitivement</button>
+                                </form>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </article>
+        {% else %}
+            <section class="empty-state"><p>Aucun contact.</p></section>
+        {% endfor %}
+        </div>
+    </div>
+{% endblock %}

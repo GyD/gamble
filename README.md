@@ -34,11 +34,12 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - protection des routes et masquage des actions selon les permissions ;
 - protection CSRF des mutations ;
 - audit atomique des changements de statut, de rôles et de permissions ;
-- tests automatisés du socle d'identité et d'accès.
+- tests automatisés du socle d'identité, des accès et des contacts ;
+- gestion des contacts avec nom et numéro de téléphone RP obligatoire, note facultative, archivage et réactivation ;
+- permissions et audit atomique des opérations sur les contacts.
 
 ### À construire
 
-- gestion des contacts ;
 - gestion des groupes ;
 - création et cycle de vie des paris ;
 - gestion des mises ;
@@ -46,9 +47,9 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - suivi des paiements et des soldes ;
 - statistiques ;
 - paramètres fonctionnels ;
-- extension de l'audit aux opérations métier.
+- extension de l'audit aux futurs modules métier.
 
-Le produit dispose donc actuellement de son socle d'identité, de sécurité et d'administration. Les fonctionnalités métier de gestion des paris restent à implémenter.
+Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que du module Contacts. Les groupes et les fonctionnalités de gestion des paris restent à implémenter.
 
 ## Roadmap fonctionnelle
 

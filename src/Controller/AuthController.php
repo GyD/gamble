@@ -95,10 +95,10 @@ final readonly class AuthController
     {
         $response->getBody()->write($this->twig->render($template, [
             'csrf' => [
-                'name_key' => $request->getAttribute('csrf_name'),
-                'name' => $request->getAttribute('csrf_name_value'),
-                'value_key' => $request->getAttribute('csrf_value'),
-                'value' => $request->getAttribute('csrf_value_value'),
+                'name_key' => 'csrf_name',
+                'name' => $request->getAttribute('csrf_name'),
+                'value_key' => 'csrf_value',
+                'value' => $request->getAttribute('csrf_value'),
             ],
         ]));
 

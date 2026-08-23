@@ -8,6 +8,8 @@ use Monolog\Logger;
 use App\Repository\OAuthStateRepository;
 use App\Repository\AuditLogger;
 use App\Repository\AuditLogRepository;
+use App\Repository\ContactRepository;
+use App\Repository\ContactStore;
 use App\Repository\PdoPermissionRepository;
 use App\Repository\UserAdministrationStore;
 use App\Repository\UserRepository;
@@ -69,6 +71,7 @@ return [
     UserStore::class => DI\get(UserRepository::class),
     UserAdministrationStore::class => DI\get(UserRepository::class),
     AuditLogger::class => DI\get(AuditLogRepository::class),
+    ContactStore::class => DI\get(ContactRepository::class),
     OAuthStateStore::class => DI\get(OAuthStateRepository::class),
     PermissionResolver::class => DI\get(PdoPermissionRepository::class),
     TwitchClient::class => factory(static fn(): TwitchClient => new CurlTwitchClient(

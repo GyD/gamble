@@ -1,0 +1,31 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Modifier {{ contact.name }} · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div>
+            <p class="eyebrow">Contacts</p>
+            <h1>Modifier</h1>
+        </div>
+        <a class="button button-secondary" href="/contacts">Retour</a>
+    </header>
+
+    <form method="post" action="/contacts/{{ contact.id }}" class="contact-form form-section">
+        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+        <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+        <div class="form-field">
+            <label for="contact-name">Nom</label>
+            <input id="contact-name" name="name" type="text" maxlength="120" value="{{ contact.name }}" required>
+        </div>
+        <div class="form-field">
+            <label for="contact-phone-number">Numéro de téléphone</label>
+            <input id="contact-phone-number" name="phone_number" type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" value="{{ contact.phoneNumber }}" required>
+        </div>
+        <div class="form-field">
+            <label for="contact-note">Note <span>(facultative)</span></label>
+            <textarea id="contact-note" name="note" maxlength="2000" rows="5">{{ contact.note }}</textarea>
+        </div>
+        <button class="button button-primary" type="submit">Enregistrer</button>
+    </form>
+{% endblock %}

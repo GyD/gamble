@@ -24,12 +24,13 @@ final readonly class HomeController
         $user = $request->getAttribute('user');
         $response->getBody()->write($this->twig->render('home.html.twig', [
             'user' => $user,
+            'can_view_contacts' => $user instanceof User && $this->authorization->can($user, 'contacts.view'),
             'can_view_users' => $user instanceof User && $this->authorization->can($user, 'users.view'),
             'csrf' => [
-                'name_key' => $request->getAttribute('csrf_name'),
-                'name' => $request->getAttribute('csrf_name_value'),
-                'value_key' => $request->getAttribute('csrf_value'),
-                'value' => $request->getAttribute('csrf_value_value'),
+                'name_key' => 'csrf_name',
+                'name' => $request->getAttribute('csrf_name'),
+                'value_key' => 'csrf_value',
+                'value' => $request->getAttribute('csrf_value'),
             ],
         ]));
 
