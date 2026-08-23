@@ -34,9 +34,9 @@
                     <div><dt>Dernière connexion</dt><dd>{{ managed_user.last_login_at ?: 'Jamais' }}</dd></div>
                 </dl>
 
-                {% if managed_user.id != current_user.id %}
+                {% if managed_user.id != current_user.id and (can_manage_users or can_manage_permissions) %}
                     <div class="card-actions">
-                        {% if managed_user.status != 'active' %}
+                        {% if can_manage_users and managed_user.status != 'active' %}
                             <form method="post" action="/admin/users/{{ managed_user.id }}/status">
                                 <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
                                 <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
@@ -44,7 +44,7 @@
                                 <button class="button button-primary" type="submit">Activer</button>
                             </form>
                         {% endif %}
-                        {% if managed_user.status != 'suspended' %}
+                        {% if can_manage_users and managed_user.status != 'suspended' %}
                             <form method="post" action="/admin/users/{{ managed_user.id }}/status">
                                 <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
                                 <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
@@ -52,9 +52,11 @@
                                 <button class="button button-danger" type="submit">Suspendre</button>
                             </form>
                         {% endif %}
-                        <a class="button button-secondary" href="/admin/users/{{ managed_user.id }}/access">Accès</a>
+                        {% if can_manage_permissions %}
+                            <a class="button button-secondary" href="/admin/users/{{ managed_user.id }}/access">Accès</a>
+                        {% endif %}
                     </div>
-                {% else %}
+                {% elseif managed_user.id == current_user.id %}
                     <p class="self-label">Votre compte · modification directe désactivée</p>
                 {% endif %}
             </article>

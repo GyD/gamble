@@ -8,6 +8,7 @@ use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Repository\UserRepository;
 use App\Service\UserAdministrationService;
+use App\Security\AuthorizationService;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -19,6 +20,7 @@ final readonly class UserController
     public function __construct(
         private UserRepository $users,
         private UserAdministrationService $administration,
+        private AuthorizationService $authorization,
         private Environment $twig,
     ) {
     }
@@ -28,6 +30,8 @@ final readonly class UserController
         return $this->render($request, $response, 'admin/users/index.html.twig', [
             'users' => $this->users->findAllWithRoles(),
             'current_user' => $this->actor($request),
+            'can_manage_users' => $this->authorization->can($this->actor($request), 'users.manage'),
+            'can_manage_permissions' => $this->authorization->can($this->actor($request), 'permissions.manage'),
             'saved' => isset($request->getQueryParams()['saved']),
         ]);
     }

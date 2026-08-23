@@ -7,7 +7,7 @@ namespace App\Repository;
 use JsonException;
 use PDO;
 
-final readonly class AuditLogRepository
+final readonly class AuditLogRepository implements AuditLogger
 {
     public function __construct(private PDO $pdo)
     {

@@ -10,7 +10,7 @@ use App\Domain\User\UserStatus;
 use PDO;
 use RuntimeException;
 
-final readonly class UserRepository implements UserStore
+final readonly class UserRepository implements UserStore, UserAdministrationStore
 {
     public function __construct(private PDO $pdo)
     {

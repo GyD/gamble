@@ -6,7 +6,10 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
 use App\Repository\OAuthStateRepository;
+use App\Repository\AuditLogger;
+use App\Repository\AuditLogRepository;
 use App\Repository\PdoPermissionRepository;
+use App\Repository\UserAdministrationStore;
 use App\Repository\UserRepository;
 use App\Repository\UserStore;
 use App\Security\CurlTwitchClient;
@@ -64,6 +67,8 @@ return [
         );
     }),
     UserStore::class => DI\get(UserRepository::class),
+    UserAdministrationStore::class => DI\get(UserRepository::class),
+    AuditLogger::class => DI\get(AuditLogRepository::class),
     OAuthStateStore::class => DI\get(OAuthStateRepository::class),
     PermissionResolver::class => DI\get(PdoPermissionRepository::class),
     TwitchClient::class => factory(static fn(): TwitchClient => new CurlTwitchClient(

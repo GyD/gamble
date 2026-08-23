@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Domain\User\UserStatus;
-use App\Repository\AuditLogRepository;
-use App\Repository\UserRepository;
+use App\Repository\AuditLogger;
+use App\Repository\UserAdministrationStore;
 use InvalidArgumentException;
 use PDO;
 use Throwable;
@@ -15,8 +15,8 @@ final readonly class UserAdministrationService
 {
     public function __construct(
         private PDO $pdo,
-        private UserRepository $users,
-        private AuditLogRepository $auditLogs,
+        private UserAdministrationStore $users,
+        private AuditLogger $auditLogs,
     ) {
     }
 
