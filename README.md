@@ -37,10 +37,11 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - tests automatisés du socle d'identité, des accès et des contacts ;
 - gestion des contacts avec nom et numéro de téléphone RP obligatoire, note facultative, archivage et réactivation ;
 - permissions et audit atomique des opérations sur les contacts.
+- gestion des groupes avec note facultative, archivage et membres visibles en lecture seule ;
+- gestion des appartenances aux groupes depuis la fiche du contact, avec la permission `contacts.edit`.
 
 ### À construire
 
-- gestion des groupes ;
 - création et cycle de vie des paris ;
 - gestion des mises ;
 - clôture et règlement des paris ;
@@ -49,7 +50,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - paramètres fonctionnels ;
 - extension de l'audit aux futurs modules métier.
 
-Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que du module Contacts. Les groupes et les fonctionnalités de gestion des paris restent à implémenter.
+Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts et Groupes. Les fonctionnalités de gestion des paris restent à implémenter.
 
 ## Roadmap fonctionnelle
 

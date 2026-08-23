@@ -1,0 +1,68 @@
+.groups-layout,
+.group-list {
+    display: grid;
+    gap: var(--space-lg);
+}
+
+.group-form h2,
+.group-card h2,
+.group-card p {
+    margin: 0;
+}
+
+.group-create-panel > summary {
+    list-style: none;
+}
+
+.group-create-panel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.group-create-panel[open] > summary {
+    margin-bottom: var(--space-lg);
+}
+
+.group-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+}
+
+.group-note,
+.group-card h3,
+.member-list {
+    margin-top: var(--space-md) !important;
+}
+
+.group-note {
+    color: var(--color-text-subtle);
+    white-space: pre-wrap;
+}
+
+.member-list {
+    padding-left: var(--space-xl);
+}
+
+.member-list li + li {
+    margin-top: var(--space-xs);
+}
+
+.group-card .card-actions {
+    margin-top: var(--space-lg);
+}
+
+.group-card-archived {
+    background: var(--color-background);
+}
+
+@media (min-width: 56rem) {
+    .groups-layout {
+        grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .groups-layout-list-only {
+        grid-template-columns: 1fr;
+    }
+}

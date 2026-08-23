@@ -14,10 +14,13 @@
         <p>Votre compte Twitch est connecté et actif.</p>
     </section>
 
-    {% if can_view_contacts or can_view_users %}
+    {% if can_view_contacts or can_view_groups or can_view_users %}
         <nav class="primary-navigation" aria-label="Navigation principale">
             {% if can_view_contacts %}
                 <a class="button button-primary" href="/contacts">Gérer les contacts</a>
+            {% endif %}
+            {% if can_view_groups %}
+                <a class="button button-primary" href="/groups">Gérer les groupes</a>
             {% endif %}
             {% if can_view_users %}
                 <a class="button button-primary" href="/admin/users">Gérer les utilisateurs</a>

@@ -1,0 +1,17 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Modifier {{ group.name }} · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div><p class="eyebrow">Groupes</p><h1>Modifier</h1></div>
+        <a class="button button-secondary" href="/groups">Retour</a>
+    </header>
+    <form method="post" action="/groups/{{ group.id }}" class="group-form form-section">
+        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+        <div class="form-field"><label for="group-name">Nom</label><input id="group-name" name="name" type="text" maxlength="120" value="{{ group.name }}" required></div>
+        <div class="form-field"><label for="group-note">Note <span>(facultative)</span></label><textarea id="group-note" name="note" maxlength="2000" rows="5">{{ group.note }}</textarea></div>
+        <p class="form-help">Les membres se gèrent depuis la fiche de chaque contact.</p>
+        <button class="button button-primary" type="submit">Enregistrer</button>
+    </form>
+{% endblock %}

@@ -11,6 +11,10 @@ use App\Middleware\RequireContactsCreatePermissionMiddleware;
 use App\Middleware\RequireContactsDeletePermissionMiddleware;
 use App\Middleware\RequireContactsEditPermissionMiddleware;
 use App\Middleware\RequireContactsViewPermissionMiddleware;
+use App\Middleware\RequireGroupsCreatePermissionMiddleware;
+use App\Middleware\RequireGroupsDeletePermissionMiddleware;
+use App\Middleware\RequireGroupsEditPermissionMiddleware;
+use App\Middleware\RequireGroupsViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Security\AuthorizationService;
@@ -128,6 +132,10 @@ final class RequireUsersViewPermissionMiddlewareTest extends TestCase
         yield 'create contacts' => [RequireContactsCreatePermissionMiddleware::class, 'contacts.create'];
         yield 'edit contacts' => [RequireContactsEditPermissionMiddleware::class, 'contacts.edit'];
         yield 'archive contacts' => [RequireContactsDeletePermissionMiddleware::class, 'contacts.delete'];
+        yield 'view groups' => [RequireGroupsViewPermissionMiddleware::class, 'groups.view'];
+        yield 'create groups' => [RequireGroupsCreatePermissionMiddleware::class, 'groups.create'];
+        yield 'edit groups' => [RequireGroupsEditPermissionMiddleware::class, 'groups.edit'];
+        yield 'delete groups' => [RequireGroupsDeletePermissionMiddleware::class, 'groups.delete'];
         yield 'view users' => [RequireUsersViewPermissionMiddleware::class, 'users.view'];
         yield 'manage users' => [RequireUsersManagePermissionMiddleware::class, 'users.manage'];
         yield 'manage permissions' => [

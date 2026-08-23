@@ -1,0 +1,68 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Groupes · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div><p class="eyebrow">Participants</p><h1>Groupes</h1></div>
+        <a class="button button-secondary" href="/">Retour</a>
+    </header>
+
+    {% if saved %}<p class="notice notice-success" role="status">Modification enregistrée.</p>{% endif %}
+
+    <div class="groups-layout{% if not can_create %} groups-layout-list-only{% endif %}">
+        {% if can_create %}
+            <details class="group-create-panel form-section">
+                <summary class="button button-primary">Ajouter un groupe</summary>
+                <form method="post" action="/groups" class="group-form">
+                    <h2>Nouveau groupe</h2>
+                    <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                    <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                    <div class="form-field"><label for="group-name">Nom</label><input id="group-name" name="name" type="text" maxlength="120" required></div>
+                    <div class="form-field"><label for="group-note">Note <span>(facultative)</span></label><textarea id="group-note" name="note" maxlength="2000" rows="3"></textarea></div>
+                    <button class="button button-primary" type="submit">Ajouter le groupe</button>
+                </form>
+            </details>
+        {% endif %}
+
+        <div class="group-list">
+            {% for group in groups %}
+                <article class="group-card{% if group.archived %} group-card-archived{% endif %}">
+                    <div class="group-card-header">
+                        <h2>{{ group.name }}</h2>
+                        <span class="status {{ group.archived ? 'status-suspended' : 'status-active' }}">{{ group.archived ? 'Archivé' : 'Actif' }}</span>
+                    </div>
+                    {% if group.note %}<p class="group-note">{{ group.note }}</p>{% endif %}
+                    <h3>{{ group.members|length }} membre{{ group.members|length > 1 ? 's' : '' }}</h3>
+                    {% if group.members %}
+                        <ul class="member-list">
+                            {% for member in group.members %}<li>{{ member.name }}{% if member.archived %} <span class="status status-suspended">Archivé</span>{% endif %}</li>{% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="form-help">Aucun membre. Ajoutez les contacts depuis leur fiche.</p>
+                    {% endif %}
+                    {% if can_edit or can_delete %}
+                        <div class="card-actions">
+                            {% if can_edit %}<a class="button button-secondary" href="/groups/{{ group.id }}/edit">Modifier</a>{% endif %}
+                            {% if can_delete %}
+                                <form method="post" action="/groups/{{ group.id }}/archive">
+                                    <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                    <input type="hidden" name="archived" value="{{ group.archived ? '0' : '1' }}">
+                                    <button class="button {{ group.archived ? 'button-secondary' : 'button-danger' }}" type="submit">{{ group.archived ? 'Réactiver' : 'Archiver' }}</button>
+                                </form>
+                                {% if group.archived %}
+                                    <form method="post" action="/groups/{{ group.id }}/delete">
+                                        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                        <button class="button button-danger" type="submit" onclick="return confirm('Supprimer définitivement ce groupe ?')">Supprimer définitivement</button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </article>
+            {% else %}
+                <section class="empty-state"><p>Aucun groupe.</p></section>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

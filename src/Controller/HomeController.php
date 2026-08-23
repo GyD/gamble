@@ -25,6 +25,7 @@ final readonly class HomeController
         $response->getBody()->write($this->twig->render('home.html.twig', [
             'user' => $user,
             'can_view_contacts' => $user instanceof User && $this->authorization->can($user, 'contacts.view'),
+            'can_view_groups' => $user instanceof User && $this->authorization->can($user, 'groups.view'),
             'can_view_users' => $user instanceof User && $this->authorization->can($user, 'users.view'),
             'csrf' => [
                 'name_key' => 'csrf_name',

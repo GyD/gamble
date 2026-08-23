@@ -6,10 +6,12 @@ namespace Tests\Unit\Controller;
 
 use App\Controller\ContactController;
 use App\Domain\Contact\Contact;
+use App\Domain\Group\Group;
 use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Repository\AuditLogger;
 use App\Repository\ContactStore;
+use App\Repository\GroupStore;
 use App\Security\AuthorizationService;
 use App\Security\PermissionResolver;
 use App\Service\ContactService;
@@ -28,6 +30,7 @@ final class ContactControllerTest extends TestCase
     private ControllerContactStore $contacts;
     private ControllerContactAuditLogger $auditLogs;
     private ControllerContactPermissionResolver $permissions;
+    private ControllerContactGroupStore $groups;
     private ContactController $controller;
     private User $actor;
 
@@ -37,6 +40,7 @@ final class ContactControllerTest extends TestCase
         $this->actor = new User(1, '1', 'admin', 'Admin', null, UserStatus::Active);
         $this->contacts = new ControllerContactStore();
         $this->auditLogs = new ControllerContactAuditLogger();
+        $this->groups = new ControllerContactGroupStore();
         $this->permissions = new ControllerContactPermissionResolver([
             'contacts.create' => 'allow',
             'contacts.edit' => 'allow',
@@ -44,9 +48,10 @@ final class ContactControllerTest extends TestCase
         ]);
         $this->controller = new ContactController(
             $this->contacts,
-            new ContactService($pdo, $this->contacts, $this->auditLogs),
+            new ContactService($pdo, $this->contacts, $this->auditLogs, $this->groups),
             new AuthorizationService($this->permissions),
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
+            $this->groups,
         );
     }
 
@@ -74,6 +79,52 @@ final class ContactControllerTest extends TestCase
         self::assertStringContainsString('name="csrf_value" value="value-value"', $html);
     }
 
+    public function testIndexAlwaysShowsGroupFieldInCreateForm(): void
+    {
+        $html = (string) $this->controller->index($this->request('GET'), new Response())->getBody();
+
+        self::assertStringContainsString('<legend>Groupes</legend>', $html);
+        self::assertStringContainsString('Aucun groupe disponible.', $html);
+    }
+
+    public function testIndexOnlyShowsActiveGroupsInCreateForm(): void
+    {
+        $this->groups->groups[2] = new Group(2, 'Amis', null, null);
+        $this->groups->groups[3] = new Group(3, 'Anciens', null, new DateTimeImmutable());
+
+        $html = (string) $this->controller->index($this->request('GET'), new Response())->getBody();
+
+        self::assertStringContainsString('name="group_ids[]" value="2"', $html);
+        self::assertStringContainsString('<strong>Amis</strong>', $html);
+        self::assertStringNotContainsString('<strong>Anciens</strong>', $html);
+    }
+
+    public function testEditAlwaysShowsGroupField(): void
+    {
+        $this->contacts->contacts[1] = new Contact(1, 'Alice', '0042', null, null);
+
+        $html = (string) $this->controller
+            ->edit($this->request('GET'), new Response(), ['id' => '1'])
+            ->getBody();
+
+        self::assertStringContainsString('<legend>Groupes</legend>', $html);
+        self::assertStringContainsString('Aucun groupe disponible.', $html);
+    }
+
+    public function testEditShowsAvailableGroups(): void
+    {
+        $this->contacts->contacts[1] = new Contact(1, 'Alice', '0042', null, null);
+        $this->groups->groups[2] = new Group(2, 'Amis', null, null);
+        $this->groups->memberships[1] = [2];
+
+        $html = (string) $this->controller
+            ->edit($this->request('GET'), new Response(), ['id' => '1'])
+            ->getBody();
+
+        self::assertStringContainsString('name="group_ids[]" value="2" checked', $html);
+        self::assertStringContainsString('<strong>Amis</strong>', $html);
+    }
+
     public function testIndexOnlyOffersPermanentDeletionForArchivedContacts(): void
     {
         $this->contacts->contacts[1] = new Contact(1, 'Active', '1', null, null);
@@ -98,6 +149,25 @@ final class ContactControllerTest extends TestCase
         self::assertSame('Alice', $this->contacts->contacts[1]->name);
         self::assertSame('0042', $this->contacts->contacts[1]->phoneNumber);
         self::assertSame('contact.created', $this->auditLogs->entries[0]['action']);
+    }
+
+    public function testCreatePersistsSelectedGroups(): void
+    {
+        $this->groups->groups[2] = new Group(2, 'Amis', null, null);
+
+        $response = $this->controller->create(
+            $this->request('POST', [
+                'name' => 'Alice',
+                'phone_number' => '0042',
+                'note' => '',
+                'group_ids' => ['2'],
+            ]),
+            new Response(),
+        );
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame([2], $this->groups->memberships[1]);
+        self::assertSame([2], $this->auditLogs->entries[0]['after']['group_ids']);
     }
 
     /** @param array<string, mixed> $body */
@@ -246,6 +316,25 @@ final class ControllerContactStore implements ContactStore
     {
         unset($this->contacts[$id]);
     }
+}
+
+final class ControllerContactGroupStore implements GroupStore
+{
+    /** @var array<int, Group> */
+    public array $groups = [];
+
+    /** @var array<int, list<int>> */
+    public array $memberships = [];
+
+    public function findAll(): array { return array_values($this->groups); }
+    public function findById(int $id): ?Group { return $this->groups[$id] ?? null; }
+    public function create(string $name, ?string $note): Group { throw new \LogicException(); }
+    public function update(int $id, string $name, ?string $note): void { throw new \LogicException(); }
+    public function setArchived(int $id, bool $archived): void { throw new \LogicException(); }
+    public function delete(int $id): void { throw new \LogicException(); }
+    public function findAvailableForContact(int $contactId): array { return array_values($this->groups); }
+    public function memberGroupIds(int $contactId): array { return $this->memberships[$contactId] ?? []; }
+    public function syncContactGroups(int $contactId, array $groupIds): void { $this->memberships[$contactId] = $groupIds; }
 }
 
 final class ControllerContactPermissionResolver implements PermissionResolver

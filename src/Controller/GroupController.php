@@ -4,25 +4,22 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Domain\Group\Group;
 use App\Domain\User\User;
-use App\Repository\ContactStore;
 use App\Repository\GroupStore;
 use App\Security\AuthorizationService;
-use App\Service\ContactService;
+use App\Service\GroupService;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Twig\Environment;
 
-final readonly class ContactController
+final readonly class GroupController
 {
     public function __construct(
-        private ContactStore $contacts,
-        private ContactService $service,
+        private GroupStore $groups,
+        private GroupService $service,
         private AuthorizationService $authorization,
         private Environment $twig,
-        private GroupStore $groups,
     ) {
     }
 
@@ -30,15 +27,11 @@ final readonly class ContactController
     {
         $actor = $this->actor($request);
 
-        return $this->render($request, $response, 'contacts/index.html.twig', [
-            'contacts' => $this->contacts->findAll(),
-            'groups' => array_values(array_filter(
-                $this->groups->findAll(),
-                static fn(Group $group): bool => !$group->isArchived(),
-            )),
-            'can_create' => $this->authorization->can($actor, 'contacts.create'),
-            'can_edit' => $this->authorization->can($actor, 'contacts.edit'),
-            'can_archive' => $this->authorization->can($actor, 'contacts.delete'),
+        return $this->render($request, $response, 'groups/index.html.twig', [
+            'groups' => $this->groups->findAll(),
+            'can_create' => $this->authorization->can($actor, 'groups.create'),
+            'can_edit' => $this->authorization->can($actor, 'groups.edit'),
+            'can_delete' => $this->authorization->can($actor, 'groups.delete'),
             'saved' => isset($request->getQueryParams()['saved']),
         ]);
     }
@@ -50,78 +43,60 @@ final readonly class ContactController
             $this->service->create(
                 $this->actor($request)->id,
                 $this->stringValue($body, 'name'),
-                $this->stringValue($body, 'phone_number'),
                 $this->nullableStringValue($body, 'note'),
                 $this->ipAddress($request),
-                $this->arrayValue($body, 'group_ids'),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
 
-        return $response->withStatus(303)->withHeader('Location', '/contacts?saved=1');
+        return $response->withStatus(303)->withHeader('Location', '/groups?saved=1');
     }
 
     /** @param array<string, string> $args */
-    public function edit(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
+    public function edit(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
         try {
-            $contact = $this->contacts->findById($this->positiveId($args['id'] ?? ''));
+            $group = $this->groups->findById($this->positiveId($args['id'] ?? ''));
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
-
-        if ($contact === null) {
+        if ($group === null) {
             return $response->withStatus(404);
         }
 
-        return $this->render($request, $response, 'contacts/edit.html.twig', [
-            'contact' => $contact,
-            'groups' => $this->groups->findAvailableForContact($contact->id),
-            'selected_group_ids' => $this->groups->memberGroupIds($contact->id),
-        ]);
+        return $this->render($request, $response, 'groups/edit.html.twig', ['group' => $group]);
     }
 
     /** @param array<string, string> $args */
-    public function update(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
+    public function update(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
         try {
-            $contactId = $this->positiveId($args['id'] ?? '');
-            if ($this->contacts->findById($contactId) === null) {
+            $groupId = $this->positiveId($args['id'] ?? '');
+            if ($this->groups->findById($groupId) === null) {
                 return $response->withStatus(404);
             }
             $body = (array) $request->getParsedBody();
             $this->service->update(
                 $this->actor($request)->id,
-                $contactId,
+                $groupId,
                 $this->stringValue($body, 'name'),
-                $this->stringValue($body, 'phone_number'),
                 $this->nullableStringValue($body, 'note'),
                 $this->ipAddress($request),
-                $this->arrayValue($body, 'group_ids'),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
 
-        return $response->withStatus(303)->withHeader('Location', '/contacts?saved=1');
+        return $response->withStatus(303)->withHeader('Location', '/groups?saved=1');
     }
 
     /** @param array<string, string> $args */
-    public function archive(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
+    public function archive(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
         try {
-            $contactId = $this->positiveId($args['id'] ?? '');
-            if ($this->contacts->findById($contactId) === null) {
+            $groupId = $this->positiveId($args['id'] ?? '');
+            if ($this->groups->findById($groupId) === null) {
                 return $response->withStatus(404);
             }
             $body = (array) $request->getParsedBody();
@@ -130,40 +105,28 @@ final readonly class ContactController
                 '0' => false,
                 default => throw new InvalidArgumentException('Invalid archive status.'),
             };
-            $this->service->setArchived(
-                $this->actor($request)->id,
-                $contactId,
-                $archived,
-                $this->ipAddress($request),
-            );
+            $this->service->setArchived($this->actor($request)->id, $groupId, $archived, $this->ipAddress($request));
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
 
-        return $response->withStatus(303)->withHeader('Location', '/contacts?saved=1');
+        return $response->withStatus(303)->withHeader('Location', '/groups?saved=1');
     }
 
     /** @param array<string, string> $args */
-    public function delete(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-    ): ResponseInterface {
+    public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
         try {
-            $contactId = $this->positiveId($args['id'] ?? '');
-            if ($this->contacts->findById($contactId) === null) {
+            $groupId = $this->positiveId($args['id'] ?? '');
+            if ($this->groups->findById($groupId) === null) {
                 return $response->withStatus(404);
             }
-            $this->service->delete(
-                $this->actor($request)->id,
-                $contactId,
-                $this->ipAddress($request),
-            );
+            $this->service->delete($this->actor($request)->id, $groupId, $this->ipAddress($request));
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
 
-        return $response->withStatus(303)->withHeader('Location', '/contacts?saved=1');
+        return $response->withStatus(303)->withHeader('Location', '/groups?saved=1');
     }
 
     private function actor(ServerRequestInterface $request): User
@@ -179,7 +142,7 @@ final readonly class ContactController
     private function positiveId(string $value): int
     {
         if (preg_match('/^[1-9]\d*$/', $value) !== 1) {
-            throw new InvalidArgumentException('Invalid contact identifier.');
+            throw new InvalidArgumentException('Invalid group identifier.');
         }
 
         return (int) $value;
@@ -206,31 +169,12 @@ final readonly class ContactController
         return $value;
     }
 
-    /** @param array<string, mixed> $body @return array<mixed>|null */
-    private function arrayValue(array $body, string $key): ?array
-    {
-        if (!array_key_exists($key, $body)) {
-            return [];
-        }
-        if (!is_array($body[$key])) {
-            throw new InvalidArgumentException(sprintf('Invalid %s.', $key));
-        }
-
-        return $body[$key];
-    }
-
     /** @param array<string, mixed> $context */
-    private function render(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        string $template,
-        array $context,
-    ): ResponseInterface {
+    private function render(ServerRequestInterface $request, ResponseInterface $response, string $template, array $context): ResponseInterface
+    {
         $context['csrf'] = [
-            'name_key' => 'csrf_name',
-            'name' => $request->getAttribute('csrf_name'),
-            'value_key' => 'csrf_value',
-            'value' => $request->getAttribute('csrf_value'),
+            'name_key' => 'csrf_name', 'name' => $request->getAttribute('csrf_name'),
+            'value_key' => 'csrf_value', 'value' => $request->getAttribute('csrf_value'),
         ];
         $response->getBody()->write($this->twig->render($template, $context));
 

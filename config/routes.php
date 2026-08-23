@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Controller\AuthController;
 use App\Controller\Admin\UserController;
 use App\Controller\ContactController;
+use App\Controller\GroupController;
 use App\Controller\HealthController;
 use App\Controller\HomeController;
 use App\Middleware\RequireActiveUserMiddleware;
@@ -12,6 +13,10 @@ use App\Middleware\RequireContactsCreatePermissionMiddleware;
 use App\Middleware\RequireContactsDeletePermissionMiddleware;
 use App\Middleware\RequireContactsEditPermissionMiddleware;
 use App\Middleware\RequireContactsViewPermissionMiddleware;
+use App\Middleware\RequireGroupsCreatePermissionMiddleware;
+use App\Middleware\RequireGroupsDeletePermissionMiddleware;
+use App\Middleware\RequireGroupsEditPermissionMiddleware;
+use App\Middleware\RequireGroupsViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Middleware\RequireUsersViewPermissionMiddleware;
@@ -53,6 +58,31 @@ return static function (App $app): void {
         ->add(RequireContactsDeletePermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)
         ->setName('contacts.delete');
+
+    $app->get('/groups', [GroupController::class, 'index'])
+        ->add(RequireGroupsViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('groups');
+    $app->post('/groups', [GroupController::class, 'create'])
+        ->add(RequireGroupsCreatePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('groups.create');
+    $app->get('/groups/{id}/edit', [GroupController::class, 'edit'])
+        ->add(RequireGroupsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('groups.edit');
+    $app->post('/groups/{id}', [GroupController::class, 'update'])
+        ->add(RequireGroupsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('groups.update');
+    $app->post('/groups/{id}/archive', [GroupController::class, 'archive'])
+        ->add(RequireGroupsDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('groups.archive');
+    $app->post('/groups/{id}/delete', [GroupController::class, 'delete'])
+        ->add(RequireGroupsDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('groups.delete');
 
     $app->get('/admin/users', [UserController::class, 'index'])
         ->add(RequireUsersViewPermissionMiddleware::class)
