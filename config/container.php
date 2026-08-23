@@ -8,6 +8,8 @@ use Monolog\Logger;
 use App\Repository\OAuthStateRepository;
 use App\Repository\AuditLogger;
 use App\Repository\AuditLogRepository;
+use App\Repository\BetRepository;
+use App\Repository\BetStore;
 use App\Repository\ContactRepository;
 use App\Repository\ContactStore;
 use App\Repository\GroupRepository;
@@ -73,6 +75,7 @@ return [
     UserStore::class => DI\get(UserRepository::class),
     UserAdministrationStore::class => DI\get(UserRepository::class),
     AuditLogger::class => DI\get(AuditLogRepository::class),
+    BetStore::class => DI\get(BetRepository::class),
     ContactStore::class => DI\get(ContactRepository::class),
     GroupStore::class => DI\get(GroupRepository::class),
     OAuthStateStore::class => DI\get(OAuthStateRepository::class),

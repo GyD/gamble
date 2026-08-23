@@ -39,10 +39,13 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - permissions et audit atomique des opérations sur les contacts.
 - gestion des groupes avec note facultative, archivage et membres visibles en lecture seule ;
 - gestion des appartenances aux groupes depuis la fiche du contact, avec la permission `contacts.edit`.
+- création des paris avec un nombre libre de choix, description et date limite facultatives ;
+- cycle de vie des paris `open` → `closed` → `settled`, avec annulation définitive depuis l'état `open` ;
+- désignation obligatoire d'un choix gagnant lors du règlement ;
+- permissions, contrôle de propriété et audit atomique des opérations sur les paris.
 
 ### À construire
 
-- création et cycle de vie des paris ;
 - gestion des mises ;
 - clôture et règlement des paris ;
 - suivi des paiements et des soldes ;
@@ -50,7 +53,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - paramètres fonctionnels ;
 - extension de l'audit aux futurs modules métier.
 
-Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts et Groupes. Les fonctionnalités de gestion des paris restent à implémenter.
+Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes et Paris. Les fonctionnalités de gestion des mises restent à implémenter.
 
 ## Roadmap fonctionnelle
 

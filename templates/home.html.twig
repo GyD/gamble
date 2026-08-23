@@ -10,12 +10,15 @@
     </header>
 
     <section class="empty-state">
-        <h2>Le socle est prêt</h2>
-        <p>Votre compte Twitch est connecté et actif.</p>
+        <h2>Organisez vos paris privés</h2>
+        <p>Créez un pari, proposez ses choix puis suivez son cycle de vie.</p>
     </section>
 
-    {% if can_view_contacts or can_view_groups or can_view_users %}
+    {% if can_view_bets or can_view_contacts or can_view_groups or can_view_users %}
         <nav class="primary-navigation" aria-label="Navigation principale">
+            {% if can_view_bets %}
+                <a class="button button-primary" href="/bets">Gérer les paris</a>
+            {% endif %}
             {% if can_view_contacts %}
                 <a class="button button-primary" href="/contacts">Gérer les contacts</a>
             {% endif %}

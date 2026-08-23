@@ -1,0 +1,25 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Modifier le pari · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div><p class="eyebrow">Paris</p><h1>Modifier</h1></div>
+        <a class="button button-secondary" href="/bets">Retour</a>
+    </header>
+    <form method="post" action="/bets/{{ bet.id }}" class="bet-form form-section">
+        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+        <div class="form-field"><label for="bet-question">Question</label><input id="bet-question" name="question" type="text" maxlength="255" value="{{ bet.question }}" required></div>
+        <div class="form-field"><label for="bet-description">Description <span>(facultative)</span></label><textarea id="bet-description" name="description" maxlength="2000" rows="5">{{ bet.description }}</textarea></div>
+        <div class="form-field"><label for="bet-closes-at">Date limite <span>(facultative)</span></label><input id="bet-closes-at" name="closes_at" type="datetime-local" value="{{ bet.closesAt ? bet.closesAt|date('Y-m-d\\TH:i') : '' }}"></div>
+        <fieldset class="bet-options"><legend>Choix</legend>
+            <p class="form-help">Entre 2 et 20 choix uniques.</p>
+            <div class="bet-option-fields" data-option-fields>
+                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required></div>{% endfor %}
+            </div>
+            <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>
+        </fieldset>
+        <button class="button button-primary" type="submit">Enregistrer</button>
+    </form>
+    <script src="/assets/js/bet-options.js" defer></script>
+{% endblock %}

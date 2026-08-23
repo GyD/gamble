@@ -3,12 +3,19 @@
 declare(strict_types=1);
 
 use App\Controller\AuthController;
+use App\Controller\BetController;
 use App\Controller\Admin\UserController;
 use App\Controller\ContactController;
 use App\Controller\GroupController;
 use App\Controller\HealthController;
 use App\Controller\HomeController;
 use App\Middleware\RequireActiveUserMiddleware;
+use App\Middleware\RequireBetsClosePermissionMiddleware;
+use App\Middleware\RequireBetsCreatePermissionMiddleware;
+use App\Middleware\RequireBetsDeletePermissionMiddleware;
+use App\Middleware\RequireBetsEditPermissionMiddleware;
+use App\Middleware\RequireBetsSettlePermissionMiddleware;
+use App\Middleware\RequireBetsViewPermissionMiddleware;
 use App\Middleware\RequireContactsCreatePermissionMiddleware;
 use App\Middleware\RequireContactsDeletePermissionMiddleware;
 use App\Middleware\RequireContactsEditPermissionMiddleware;
@@ -33,6 +40,39 @@ return static function (App $app): void {
     $app->get('/access/pending', [AuthController::class, 'pending'])->setName('access.pending');
     $app->get('/access/suspended', [AuthController::class, 'suspended'])->setName('access.suspended');
     $app->post('/auth/logout', [AuthController::class, 'logout'])->setName('auth.logout');
+
+    $app->get('/bets', [BetController::class, 'index'])
+        ->add(RequireBetsViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets');
+    $app->post('/bets', [BetController::class, 'create'])
+        ->add(RequireBetsCreatePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.create');
+    $app->get('/bets/{id}', [BetController::class, 'show'])
+        ->add(RequireBetsViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.show');
+    $app->get('/bets/{id}/edit', [BetController::class, 'edit'])
+        ->add(RequireBetsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.edit');
+    $app->post('/bets/{id}', [BetController::class, 'update'])
+        ->add(RequireBetsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.update');
+    $app->post('/bets/{id}/close', [BetController::class, 'close'])
+        ->add(RequireBetsClosePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.close');
+    $app->post('/bets/{id}/cancel', [BetController::class, 'cancel'])
+        ->add(RequireBetsDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.cancel');
+    $app->post('/bets/{id}/settle', [BetController::class, 'settle'])
+        ->add(RequireBetsSettlePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.settle');
 
     $app->get('/contacts', [ContactController::class, 'index'])
         ->add(RequireContactsViewPermissionMiddleware::class)

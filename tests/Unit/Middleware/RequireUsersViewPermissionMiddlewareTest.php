@@ -7,6 +7,12 @@ namespace Tests\Unit\Middleware;
 use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Middleware\RequireUsersViewPermissionMiddleware;
+use App\Middleware\RequireBetsClosePermissionMiddleware;
+use App\Middleware\RequireBetsCreatePermissionMiddleware;
+use App\Middleware\RequireBetsDeletePermissionMiddleware;
+use App\Middleware\RequireBetsEditPermissionMiddleware;
+use App\Middleware\RequireBetsSettlePermissionMiddleware;
+use App\Middleware\RequireBetsViewPermissionMiddleware;
 use App\Middleware\RequireContactsCreatePermissionMiddleware;
 use App\Middleware\RequireContactsDeletePermissionMiddleware;
 use App\Middleware\RequireContactsEditPermissionMiddleware;
@@ -128,6 +134,12 @@ final class RequireUsersViewPermissionMiddlewareTest extends TestCase
     /** @return iterable<string, array{class-string<MiddlewareInterface>, string}> */
     public static function permissionMiddlewareCases(): iterable
     {
+        yield 'view bets' => [RequireBetsViewPermissionMiddleware::class, 'bets.view'];
+        yield 'create bets' => [RequireBetsCreatePermissionMiddleware::class, 'bets.create'];
+        yield 'edit bets' => [RequireBetsEditPermissionMiddleware::class, 'bets.edit'];
+        yield 'cancel bets' => [RequireBetsDeletePermissionMiddleware::class, 'bets.delete'];
+        yield 'close bets' => [RequireBetsClosePermissionMiddleware::class, 'bets.close'];
+        yield 'settle bets' => [RequireBetsSettlePermissionMiddleware::class, 'bets.settle'];
         yield 'view contacts' => [RequireContactsViewPermissionMiddleware::class, 'contacts.view'];
         yield 'create contacts' => [RequireContactsCreatePermissionMiddleware::class, 'contacts.create'];
         yield 'edit contacts' => [RequireContactsEditPermissionMiddleware::class, 'contacts.edit'];
