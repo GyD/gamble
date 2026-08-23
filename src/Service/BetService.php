@@ -9,6 +9,7 @@ use App\Domain\Bet\BetAccessDeniedException;
 use App\Domain\Bet\BetStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
+use App\Repository\StakeStore;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use PDO;
@@ -19,6 +20,7 @@ final readonly class BetService
     public function __construct(
         private PDO $pdo,
         private BetStore $bets,
+        private StakeStore $stakes,
         private AuditLogger $auditLogs,
     ) {
     }
@@ -73,7 +75,33 @@ final readonly class BetService
 
     public function cancel(int $actorUserId, int $betId, ?string $ipAddress): Bet
     {
-        return $this->transition($actorUserId, $betId, BetStatus::Open, BetStatus::Cancelled, null, 'bet.cancelled', $ipAddress);
+        return $this->transactional(function () use ($actorUserId, $betId, $ipAddress): Bet {
+            $before = $this->ownedBet($actorUserId, $betId);
+            if (!in_array($before->status, [BetStatus::Open, BetStatus::Closed], true)) {
+                throw new InvalidArgumentException('Only open or closed bets can be cancelled.');
+            }
+            $after = $this->bets->changeStatus($betId, BetStatus::Cancelled, null);
+            $this->auditLogs->record($actorUserId, 'bet.cancelled', 'bet', (string) $betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
+
+            return $after;
+        });
+    }
+
+    public function delete(int $actorUserId, int $betId, ?string $ipAddress): void
+    {
+        $this->transactional(function () use ($actorUserId, $betId, $ipAddress): void {
+            $bet = $this->ownedBet($actorUserId, $betId);
+            if ($bet->status !== BetStatus::Cancelled) {
+                throw new InvalidArgumentException('Only cancelled bets can be deleted.');
+            }
+            foreach ($this->stakes->findByBet($betId) as $stake) {
+                if ($stake->isPaid) {
+                    throw new InvalidArgumentException('All paid stakes must be refunded before deleting the bet.');
+                }
+            }
+            $this->bets->delete($betId);
+            $this->auditLogs->record($actorUserId, 'bet.deleted', 'bet', (string) $betId, $this->snapshot($bet), null, $ipAddress);
+        });
     }
 
     public function settle(int $actorUserId, int $betId, int $winningOptionId, ?string $ipAddress): Bet

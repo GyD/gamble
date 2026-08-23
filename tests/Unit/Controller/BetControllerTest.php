@@ -11,6 +11,8 @@ use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
+use App\Repository\StakeStore;
+use App\Domain\Stake\Stake;
 use App\Security\AuthorizationService;
 use App\Security\PermissionResolver;
 use App\Service\BetService;
@@ -78,6 +80,21 @@ final class BetControllerTest extends TestCase
         self::assertSame('Theirs', $store->bets[1]->question);
     }
 
+    public function testOwnerCanDeleteCancelledBet(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Cancelled', null, null, BetStatus::Cancelled, null, []);
+
+        $response = $this->controller($store, false)->delete(
+            $this->request('POST'),
+            new Response(),
+            ['id' => '1'],
+        );
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertNull($store->findById(1));
+    }
+
     private function controller(ControllerBetStore $store, bool $viewAll): BetController
     {
         $permissions = new class($viewAll) implements PermissionResolver {
@@ -90,7 +107,7 @@ final class BetControllerTest extends TestCase
 
         return new BetController(
             $store,
-            new BetService(new PDO('sqlite::memory:'), $store, new ControllerBetAuditLogger()),
+            new BetService(new PDO('sqlite::memory:'), $store, new ControllerBetStakeStore(), new ControllerBetAuditLogger()),
             new AuthorizationService($permissions),
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
         );
@@ -134,6 +151,18 @@ final class ControllerBetStore implements BetStore
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
     }
+    public function delete(int $id): void { unset($this->bets[$id]); }
+}
+
+final class ControllerBetStakeStore implements StakeStore
+{
+    public function findByBet(int $betId): array { return []; }
+    public function findById(int $id): ?Stake { return null; }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
+    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
+    public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
+    public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
+    public function delete(int $id): void { throw new \LogicException(); }
 }
 
 final class ControllerBetAuditLogger implements AuditLogger

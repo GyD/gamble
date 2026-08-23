@@ -1,3 +1,4 @@
+
 {% extends 'layout.html.twig' %}
 
 {% block title %}Paris · Gamble{% endblock %}
@@ -56,15 +57,18 @@
                                 <form method="post" action="/bets/{{ bet.id }}/close"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-primary" type="submit">Fermer</button></form>
                             {% endif %}
                             {% if can_cancel %}
-                                <form method="post" action="/bets/{{ bet.id }}/cancel"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Annuler définitivement ce pari ?')">Annuler</button></form>
+                                <form method="post" action="/bets/{{ bet.id }}/cancel"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Annuler ce pari ? Les mises payées devront ensuite être remboursées.')">Annuler</button></form>
                             {% endif %}
-                        {% elseif bet.status.value == 'closed' and can_settle %}
-                            <form method="post" action="/bets/{{ bet.id }}/settle" class="settle-form">
+                        {% elseif bet.status.value == 'closed' %}
+                            {% if can_settle %}<form method="post" action="/bets/{{ bet.id }}/settle" class="settle-form">
                                 <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
                                 <label for="winning-option-{{ bet.id }}">Choix gagnant</label>
                                 <select id="winning-option-{{ bet.id }}" name="winning_option_id" required><option value="">Sélectionner</option>{% for option in bet.options %}<option value="{{ option.id }}">{{ option.label }}</option>{% endfor %}</select>
                                 <button class="button button-primary" type="submit">Régler</button>
-                            </form>
+                            </form>{% endif %}
+                            {% if can_cancel %}<form method="post" action="/bets/{{ bet.id }}/cancel"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Annuler ce pari ? Les mises payées devront ensuite être remboursées.')">Annuler</button></form>{% endif %}
+                        {% elseif bet.status.value == 'cancelled' and can_cancel %}
+                            <form method="post" action="/bets/{{ bet.id }}/delete"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Supprimer définitivement ce pari annulé ? Cette action est irréversible.')">Supprimer définitivement</button></form>
                         {% endif %}
                     </div>
                 {% endif %}

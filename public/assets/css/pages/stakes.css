@@ -1,0 +1,91 @@
+.stake-layout {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.stake-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.stake-card {
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #dbe3ef);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+
+.stake-card.is-cancelled {
+    opacity: 0.75;
+}
+
+.stake-card h2,
+.stake-card p {
+    margin-top: 0;
+}
+
+.stake-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.stake-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.stake-actions > .button,
+.stake-actions > form {
+    flex: 1;
+    min-width: 0;
+}
+
+.stake-actions form .button {
+    width: 100%;
+}
+
+.stake-amount {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.stake-payment-status {
+    color: var(--danger, #b42318);
+    font-weight: 700;
+}
+
+.stake-payment-status.is-paid {
+    color: var(--success, #067647);
+}
+
+.stake-payment-status.is-refunded {
+    color: var(--color-text-muted, #475467);
+}
+
+.stake-cancellation-status {
+    color: var(--danger, #b42318);
+    font-weight: 700;
+}
+
+@media (min-width: 48rem) {
+    .stake-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 64rem) {
+    .stake-layout.has-create-form {
+        grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .stake-create-panel {
+        position: sticky;
+        top: 1.5rem;
+    }
+
+    .stake-layout.has-create-form .stake-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

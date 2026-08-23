@@ -18,7 +18,7 @@ final readonly class ContactService
         private PDO $pdo,
         private ContactStore $contacts,
         private AuditLogger $auditLogs,
-        private ?GroupStore $groups = null,
+        private GroupStore $groups,
     ) {
     }
 
@@ -38,7 +38,7 @@ final readonly class ContactService
             $after = $this->snapshot($contact);
             if ($groupIds !== null) {
                 $normalizedGroupIds = $this->validateGroupIds($contact->id, $groupIds);
-                $this->groups?->syncContactGroups($contact->id, $normalizedGroupIds);
+                $this->groups->syncContactGroups($contact->id, $normalizedGroupIds);
                 $after['group_ids'] = $normalizedGroupIds;
             }
             $this->auditLogs->record(
@@ -68,18 +68,16 @@ final readonly class ContactService
 
         $this->transactional(function () use ($actorUserId, $contactId, $name, $phoneNumber, $note, $ipAddress, $groupIds): void {
             $contact = $this->contact($contactId);
-            $beforeGroupIds = $this->groups?->memberGroupIds($contactId);
+            $beforeGroupIds = $this->groups->memberGroupIds($contactId);
             $normalizedGroupIds = $groupIds === null ? $beforeGroupIds : $this->validateGroupIds($contactId, $groupIds);
             $this->contacts->update($contactId, $name, $phoneNumber, $note);
-            if ($normalizedGroupIds !== null && $groupIds !== null) {
-                $this->groups?->syncContactGroups($contactId, $normalizedGroupIds);
+            if ($groupIds !== null) {
+                $this->groups->syncContactGroups($contactId, $normalizedGroupIds);
             }
             $before = $this->snapshot($contact);
             $after = ['name' => $name, 'phone_number' => $phoneNumber, 'note' => $note, 'archived' => $contact->isArchived()];
-            if ($beforeGroupIds !== null) {
-                $before['group_ids'] = $beforeGroupIds;
-                $after['group_ids'] = $normalizedGroupIds;
-            }
+            $before['group_ids'] = $beforeGroupIds;
+            $after['group_ids'] = $normalizedGroupIds;
             $this->auditLogs->record(
                 $actorUserId,
                 'contact.updated',
@@ -182,9 +180,6 @@ final readonly class ContactService
     /** @param array<mixed> $groupIds @return list<int> */
     private function validateGroupIds(int $contactId, array $groupIds): array
     {
-        if ($this->groups === null) {
-            throw new InvalidArgumentException('Group management is unavailable.');
-        }
         $normalized = [];
         foreach ($groupIds as $groupId) {
             if (!is_string($groupId) && !is_int($groupId)) {

@@ -87,6 +87,7 @@ final readonly class BetController
             'can_cancel' => $this->authorization->can($actor, 'bets.delete'),
             'can_close' => $this->authorization->can($actor, 'bets.close'),
             'can_settle' => $this->authorization->can($actor, 'bets.settle'),
+            'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
         ]);
     }
 
@@ -154,6 +155,24 @@ final readonly class BetController
                 $this->actor($request)->id,
                 $betId,
                 $this->positiveId($this->stringValue($body, 'winning_option_id')),
+                $this->ipAddress($request),
+            );
+        } catch (BetAccessDeniedException $exception) {
+            return $this->forbidden($response, $exception->getMessage());
+        } catch (InvalidArgumentException $exception) {
+            return $this->badRequest($response, $exception->getMessage());
+        }
+
+        return $this->redirect($response);
+    }
+
+    /** @param array<string, string> $args */
+    public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        try {
+            $this->service->delete(
+                $this->actor($request)->id,
+                $this->ownedBetId($request, $args),
                 $this->ipAddress($request),
             );
         } catch (BetAccessDeniedException $exception) {

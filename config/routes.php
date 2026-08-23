@@ -9,6 +9,7 @@ use App\Controller\ContactController;
 use App\Controller\GroupController;
 use App\Controller\HealthController;
 use App\Controller\HomeController;
+use App\Controller\StakeController;
 use App\Middleware\RequireActiveUserMiddleware;
 use App\Middleware\RequireBetsClosePermissionMiddleware;
 use App\Middleware\RequireBetsCreatePermissionMiddleware;
@@ -24,6 +25,10 @@ use App\Middleware\RequireGroupsCreatePermissionMiddleware;
 use App\Middleware\RequireGroupsDeletePermissionMiddleware;
 use App\Middleware\RequireGroupsEditPermissionMiddleware;
 use App\Middleware\RequireGroupsViewPermissionMiddleware;
+use App\Middleware\RequireStakesCreatePermissionMiddleware;
+use App\Middleware\RequireStakesDeletePermissionMiddleware;
+use App\Middleware\RequireStakesEditPermissionMiddleware;
+use App\Middleware\RequireStakesViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Middleware\RequireUsersViewPermissionMiddleware;
@@ -69,10 +74,42 @@ return static function (App $app): void {
         ->add(RequireBetsDeletePermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)
         ->setName('bets.cancel');
+    $app->post('/bets/{id}/delete', [BetController::class, 'delete'])
+        ->add(RequireBetsDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.delete');
     $app->post('/bets/{id}/settle', [BetController::class, 'settle'])
         ->add(RequireBetsSettlePermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)
         ->setName('bets.settle');
+    $app->get('/bets/{id}/stakes', [StakeController::class, 'index'])
+        ->add(RequireStakesViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes');
+    $app->post('/bets/{id}/stakes', [StakeController::class, 'create'])
+        ->add(RequireStakesCreatePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes.create');
+    $app->post('/bets/{id}/stakes/{stakeId}', [StakeController::class, 'update'])
+        ->add(RequireStakesEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes.update');
+    $app->post('/bets/{id}/stakes/{stakeId}/payment-status', [StakeController::class, 'setPaid'])
+        ->add(RequireStakesEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes.payment-status');
+    $app->post('/bets/{id}/stakes/{stakeId}/cancellation-status', [StakeController::class, 'setCancelled'])
+        ->add(RequireStakesDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes.cancellation-status');
+    $app->post('/bets/{id}/stakes/{stakeId}/refund-status', [StakeController::class, 'setRefunded'])
+        ->add(RequireStakesEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes.refund-status');
+    $app->post('/bets/{id}/stakes/{stakeId}/delete', [StakeController::class, 'delete'])
+        ->add(RequireStakesDeletePermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('stakes.delete');
 
     $app->get('/contacts', [ContactController::class, 'index'])
         ->add(RequireContactsViewPermissionMiddleware::class)

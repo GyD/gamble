@@ -92,6 +92,12 @@ final readonly class BetRepository implements BetStore
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated bet.');
     }
 
+    public function delete(int $id): void
+    {
+        $statement = $this->pdo->prepare('DELETE FROM bets WHERE id = :id');
+        $statement->execute(['id' => $id]);
+    }
+
     /** @param array<string, int> $parameters @return list<Bet> */
     private function findWith(string $condition, array $parameters): array
     {

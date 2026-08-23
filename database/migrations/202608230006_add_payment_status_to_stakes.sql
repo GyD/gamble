@@ -1,0 +1,2 @@
+ALTER TABLE stakes
+    ADD COLUMN is_paid BOOLEAN NOT NULL DEFAULT FALSE AFTER amount_cents;

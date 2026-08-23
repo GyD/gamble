@@ -40,20 +40,26 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - gestion des groupes avec note facultative, archivage et membres visibles en lecture seule ;
 - gestion des appartenances aux groupes depuis la fiche du contact, avec la permission `contacts.edit`.
 - création des paris avec un nombre libre de choix, description et date limite facultatives ;
-- cycle de vie des paris `open` → `closed` → `settled`, avec annulation définitive depuis l'état `open` ;
+- cycle de vie des paris `open` → `closed` → `settled`, avec annulation depuis les états `open` ou `closed` ;
 - désignation obligatoire d'un choix gagnant lors du règlement ;
 - permissions, contrôle de propriété et audit atomique des opérations sur les paris.
+- gestion de plusieurs mises par contact et par pari, sur un ou plusieurs choix ;
+- création et modification des mises tant que le pari est ouvert ;
+- annulation possible d’une mise payée ou non payée, et obligatoire avant sa suppression définitive ;
+- une mise annulée et payée peut être marquée remboursée, sans devoir être réactivée ;
+- suppression définitive d’une mise uniquement lorsqu’elle est annulée et non payée ;
+- montants de mises stockés en centimes, statut payé/non payé, permissions dédiées et audit atomique ;
+- sur un pari annulé, une mise payée est à rembourser et une mise non payée est considérée comme remboursée ;
+- suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée.
 
 ### À construire
 
-- gestion des mises ;
-- clôture et règlement des paris ;
 - suivi des paiements et des soldes ;
 - statistiques ;
 - paramètres fonctionnels ;
 - extension de l'audit aux futurs modules métier.
 
-Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes et Paris. Les fonctionnalités de gestion des mises restent à implémenter.
+Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris et Mises.
 
 ## Roadmap fonctionnelle
 

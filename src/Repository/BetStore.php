@@ -37,4 +37,6 @@ interface BetStore
     ): Bet;
 
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet;
+
+    public function delete(int $id): void;
 }

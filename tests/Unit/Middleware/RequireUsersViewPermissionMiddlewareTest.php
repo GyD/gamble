@@ -21,6 +21,10 @@ use App\Middleware\RequireGroupsCreatePermissionMiddleware;
 use App\Middleware\RequireGroupsDeletePermissionMiddleware;
 use App\Middleware\RequireGroupsEditPermissionMiddleware;
 use App\Middleware\RequireGroupsViewPermissionMiddleware;
+use App\Middleware\RequireStakesCreatePermissionMiddleware;
+use App\Middleware\RequireStakesDeletePermissionMiddleware;
+use App\Middleware\RequireStakesEditPermissionMiddleware;
+use App\Middleware\RequireStakesViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Security\AuthorizationService;
@@ -39,8 +43,9 @@ final class RequireUsersViewPermissionMiddlewareTest extends TestCase
     #[DataProvider('accessCases')]
     public function testAccessIsControlledByPermission(
         ?string $effect,
-        int $expectedStatus,
-    ): void {
+        int     $expectedStatus,
+    ): void
+    {
         $resolver = new class($effect) implements PermissionResolver {
             public function __construct(private readonly ?string $effect)
             {
@@ -104,7 +109,8 @@ final class RequireUsersViewPermissionMiddlewareTest extends TestCase
     public function testEachMiddlewareRequestsItsOwnPermission(
         string $middlewareClass,
         string $expectedPermission,
-    ): void {
+    ): void
+    {
         $resolver = new class($expectedPermission) implements PermissionResolver {
             public function __construct(private readonly string $expectedPermission)
             {
@@ -148,6 +154,10 @@ final class RequireUsersViewPermissionMiddlewareTest extends TestCase
         yield 'create groups' => [RequireGroupsCreatePermissionMiddleware::class, 'groups.create'];
         yield 'edit groups' => [RequireGroupsEditPermissionMiddleware::class, 'groups.edit'];
         yield 'delete groups' => [RequireGroupsDeletePermissionMiddleware::class, 'groups.delete'];
+        yield 'view stakes' => [RequireStakesViewPermissionMiddleware::class, 'stakes.view'];
+        yield 'create stakes' => [RequireStakesCreatePermissionMiddleware::class, 'stakes.create'];
+        yield 'edit stakes' => [RequireStakesEditPermissionMiddleware::class, 'stakes.edit'];
+        yield 'delete stakes' => [RequireStakesDeletePermissionMiddleware::class, 'stakes.delete'];
         yield 'view users' => [RequireUsersViewPermissionMiddleware::class, 'users.view'];
         yield 'manage users' => [RequireUsersManagePermissionMiddleware::class, 'users.manage'];
         yield 'manage permissions' => [

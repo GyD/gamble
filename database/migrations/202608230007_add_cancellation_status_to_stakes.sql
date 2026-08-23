@@ -1,0 +1,2 @@
+ALTER TABLE stakes
+    ADD COLUMN is_cancelled BOOLEAN NOT NULL DEFAULT FALSE AFTER is_paid;

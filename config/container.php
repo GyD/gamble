@@ -14,6 +14,8 @@ use App\Repository\ContactRepository;
 use App\Repository\ContactStore;
 use App\Repository\GroupRepository;
 use App\Repository\GroupStore;
+use App\Repository\StakeRepository;
+use App\Repository\StakeStore;
 use App\Repository\PdoPermissionRepository;
 use App\Repository\UserAdministrationStore;
 use App\Repository\UserRepository;
@@ -78,6 +80,7 @@ return [
     BetStore::class => DI\get(BetRepository::class),
     ContactStore::class => DI\get(ContactRepository::class),
     GroupStore::class => DI\get(GroupRepository::class),
+    StakeStore::class => DI\get(StakeRepository::class),
     OAuthStateStore::class => DI\get(OAuthStateRepository::class),
     PermissionResolver::class => DI\get(PdoPermissionRepository::class),
     TwitchClient::class => factory(static fn(): TwitchClient => new CurlTwitchClient(

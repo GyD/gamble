@@ -9,6 +9,8 @@ use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
+use App\Repository\StakeStore;
+use App\Domain\Stake\Stake;
 use App\Service\BetService;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -18,14 +20,16 @@ use PHPUnit\Framework\TestCase;
 final class BetServiceTest extends TestCase
 {
     private BetTestStore $bets;
+    private BetTestStakeStore $stakes;
     private BetTestAuditLogger $audit;
     private BetService $service;
 
     protected function setUp(): void
     {
         $this->bets = new BetTestStore();
+        $this->stakes = new BetTestStakeStore();
         $this->audit = new BetTestAuditLogger();
-        $this->service = new BetService(new PDO('sqlite::memory:'), $this->bets, $this->audit);
+        $this->service = new BetService(new PDO('sqlite::memory:'), $this->bets, $this->stakes, $this->audit);
     }
 
     public function testBetIsNormalizedCreatedOpenAndAudited(): void
@@ -67,6 +71,39 @@ final class BetServiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Bet must be open to become closed.');
         $this->service->close(7, $bet->id, null);
+    }
+
+    public function testClosedBetCanBeCancelled(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $this->service->close(7, $bet->id, null);
+
+        $cancelled = $this->service->cancel(7, $bet->id, null);
+
+        self::assertSame(BetStatus::Cancelled, $cancelled->status);
+    }
+
+    public function testCancelledBetCannotBeDeletedWhilePaidStakeIsNotRefunded(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $this->service->cancel(7, $bet->id, null);
+        $this->stakes->stakes[] = new Stake(1, $bet->id, $bet->options[0]->id, 20, 1000, 'Alice', 'Blue', false, true);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('All paid stakes must be refunded');
+        $this->service->delete(7, $bet->id, null);
+    }
+
+    public function testCancelledBetCanBeDeletedAfterPaidStakesAreRefunded(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $this->service->cancel(7, $bet->id, null);
+        $this->stakes->stakes[] = new Stake(1, $bet->id, $bet->options[0]->id, 20, 1000, 'Alice', 'Blue', false, false);
+
+        $this->service->delete(7, $bet->id, null);
+
+        self::assertNull($this->bets->findById($bet->id));
+        self::assertSame('bet.deleted', $this->audit->entries[array_key_last($this->audit->entries)]['action']);
     }
 
     public function testOnlyOwnerCanChangeBet(): void
@@ -113,11 +150,25 @@ final class BetTestStore implements BetStore
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
     }
+    public function delete(int $id): void { unset($this->bets[$id]); }
     /** @param list<string> $labels @return list<BetOption> */
     private function options(array $labels): array
     {
         return array_map(fn(string $label, int $position): BetOption => new BetOption($this->nextOptionId++, $label, $position), $labels, array_keys($labels));
     }
+}
+
+final class BetTestStakeStore implements StakeStore
+{
+    /** @var list<Stake> */
+    public array $stakes = [];
+    public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
+    public function findById(int $id): ?Stake { return null; }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
+    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
+    public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
+    public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
+    public function delete(int $id): void { throw new \LogicException(); }
 }
 
 final class BetTestAuditLogger implements AuditLogger
