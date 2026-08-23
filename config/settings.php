@@ -13,7 +13,7 @@ return [
     ],
     'database' => [
         'host' => $_ENV['DB_HOST'] ?? '127.0.0.1',
-        'port' => (int) ($_ENV['DB_PORT'] ?? 3306),
+        'port' => (int)($_ENV['DB_PORT'] ?? 3306),
         'database' => $_ENV['DB_DATABASE'] ?? 'gamble',
         'username' => $_ENV['DB_USERNAME'] ?? 'gamble',
         'password' => $_ENV['DB_PASSWORD'] ?? '',
@@ -22,6 +22,11 @@ return [
     'session' => [
         'name' => $_ENV['SESSION_NAME'] ?? 'gamble_session',
         'secure' => filter_var($_ENV['SESSION_SECURE'] ?? true, FILTER_VALIDATE_BOOL),
+    ],
+    'twitch' => [
+        'client_id' => $_ENV['TWITCH_CLIENT_ID'] ?? '',
+        'client_secret' => $_ENV['TWITCH_CLIENT_SECRET'] ?? '',
+        'redirect_uri' => $_ENV['TWITCH_REDIRECT_URI'] ?? '',
     ],
     'paths' => [
         'root' => $root,

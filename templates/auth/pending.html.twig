@@ -1,0 +1,16 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Accès en attente · Gamble{% endblock %}
+
+{% block content %}
+    <section class="auth-card">
+        <p class="eyebrow">Compte reçu</p>
+        <h1>Accès en attente</h1>
+        <p>Un administrateur doit activer votre compte avant votre première utilisation.</p>
+        <form method="post" action="/auth/logout">
+            <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+            <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+            <button type="submit" class="button button-secondary">Se déconnecter</button>
+        </form>
+    </section>
+{% endblock %}

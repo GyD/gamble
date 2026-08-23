@@ -31,6 +31,34 @@ Points de contrôle :
 - application : `https://gamble.ddev.site/`
 - santé : `https://gamble.ddev.site/health`
 
+## Authentification Twitch
+
+Créer une application dans la console développeur Twitch et déclarer exactement cette URL de redirection locale :
+
+```text
+https://gamble.ddev.site/auth/twitch/callback
+```
+
+Renseigner ensuite dans `.env` :
+
+- `TWITCH_CLIENT_ID`
+- `TWITCH_CLIENT_SECRET`
+- `TWITCH_REDIRECT_URI`
+
+Le flux ne demande aucun scope Twitch. Un utilisateur inconnu est créé avec le statut `pending`.
+
+Pour amorcer le premier administrateur :
+
+1. se connecter une première fois avec Twitch ;
+2. relever son identifiant numérique Twitch ;
+3. exécuter :
+
+```bash
+ddev composer promote-admin -- <twitch-id>
+```
+
+La commande active le compte et lui affecte le rôle `admin`. Elle modifie la base et doit donc être lancée manuellement.
+
 ## Tests
 
 ```bash

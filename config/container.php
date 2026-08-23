@@ -5,6 +5,14 @@ declare(strict_types=1);
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
+use App\Repository\OAuthStateRepository;
+use App\Repository\PdoPermissionRepository;
+use App\Repository\UserRepository;
+use App\Repository\UserStore;
+use App\Security\CurlTwitchClient;
+use App\Security\OAuthStateStore;
+use App\Security\PermissionResolver;
+use App\Security\TwitchClient;
 use Psr\Log\LoggerInterface;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
@@ -55,4 +63,12 @@ return [
             ],
         );
     }),
+    UserStore::class => DI\get(UserRepository::class),
+    OAuthStateStore::class => DI\get(OAuthStateRepository::class),
+    PermissionResolver::class => DI\get(PdoPermissionRepository::class),
+    TwitchClient::class => factory(static fn(): TwitchClient => new CurlTwitchClient(
+        $settings['twitch']['client_id'],
+        $settings['twitch']['client_secret'],
+        $settings['twitch']['redirect_uri'],
+    )),
 ];

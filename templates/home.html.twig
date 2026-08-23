@@ -6,10 +6,17 @@
     <header class="page-header">
         <p class="eyebrow">Gestion de paris</p>
         <h1>Vos paris</h1>
+        <p class="identity">Connecté comme <strong>{{ user.twitchDisplayName }}</strong></p>
     </header>
 
     <section class="empty-state">
         <h2>Le socle est prêt</h2>
-        <p>La connexion Twitch et la gestion des accès arrivent à la prochaine étape.</p>
+        <p>Votre compte Twitch est connecté et actif.</p>
     </section>
+
+    <form method="post" action="/auth/logout" class="logout-form">
+        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+        <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+        <button type="submit" class="button button-secondary">Se déconnecter</button>
+    </form>
 {% endblock %}

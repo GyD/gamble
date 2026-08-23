@@ -30,7 +30,8 @@
     },
     "scripts": {
         "test": "phpunit",
-        "migrate": "php bin/migrate"
+        "migrate": "php bin/migrate",
+        "promote-admin": "php bin/promote-admin"
     },
     "config": {
         "allow-plugins": {},

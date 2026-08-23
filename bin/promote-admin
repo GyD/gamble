@@ -1,0 +1,29 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Repository\UserRepository;
+use DI\ContainerBuilder;
+use Dotenv\Dotenv;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
+
+$twitchId = $argv[1] ?? '';
+if (!is_string($twitchId) || preg_match('/^\d+$/', $twitchId) !== 1) {
+    fwrite(STDERR, "Usage: php bin/promote-admin <twitch-id>\n");
+    exit(1);
+}
+
+$builder = new ContainerBuilder();
+$builder->addDefinitions(require dirname(__DIR__) . '/config/container.php');
+$repository = $builder->build()->get(UserRepository::class);
+
+if (!$repository->grantAdministratorAccess($twitchId)) {
+    fwrite(STDERR, "No user found for this Twitch ID. Sign in once before promotion.\n");
+    exit(1);
+}
+
+fwrite(STDOUT, "User activated and administrator role assigned.\n");
