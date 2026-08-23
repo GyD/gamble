@@ -1,0 +1,59 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Accès de {{ target.twitchDisplayName }} · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div>
+            <p class="eyebrow">Administration</p>
+            <h1>Accès de {{ target.twitchDisplayName }}</h1>
+        </div>
+        <a class="button button-secondary" href="/admin/users">Retour</a>
+    </header>
+
+    {% if saved %}
+        <p class="notice notice-success" role="status">Accès enregistrés.</p>
+    {% endif %}
+
+    {% if target.id == current_user.id %}
+        <p class="notice">Vous ne pouvez pas modifier vos propres accès.</p>
+    {% else %}
+        <form method="post" action="/admin/users/{{ target.id }}/access" class="access-form">
+            <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+            <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+
+            <fieldset class="form-section">
+                <legend>Rôles</legend>
+                <div class="choice-grid">
+                    {% for role in roles %}
+                        <label class="choice-row">
+                            <input type="checkbox" name="roles[]" value="{{ role.name }}"
+                                   {% if role.name in selected_roles %}checked{% endif %}>
+                            <span><strong>{{ role.label }}</strong><small>{{ role.name }}</small></span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <fieldset class="form-section">
+                <legend>Exceptions de permissions</legend>
+                <p class="form-help">Une exception remplace les permissions héritées des rôles.</p>
+                <div class="permission-list">
+                    {% for permission in permissions %}
+                        {% set current_effect = permission_effects[permission.name] ?? 'inherit' %}
+                        <label class="permission-row">
+                            <span><strong>{{ permission.name }}</strong><small>{{ permission.description }}</small></span>
+                            <select name="permissions[{{ permission.name }}]">
+                                <option value="inherit" {% if current_effect == 'inherit' %}selected{% endif %}>Héritée</option>
+                                <option value="allow" {% if current_effect == 'allow' %}selected{% endif %}>Autoriser</option>
+                                <option value="deny" {% if current_effect == 'deny' %}selected{% endif %}>Refuser</option>
+                            </select>
+                        </label>
+                    {% endfor %}
+                </div>
+            </fieldset>
+
+            <button class="button button-primary" type="submit">Enregistrer les accès</button>
+        </form>
+    {% endif %}
+{% endblock %}

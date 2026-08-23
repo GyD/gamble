@@ -1,0 +1,65 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Utilisateurs · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div>
+            <p class="eyebrow">Administration</p>
+            <h1>Utilisateurs</h1>
+        </div>
+        <a class="button button-secondary" href="/">Retour</a>
+    </header>
+
+    {% if saved %}
+        <p class="notice notice-success" role="status">Modification enregistrée.</p>
+    {% endif %}
+
+    <div class="user-list">
+        {% for managed_user in users %}
+            <article class="user-card">
+                <div class="user-card-header">
+                    {% if managed_user.twitch_avatar_url %}
+                        <img class="avatar" src="{{ managed_user.twitch_avatar_url }}" alt="">
+                    {% endif %}
+                    <div>
+                        <h2>{{ managed_user.twitch_display_name }}</h2>
+                        <p>@{{ managed_user.twitch_login }}</p>
+                    </div>
+                    <span class="status status-{{ managed_user.status }}">{{ managed_user.status }}</span>
+                </div>
+
+                <dl class="user-meta">
+                    <div><dt>Rôles</dt><dd>{{ managed_user.role_labels ?: 'Aucun' }}</dd></div>
+                    <div><dt>Dernière connexion</dt><dd>{{ managed_user.last_login_at ?: 'Jamais' }}</dd></div>
+                </dl>
+
+                {% if managed_user.id != current_user.id %}
+                    <div class="card-actions">
+                        {% if managed_user.status != 'active' %}
+                            <form method="post" action="/admin/users/{{ managed_user.id }}/status">
+                                <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                                <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                <input type="hidden" name="status" value="active">
+                                <button class="button button-primary" type="submit">Activer</button>
+                            </form>
+                        {% endif %}
+                        {% if managed_user.status != 'suspended' %}
+                            <form method="post" action="/admin/users/{{ managed_user.id }}/status">
+                                <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                                <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                <input type="hidden" name="status" value="suspended">
+                                <button class="button button-danger" type="submit">Suspendre</button>
+                            </form>
+                        {% endif %}
+                        <a class="button button-secondary" href="/admin/users/{{ managed_user.id }}/access">Accès</a>
+                    </div>
+                {% else %}
+                    <p class="self-label">Votre compte · modification directe désactivée</p>
+                {% endif %}
+            </article>
+        {% else %}
+            <section class="empty-state"><p>Aucun utilisateur.</p></section>
+        {% endfor %}
+    </div>
+{% endblock %}

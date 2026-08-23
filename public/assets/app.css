@@ -108,3 +108,180 @@ h1 {
 .logout-form {
     margin-top: 1rem;
 }
+
+.primary-navigation {
+    margin-top: 1rem;
+}
+
+.page-header-row,
+.user-card-header,
+.card-actions,
+.permission-row {
+    display: flex;
+    align-items: center;
+}
+
+.page-header-row,
+.user-card-header,
+.permission-row {
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.user-list,
+.permission-list,
+.access-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.user-card,
+.form-section {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+}
+
+.user-card h2,
+.user-card p {
+    margin: 0;
+}
+
+.user-card-header > div {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-card-header p,
+.self-label,
+.form-help,
+.choice-row small,
+.permission-row small {
+    color: #64748b;
+}
+
+.avatar {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+}
+
+.status {
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.status-active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-suspended {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.user-meta {
+    display: grid;
+    gap: 0.5rem;
+    margin: 1rem 0;
+}
+
+.user-meta div {
+    display: grid;
+    grid-template-columns: 8rem 1fr;
+}
+
+.user-meta dt {
+    color: #64748b;
+}
+
+.user-meta dd {
+    margin: 0;
+}
+
+.card-actions {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.button-danger {
+    background: #b91c1c;
+    color: #fff;
+}
+
+.notice {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: #fef3c7;
+    color: #78350f;
+}
+
+.notice-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.form-section {
+    margin: 0;
+}
+
+.form-section legend {
+    padding: 0 0.25rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.choice-grid {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.choice-row {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    background: #f8fafc;
+}
+
+.choice-row span,
+.permission-row span,
+.choice-row small,
+.permission-row small {
+    display: block;
+}
+
+.permission-row {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.permission-row select {
+    min-height: 2.5rem;
+    padding: 0.4rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    background: #fff;
+}
+
+@media (max-width: 34rem) {
+    .page-header-row,
+    .permission-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .page-header-row .button,
+    .permission-row select {
+        width: 100%;
+    }
+}

@@ -14,6 +14,12 @@
         <p>Votre compte Twitch est connecté et actif.</p>
     </section>
 
+    {% if can_view_users %}
+        <nav class="primary-navigation" aria-label="Administration">
+            <a class="button button-primary" href="/admin/users">Gérer les utilisateurs</a>
+        </nav>
+    {% endif %}
+
     <form method="post" action="/auth/logout" class="logout-form">
         <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
         <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
