@@ -19,6 +19,14 @@
     gap: var(--space-lg);
 }
 
+.page-header-back > :first-child {
+    min-width: 0;
+}
+
+.page-header-back .button {
+    flex-shrink: 0;
+}
+
 .navigation-menu {
     display: flex;
     align-items: center;
@@ -136,12 +144,12 @@
 }
 
 @media (max-width: 34rem) {
-    .page-header-row {
+    .page-header-row:not(.page-header-back) {
         align-items: stretch;
         flex-direction: column;
     }
 
-    .page-header-row .button {
+    .page-header-row:not(.page-header-back) .button {
         width: 100%;
     }
 }
