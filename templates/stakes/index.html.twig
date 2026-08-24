@@ -20,7 +20,7 @@
                 <form method="post" action="/bets/{{ bet.id }}/stakes" class="stake-form">
                     <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
                     <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
-                    <div class="form-field"><label for="stake-contact">Contact</label><select id="stake-contact" name="contact_id" required><option value="">Sélectionner</option>{% for contact in contacts %}<option value="{{ contact.id }}">{{ contact.name }} · {{ contact.phoneNumber }}</option>{% endfor %}</select></div>
+                    <div class="form-field"><label for="stake-contact">Contact</label><select id="stake-contact" name="contact_id" required><option value="">Sélectionner</option>{% for contact in contacts %}<option value="{{ contact.id }}">{{ contact.name }} · {{ contact.phoneNumber }} · {{ contact_groups[contact.id] is defined ? 'Groupes : ' ~ contact_groups[contact.id]|join(', ') : 'Sans groupe' }}</option>{% endfor %}</select></div>
                     <div class="form-field"><label for="stake-option">Choix</label><select id="stake-option" name="bet_option_id" required><option value="">Sélectionner</option>{% for option in bet.options %}<option value="{{ option.id }}">{{ option.label }}</option>{% endfor %}</select></div>
                     <div class="form-field"><label for="stake-amount">Montant</label><input id="stake-amount" name="amount" type="number" min="0.01" max="999999.99" step="0.01" inputmode="decimal" required></div>
                     <button class="button button-primary" type="submit">Ajouter</button>
@@ -38,12 +38,13 @@
                     <form id="stake-edit-{{ stake.id }}" method="post" action="/bets/{{ bet.id }}/stakes/{{ stake.id }}" class="stake-form">
                         <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
                         <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
-                        <div class="form-field"><label for="contact-{{ stake.id }}">Contact</label><select id="contact-{{ stake.id }}" name="contact_id" required>{% for contact in contacts %}<option value="{{ contact.id }}"{% if contact.id == stake.contactId %} selected{% endif %}>{{ contact.name }} · {{ contact.phoneNumber }}</option>{% endfor %}</select></div>
+                        <div class="form-field"><label for="contact-{{ stake.id }}">Contact</label><select id="contact-{{ stake.id }}" name="contact_id" required>{% for contact in contacts %}<option value="{{ contact.id }}"{% if contact.id == stake.contactId %} selected{% endif %}>{{ contact.name }} · {{ contact.phoneNumber }} · {{ contact_groups[contact.id] is defined ? 'Groupes : ' ~ contact_groups[contact.id]|join(', ') : 'Sans groupe' }}</option>{% endfor %}</select></div>
                         <div class="form-field"><label for="option-{{ stake.id }}">Choix</label><select id="option-{{ stake.id }}" name="bet_option_id" required>{% for option in bet.options %}<option value="{{ option.id }}"{% if option.id == stake.betOptionId %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></div>
                         <div class="form-field"><label for="amount-{{ stake.id }}">Montant</label><input id="amount-{{ stake.id }}" name="amount" type="number" min="0.01" max="999999.99" step="0.01" inputmode="decimal" value="{{ '%.2f'|format(stake.amountCents / 100) }}" required></div>
                     </form>
                 {% else %}
                     <h2>{{ stake.contactName }}</h2>
+                    <p class="form-help">{{ contact_groups[stake.contactId] is defined ? 'Groupes : ' ~ contact_groups[stake.contactId]|join(', ') : 'Sans groupe' }}</p>
                     <p>{{ stake.optionLabel }}</p>
                     <p class="stake-amount">{{ '%.2f'|format(stake.amountCents / 100) }} €</p>
                     {% if stake.contactArchived %}<p class="form-help">Contact archivé : cette mise reste consultable mais ne peut plus être modifiée.</p>{% endif %}

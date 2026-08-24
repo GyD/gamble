@@ -9,12 +9,14 @@ use App\Domain\Bet\Bet;
 use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
 use App\Domain\Contact\Contact;
+use App\Domain\Group\Group;
 use App\Domain\Stake\Stake;
 use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
 use App\Repository\ContactStore;
+use App\Repository\GroupStore;
 use App\Repository\StakeStore;
 use App\Security\AuthorizationService;
 use App\Security\PermissionResolver;
@@ -33,6 +35,7 @@ final class StakeControllerTest extends TestCase
     private ControllerStakeStore $stakes;
     private ControllerStakeBetStore $bets;
     private ControllerStakeContactStore $contacts;
+    private ControllerStakeGroupStore $groups;
 
     protected function setUp(): void
     {
@@ -44,6 +47,10 @@ final class StakeControllerTest extends TestCase
             new BetOption(11, 'Red', 1),
         ]);
         $this->contacts->contacts[20] = new Contact(20, 'Alice', '1234', null, null);
+        $this->groups = new ControllerStakeGroupStore();
+        $this->groups->groups[30] = new Group(30, 'Amis', null, null);
+        $this->groups->groups[31] = new Group(31, 'Anciens', null, new DateTimeImmutable());
+        $this->groups->memberships[20] = [30, 31];
     }
 
     public function testOwnerCanCreateStakeAndIsRedirected(): void
@@ -193,6 +200,25 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('Theirs', (string)$allowed->getBody());
     }
 
+    public function testGroupsAreDisplayedWhenCreatingEditingAndReadingStakes(): void
+    {
+        $this->stakes->create(1, 10, 20, 1250);
+
+        $editableResponse = $this->controller()->index($this->request('GET'), new Response(), ['id' => '1']);
+        $editableBody = (string)$editableResponse->getBody();
+
+        self::assertSame(200, $editableResponse->getStatusCode());
+        self::assertGreaterThanOrEqual(2, substr_count($editableBody, 'Groupes : Amis, Anciens'));
+
+        $bet = $this->bets->bets[1];
+        $this->bets->bets[1] = new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, BetStatus::Closed, null, $bet->options);
+
+        $readOnlyResponse = $this->controller()->index($this->request('GET'), new Response(), ['id' => '1']);
+
+        self::assertSame(200, $readOnlyResponse->getStatusCode());
+        self::assertStringContainsString('Groupes : Amis, Anciens', (string)$readOnlyResponse->getBody());
+    }
+
     private function controller(bool $viewAll = false): StakeController
     {
         $permissions = new class($viewAll) implements PermissionResolver {
@@ -210,6 +236,7 @@ final class StakeControllerTest extends TestCase
             $this->bets,
             $this->stakes,
             $this->contacts,
+            $this->groups,
             new StakeService(new PDO('sqlite::memory:'), $this->stakes, $this->bets, $this->contacts, new ControllerStakeAuditLogger()),
             new AuthorizationService($permissions),
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
@@ -363,6 +390,24 @@ final class ControllerStakeContactStore implements ContactStore
     {
         throw new \LogicException();
     }
+}
+
+final class ControllerStakeGroupStore implements GroupStore
+{
+    /** @var array<int, Group> */
+    public array $groups = [];
+    /** @var array<int, list<int>> */
+    public array $memberships = [];
+
+    public function findAll(): array { return array_values($this->groups); }
+    public function findById(int $id): ?Group { return $this->groups[$id] ?? null; }
+    public function create(string $name, ?string $note): Group { throw new \LogicException(); }
+    public function update(int $id, string $name, ?string $note): void { throw new \LogicException(); }
+    public function setArchived(int $id, bool $archived): void { throw new \LogicException(); }
+    public function delete(int $id): void { throw new \LogicException(); }
+    public function findAvailableForContact(int $contactId): array { return []; }
+    public function memberGroupIds(int $contactId): array { return $this->memberships[$contactId] ?? []; }
+    public function syncContactGroups(int $contactId, array $groupIds): void { $this->memberships[$contactId] = $groupIds; }
 }
 
 final class ControllerStakeAuditLogger implements AuditLogger

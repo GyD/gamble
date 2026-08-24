@@ -10,6 +10,7 @@ use App\Domain\Bet\BetStatus;
 use App\Domain\User\User;
 use App\Repository\BetStore;
 use App\Repository\ContactStore;
+use App\Repository\GroupStore;
 use App\Repository\StakeStore;
 use App\Security\AuthorizationService;
 use App\Service\StakeService;
@@ -24,6 +25,7 @@ final readonly class StakeController
         private BetStore             $bets,
         private StakeStore           $stakes,
         private ContactStore         $contacts,
+        private GroupStore           $groups,
         private StakeService         $service,
         private AuthorizationService $authorization,
         private Environment          $twig,
@@ -44,15 +46,29 @@ final readonly class StakeController
 
         $actor = $this->actor($request);
         $isMutableOwner = $bet->status === BetStatus::Open && $bet->isOwnedBy($actor->id);
+        $allContacts = $this->contacts->findAll();
         $contacts = array_values(array_filter(
-            $this->contacts->findAll(),
+            $allContacts,
             static fn($contact): bool => !$contact->isArchived(),
         ));
+        $groupsById = [];
+        foreach ($this->groups->findAll() as $group) {
+            $groupsById[$group->id] = $group;
+        }
+        $contactGroups = [];
+        foreach ($allContacts as $contact) {
+            foreach ($this->groups->memberGroupIds($contact->id) as $groupId) {
+                if (isset($groupsById[$groupId])) {
+                    $contactGroups[$contact->id][] = $groupsById[$groupId]->name;
+                }
+            }
+        }
 
         return $this->render($request, $response, 'stakes/index.html.twig', [
             'bet' => $bet,
             'stakes' => $this->stakes->findByBet($bet->id),
             'contacts' => $contacts,
+            'contact_groups' => $contactGroups,
             'can_create' => $isMutableOwner && $this->authorization->can($actor, 'stakes.create'),
             'can_edit' => $isMutableOwner && $this->authorization->can($actor, 'stakes.edit'),
             'can_delete' => $isMutableOwner && $this->authorization->can($actor, 'stakes.delete'),
