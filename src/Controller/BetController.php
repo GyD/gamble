@@ -114,7 +114,10 @@ final readonly class BetController
             return $response->withStatus(403);
         }
 
-        return $this->render($request, $response, 'bets/edit.html.twig', ['bet' => $bet]);
+        return $this->render($request, $response, 'bets/edit.html.twig', [
+            'bet' => $bet,
+            'has_stakes' => $this->service->hasStakes($bet->id),
+        ]);
     }
 
     /** @param array<string, string> $args */

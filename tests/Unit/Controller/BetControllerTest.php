@@ -6,6 +6,7 @@ namespace Tests\Unit\Controller;
 
 use App\Controller\BetController;
 use App\Domain\Bet\Bet;
+use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
 use App\Domain\User\User;
 use App\Domain\User\UserStatus;
@@ -114,6 +115,27 @@ final class BetControllerTest extends TestCase
         self::assertSame('Theirs', $store->bets[1]->question);
     }
 
+    public function testEditLocksOptionsButKeepsQuestionAndDeadlineEditableWhenStakeExists(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Winner?', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 0),
+            new BetOption(11, 'Red', 1),
+        ]);
+        $stakes = new ControllerBetStakeStore();
+        $stakes->stakes[] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, false);
+
+        $html = (string) $this->controller($store, false, $stakes)
+            ->edit($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('name="question"', $html);
+        self::assertStringContainsString('name="closes_at"', $html);
+        self::assertSame(2, substr_count($html, 'name="options[]"'));
+        self::assertSame(2, substr_count($html, ' readonly'));
+        self::assertStringNotContainsString('Ajouter un choix', $html);
+        self::assertStringContainsString('les choix ne peuvent plus être modifiés', $html);
+    }
+
     public function testOwnerCanDeleteCancelledBet(): void
     {
         $store = new ControllerBetStore();
@@ -193,9 +215,11 @@ final class ControllerBetStore implements BetStore
 
 final class ControllerBetStakeStore implements StakeStore
 {
+    /** @var list<Stake> */
+    public array $stakes = [];
     /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
     public array $winners = [];
-    public function findByBet(int $betId): array { return []; }
+    public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
     public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
     public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }

@@ -83,6 +83,31 @@ final class BetServiceTest extends TestCase
         self::assertSame(BetStatus::Cancelled, $cancelled->status);
     }
 
+    public function testMetadataCanBeUpdatedWithoutReplacingOptionsWhenStakeExists(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $optionIds = array_map(static fn(BetOption $option): int => $option->id, $bet->options);
+        $this->stakes->stakes[] = new Stake(1, $bet->id, $optionIds[0], 20, 1000, 'Alice', 'Blue', false, true);
+
+        $updated = $this->service->update(7, $bet->id, 'New question?', null, '2026-09-01T20:30', ['Blue', 'Red'], null);
+
+        self::assertSame('New question?', $updated->question);
+        self::assertSame('2026-09-01T20:30:00', $updated->closesAt?->format('Y-m-d\TH:i:s'));
+        self::assertSame($optionIds, array_map(static fn(BetOption $option): int => $option->id, $updated->options));
+        self::assertCount(1, $this->stakes->stakes);
+    }
+
+    public function testOptionsCannotBeChangedWhenStakeExists(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $this->stakes->stakes[] = new Stake(1, $bet->id, $bet->options[0]->id, 20, 1000, 'Alice', 'Blue', false, false);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Bet options cannot be changed once stakes have been placed.');
+
+        $this->service->update(7, $bet->id, 'New question?', null, null, ['Blue', 'Green'], null);
+    }
+
     public function testCancelledBetCannotBeDeletedWhilePaidStakeIsNotRefunded(): void
     {
         $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
@@ -143,7 +168,9 @@ final class BetTestStore implements BetStore
     public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
     {
         $bet = $this->bets[$id];
-        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt, $bet->status, null, $this->options($options));
+        $currentOptions = array_map(static fn(BetOption $option): string => $option->label, $bet->options);
+        $updatedOptions = $options === $currentOptions ? $bet->options : $this->options($options);
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt, $bet->status, null, $updatedOptions);
     }
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet
     {

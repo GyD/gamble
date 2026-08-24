@@ -61,11 +61,20 @@ final readonly class BetService
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Only open bets can be edited.');
             }
+            $currentOptions = array_map(static fn($option): string => $option->label, $before->options);
+            if ($options !== $currentOptions && $this->stakes->findByBet($betId) !== []) {
+                throw new InvalidArgumentException('Bet options cannot be changed once stakes have been placed.');
+            }
             $after = $this->bets->update($betId, $question, $description, $deadline, $options);
             $this->auditLogs->record($actorUserId, 'bet.updated', 'bet', (string) $betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
         });
+    }
+
+    public function hasStakes(int $betId): bool
+    {
+        return $this->stakes->findByBet($betId) !== [];
     }
 
     public function close(int $actorUserId, int $betId, ?string $ipAddress): Bet

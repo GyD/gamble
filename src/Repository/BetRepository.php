@@ -73,7 +73,10 @@ final readonly class BetRepository implements BetStore
             'description' => $description,
             'closes_at' => $closesAt?->format('Y-m-d H:i:s'),
         ]);
-        $this->replaceOptions($id, $options);
+        $currentOptions = array_map(static fn(BetOption $option): string => $option->label, $this->options($id));
+        if ($options !== $currentOptions) {
+            $this->replaceOptions($id, $options);
+        }
 
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated bet.');
     }
@@ -129,15 +132,7 @@ final readonly class BetRepository implements BetStore
     /** @param array<string, mixed> $row */
     private function hydrate(array $row): Bet
     {
-        $statement = $this->pdo->prepare(
-            'SELECT id, label, position FROM bet_options WHERE bet_id = :bet_id ORDER BY position, id',
-        );
-        $statement->execute(['bet_id' => $row['id']]);
-        $options = array_map(static fn(array $option): BetOption => new BetOption(
-            (int) $option['id'],
-            (string) $option['label'],
-            (int) $option['position'],
-        ), $statement->fetchAll());
+        $options = $this->options((int) $row['id']);
 
         return new Bet(
             (int) $row['id'],
@@ -149,5 +144,20 @@ final readonly class BetRepository implements BetStore
             $row['winning_option_id'] === null ? null : (int) $row['winning_option_id'],
             $options,
         );
+    }
+
+    /** @return list<BetOption> */
+    private function options(int $betId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id, label, position FROM bet_options WHERE bet_id = :bet_id ORDER BY position, id',
+        );
+        $statement->execute(['bet_id' => $betId]);
+
+        return array_map(static fn(array $option): BetOption => new BetOption(
+            (int) $option['id'],
+            (string) $option['label'],
+            (int) $option['position'],
+        ), $statement->fetchAll());
     }
 }
