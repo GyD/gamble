@@ -2,19 +2,6 @@
 
 {% block title %}{{ app_name|default('Gamble') }}{% endblock %}
 
-{% block navigation_identity %}
-    <form method="post" action="/auth/logout" class="navigation-logout">
-        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
-        <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
-        <button type="submit" class="button button-secondary navigation-logout-button" aria-label="Se déconnecter du compte Twitch de {{ user.twitchDisplayName }}">
-            {% if user.twitchAvatarUrl %}
-                <img class="navigation-account-avatar" src="{{ user.twitchAvatarUrl }}" alt="">
-            {% endif %}
-            <span>Se déconnecter</span>
-        </button>
-    </form>
-{% endblock %}
-
 {% block content %}
     <header class="page-header">
         <h1>Vos paris</h1>

@@ -37,7 +37,18 @@
                 <a class="button {{ current_path == '/admin/users' or current_path starts with '/admin/users/' ? 'button-primary' : 'button-secondary' }}" href="/admin/users"{% if current_path == '/admin/users' or current_path starts with '/admin/users/' %} aria-current="page"{% endif %}>Utilisateurs</a>
             {% endif %}
         </nav>
-        {% block navigation_identity %}{% endblock %}
+        {% if navigation_user|default(null) %}
+            <form method="post" action="/auth/logout" class="navigation-logout">
+                <input type="hidden" name="{{ navigation_csrf.name_key }}" value="{{ navigation_csrf.name }}">
+                <input type="hidden" name="{{ navigation_csrf.value_key }}" value="{{ navigation_csrf.value }}">
+                <button type="submit" class="button button-secondary navigation-logout-button" aria-label="Se déconnecter du compte Twitch de {{ navigation_user.twitchDisplayName }}">
+                    {% if navigation_user.twitchAvatarUrl %}
+                        <img class="navigation-account-avatar" src="{{ navigation_user.twitchAvatarUrl }}" alt="">
+                    {% endif %}
+                    <span>Se déconnecter</span>
+                </button>
+            </form>
+        {% endif %}
     </div>
     {% block content %}{% endblock %}
 </main>

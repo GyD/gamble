@@ -6,10 +6,5 @@
     <section class="auth-card">
         <h1>Compte suspendu</h1>
         <p>Votre accès est suspendu. Contactez un administrateur si nécessaire.</p>
-        <form method="post" action="/auth/logout">
-            <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
-            <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
-            <button type="submit" class="button button-secondary">Se déconnecter</button>
-        </form>
     </section>
 {% endblock %}
