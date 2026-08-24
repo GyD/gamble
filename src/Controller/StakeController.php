@@ -257,6 +257,11 @@ final readonly class StakeController
     /** @param array<string, mixed> $context */
     private function render(ServerRequestInterface $request, ResponseInterface $response, string $template, array $context): ResponseInterface
     {
+        $actor = $this->actor($request);
+        $context['can_view_bets'] = $this->authorization->can($actor, 'bets.view');
+        $context['can_view_contacts'] = $this->authorization->can($actor, 'contacts.view');
+        $context['can_view_groups'] = $this->authorization->can($actor, 'groups.view');
+        $context['can_view_users'] = $this->authorization->can($actor, 'users.view');
         $context['csrf'] = [
             'name_key' => 'csrf_name', 'name' => $request->getAttribute('csrf_name'),
             'value_key' => 'csrf_value', 'value' => $request->getAttribute('csrf_value'),

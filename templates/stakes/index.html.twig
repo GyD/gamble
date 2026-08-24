@@ -57,7 +57,7 @@
                                 <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
                                 <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
                                 <input type="hidden" name="is_paid" value="{{ stake.isPaid ? '0' : '1' }}">
-                                <button class="button button-secondary" type="submit">{{ stake.isPaid ? 'Marquer non payée' : 'Marquer comme payée' }}</button>
+                                <button class="button button-secondary" type="submit">{{ stake.isPaid ? 'Non payée' : 'Payée' }}</button>
                             </form>
                         {% elseif can_edit and not stake.contactArchived and stake.isCancelled and stake.isPaid %}
                             <form method="post" action="/bets/{{ bet.id }}/stakes/{{ stake.id }}/payment-status">

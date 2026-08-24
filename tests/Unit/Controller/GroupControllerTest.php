@@ -54,6 +54,17 @@ final class GroupControllerTest extends TestCase
         self::assertStringContainsString('action="/groups/1/archive"', $html);
     }
 
+    public function testIndexShowsPrimaryNavigation(): void
+    {
+        $html = (string) $this->controller->index($this->request('GET'), new Response())->getBody();
+
+        self::assertStringContainsString('aria-label="Navigation principale"', $html);
+        self::assertStringContainsString('href="/bets"', $html);
+        self::assertStringContainsString('href="/contacts"', $html);
+        self::assertStringContainsString('href="/groups"', $html);
+        self::assertStringContainsString('href="/admin/users"', $html);
+    }
+
     public function testCreateRedirectsAndAudits(): void
     {
         $response = $this->controller->create(

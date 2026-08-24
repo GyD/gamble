@@ -9,6 +9,21 @@
 </head>
 <body>
 <main class="app-shell">
+    <nav class="primary-navigation" aria-label="Navigation principale">
+        <a class="button button-secondary" href="/">Accueil</a>
+        {% if can_view_bets|default(false) %}
+            <a class="button button-primary" href="/bets">Paris</a>
+        {% endif %}
+        {% if can_view_contacts|default(false) %}
+            <a class="button button-primary" href="/contacts">Contacts</a>
+        {% endif %}
+        {% if can_view_groups|default(false) %}
+            <a class="button button-primary" href="/groups">Groupes</a>
+        {% endif %}
+        {% if can_view_users|default(false) %}
+            <a class="button button-primary" href="/admin/users">Utilisateurs</a>
+        {% endif %}
+    </nav>
     {% block content %}{% endblock %}
 </main>
 </body>

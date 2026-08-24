@@ -85,7 +85,4 @@
         top: 1.5rem;
     }
 
-    .stake-layout.has-create-form .stake-list {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }

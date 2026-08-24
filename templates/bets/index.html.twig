@@ -49,8 +49,10 @@
                     {% endfor %}
                 </ol>
 
-                {% if bet.ownerUserId == actor_id %}
+                {% if can_view_stakes or bet.ownerUserId == actor_id %}
                     <div class="card-actions">
+                        {% if can_view_stakes %}<a class="button button-secondary" href="/bets/{{ bet.id }}/stakes">Voir les mises</a>{% endif %}
+                        {% if bet.ownerUserId == actor_id %}
                         {% if bet.status.value == 'open' %}
                             {% if can_edit %}<a class="button button-secondary" href="/bets/{{ bet.id }}/edit">Modifier</a>{% endif %}
                             {% if can_close %}
@@ -69,6 +71,7 @@
                             {% if can_cancel %}<form method="post" action="/bets/{{ bet.id }}/cancel"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Annuler ce pari ? Les mises payées devront ensuite être remboursées.')">Annuler</button></form>{% endif %}
                         {% elseif bet.status.value == 'cancelled' and can_cancel %}
                             <form method="post" action="/bets/{{ bet.id }}/delete"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Supprimer définitivement ce pari annulé ? Cette action est irréversible.')">Supprimer définitivement</button></form>
+                        {% endif %}
                         {% endif %}
                     </div>
                 {% endif %}

@@ -52,6 +52,17 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('Theirs', $html);
     }
 
+    public function testIndexShowsLinkToBetStakes(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = $this->bet(1, 1, 'Mine');
+
+        $html = (string) $this->controller($store, false)->index($this->request('GET'), new Response())->getBody();
+
+        self::assertStringContainsString('Voir les mises', $html);
+        self::assertStringContainsString('/bets/1/stakes', $html);
+    }
+
     public function testCreateRedirectsAndCreatesOpenBet(): void
     {
         $store = new ControllerBetStore();
@@ -97,6 +108,7 @@ final class BetControllerTest extends TestCase
 
     private function controller(ControllerBetStore $store, bool $viewAll): BetController
     {
+        $stakes = new ControllerBetStakeStore();
         $permissions = new class($viewAll) implements PermissionResolver {
             public function __construct(private readonly bool $viewAll) {}
             public function effectFor(int $userId, string $permission): ?string
@@ -107,7 +119,7 @@ final class BetControllerTest extends TestCase
 
         return new BetController(
             $store,
-            new BetService(new PDO('sqlite::memory:'), $store, new ControllerBetStakeStore(), new ControllerBetAuditLogger()),
+            new BetService(new PDO('sqlite::memory:'), $store, $stakes, new ControllerBetAuditLogger()),
             new AuthorizationService($permissions),
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
         );
