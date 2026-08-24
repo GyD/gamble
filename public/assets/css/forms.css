@@ -52,6 +52,49 @@
     font: inherit;
 }
 
+.form-field .ts-wrapper {
+    width: 100%;
+}
+
+.form-field .ts-control {
+    min-height: 2.75rem;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    border-color: var(--color-control-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-control-text);
+    font: inherit;
+}
+
+.form-field .ts-wrapper.focus .ts-control {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgb(100 65 165 / 0.2);
+}
+
+.form-field .ts-dropdown {
+    overflow: hidden;
+    border-color: var(--color-control-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-control-text);
+    font: inherit;
+}
+
+.form-field .ts-dropdown .option,
+.form-field .ts-dropdown .no-results {
+    padding: var(--space-md);
+}
+
+.form-field .ts-dropdown .active {
+    background: var(--color-border);
+    color: var(--color-text);
+}
+
+.form-field .ts-dropdown .no-results {
+    color: var(--color-text-subtle);
+}
+
 .choice-grid {
     display: grid;
     gap: var(--space-sm);
