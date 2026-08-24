@@ -69,7 +69,7 @@
                 {% if can_edit or can_archive or can_view_statistics %}
                     <div class="card-actions">
                         {% if can_view_statistics %}
-                            <a class="button button-secondary" href="/statistics/contacts/{{ contact.id }}">Statistiques</a>
+                            <a class="button button-secondary" href="/statistics/contacts/{{ contact.id }}">Stats</a>
                         {% endif %}
                         {% if can_edit %}
                             <a class="button button-secondary" href="/contacts/{{ contact.id }}/edit">Modifier</a>

@@ -46,6 +46,16 @@
     background: var(--color-background);
 }
 
+@media (min-width: 40rem) {
+    .contact-list {
+        grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    }
+
+    .contact-list .empty-state {
+        grid-column: 1 / -1;
+    }
+}
+
 @media (min-width: 56rem) {
     .contacts-layout {
         grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
