@@ -33,6 +33,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - rôles et permissions, avec autorisations ou interdictions individuelles ;
 - administration des utilisateurs et de leurs accès ;
 - protection des routes et masquage des actions selon les permissions ;
+- navigation indiquant la page ou la rubrique active, y compris sur les sous-pages ;
 - protection CSRF des mutations ;
 - audit atomique des changements de statut, de rôles et de permissions ;
 - tests automatisés du socle d'identité, des accès, des contacts, des groupes, des paris, des mises, des statistiques et des gains ;

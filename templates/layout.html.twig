@@ -11,21 +11,21 @@
 <body>
 <main class="app-shell">
     <nav class="primary-navigation" aria-label="Navigation principale">
-        <a class="button button-secondary" href="/">Accueil</a>
+        <a class="button {{ current_path == '/' ? 'button-primary' : 'button-secondary' }}" href="/"{% if current_path == '/' %} aria-current="page"{% endif %}>Accueil</a>
         {% if can_view_bets|default(false) %}
-            <a class="button button-primary" href="/bets">Paris</a>
+            <a class="button {{ current_path == '/bets' or current_path starts with '/bets/' ? 'button-primary' : 'button-secondary' }}" href="/bets"{% if current_path == '/bets' or current_path starts with '/bets/' %} aria-current="page"{% endif %}>Paris</a>
         {% endif %}
         {% if can_view_contacts|default(false) %}
-            <a class="button button-primary" href="/contacts">Contacts</a>
+            <a class="button {{ current_path == '/contacts' or current_path starts with '/contacts/' ? 'button-primary' : 'button-secondary' }}" href="/contacts"{% if current_path == '/contacts' or current_path starts with '/contacts/' %} aria-current="page"{% endif %}>Contacts</a>
         {% endif %}
         {% if can_view_groups|default(false) %}
-            <a class="button button-primary" href="/groups">Groupes</a>
+            <a class="button {{ current_path == '/groups' or current_path starts with '/groups/' ? 'button-primary' : 'button-secondary' }}" href="/groups"{% if current_path == '/groups' or current_path starts with '/groups/' %} aria-current="page"{% endif %}>Groupes</a>
         {% endif %}
         {% if can_view_statistics|default(false) %}
-            <a class="button button-primary" href="/statistics">Statistiques</a>
+            <a class="button {{ current_path == '/statistics' or current_path starts with '/statistics/' ? 'button-primary' : 'button-secondary' }}" href="/statistics"{% if current_path == '/statistics' or current_path starts with '/statistics/' %} aria-current="page"{% endif %}>Statistiques</a>
         {% endif %}
         {% if can_view_users|default(false) %}
-            <a class="button button-primary" href="/admin/users">Utilisateurs</a>
+            <a class="button {{ current_path == '/admin/users' or current_path starts with '/admin/users/' ? 'button-primary' : 'button-secondary' }}" href="/admin/users"{% if current_path == '/admin/users' or current_path starts with '/admin/users/' %} aria-current="page"{% endif %}>Utilisateurs</a>
         {% endif %}
     </nav>
     {% block content %}{% endblock %}

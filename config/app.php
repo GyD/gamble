@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DI\ContainerBuilder;
+use App\Middleware\CurrentPathMiddleware;
 use Slim\Csrf\Guard;
 use Slim\Factory\AppFactory;
 
@@ -29,6 +30,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 (require __DIR__ . '/routes.php')($app);
 
 $app->addRoutingMiddleware();
+$app->add(CurrentPathMiddleware::class);
 $app->add(new Guard($app->getResponseFactory()));
 $app->addErrorMiddleware(
     $settings['app']['debug'],

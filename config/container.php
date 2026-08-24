@@ -76,6 +76,7 @@ return [
             ],
         );
         $environment->addGlobal('app_name', $settings['app']['name']);
+        $environment->addGlobal('current_path', '');
 
         return $environment;
     }),
