@@ -37,6 +37,7 @@
                 <a class="button {{ current_path == '/admin/users' or current_path starts with '/admin/users/' ? 'button-primary' : 'button-secondary' }}" href="/admin/users"{% if current_path == '/admin/users' or current_path starts with '/admin/users/' %} aria-current="page"{% endif %}>Utilisateurs</a>
             {% endif %}
         </nav>
+        {% block navigation_identity %}{% endblock %}
     </div>
     {% block content %}{% endblock %}
 </main>
