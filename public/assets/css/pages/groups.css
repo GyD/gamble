@@ -41,11 +41,16 @@
 }
 
 .member-list {
-    padding-left: var(--space-xl);
+    padding-left: 0;
+    list-style: none;
 }
 
-.member-list li + li {
-    margin-top: var(--space-xs);
+.member-list li {
+    display: inline;
+}
+
+.member-list li:not(:last-child)::after {
+    content: ", ";
 }
 
 .group-card .card-actions {
