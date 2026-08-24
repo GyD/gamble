@@ -11,7 +11,7 @@
     margin-bottom: var(--space-lg);
 }
 
-.auth-card p:not(.eyebrow) {
+.auth-card p {
     color: var(--color-text-muted);
     line-height: 1.5;
 }
