@@ -74,6 +74,12 @@
     }
 }
 
+@media (min-width: 56rem) {
+    .stake-layout:not(.has-create-form) .stake-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 @media (min-width: 64rem) {
     .stake-layout.has-create-form {
         grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
@@ -84,5 +90,4 @@
         position: sticky;
         top: 1.5rem;
     }
-
 }
