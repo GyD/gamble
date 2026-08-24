@@ -1,0 +1,1 @@
+When an undocumented feature in the README.md is implemented, it must be added to the latter after confirmation.
