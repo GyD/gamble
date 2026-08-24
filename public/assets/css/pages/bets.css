@@ -80,6 +80,83 @@
     margin: 0;
 }
 
+@media (max-width: 34rem) {
+    .winner-table-wrapper {
+        overflow: visible;
+    }
+
+    .winner-table,
+    .winner-table tbody {
+        display: block;
+        white-space: normal;
+    }
+
+    .winner-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .winner-table tbody {
+        display: grid;
+        gap: var(--space-sm);
+    }
+
+    .winner-table tbody tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-sm) var(--space-md);
+        padding: var(--space-md);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+    }
+
+    .winner-table tbody tr > * {
+        padding: 0;
+        border: 0;
+    }
+
+    .winner-name {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: center;
+    }
+
+    .winner-status {
+        grid-column: 2;
+        grid-row: 1;
+        text-align: right;
+    }
+
+    .winner-table .winner-stake,
+    .winner-table .winner-payout {
+        display: grid;
+        gap: var(--space-xs);
+        text-align: left;
+    }
+
+    .winner-table .winner-stake::before,
+    .winner-table .winner-payout::before {
+        color: var(--color-text-muted);
+        content: attr(data-label);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .winner-action {
+        grid-column: 1 / -1;
+    }
+
+    .winner-action .button {
+        width: 100%;
+    }
+}
+
 .bet-statistics-summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
