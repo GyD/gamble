@@ -32,6 +32,49 @@
         {% endif %}
     </article>
 
+    {% if bet.status.value == 'settled' and bet.winningOptionId %}
+        <section class="bet-card" aria-labelledby="bet-winners-title">
+            <h2 id="bet-winners-title">Gagnants</h2>
+            {% if winners is not empty %}
+                <div class="winner-table-wrapper" role="region" aria-labelledby="bet-winners-title" tabindex="0">
+                    <table class="winner-table">
+                        <thead>
+                        <tr>
+                            <th scope="col">Statut</th>
+                            <th scope="col">Gagnant</th>
+                            <th scope="col" class="winner-table-amount">Mise gagnante</th>
+                            <th scope="col" class="winner-table-amount">Versement</th>
+                            {% if can_manage_winnings %}<th scope="col">Action</th>{% endif %}
+                        </tr>
+                        </thead>
+                        <tbody>
+                {% for winner in winners %}
+                    <tr>
+                        <td><span class="stake-payment-status{% if winner.is_winnings_paid %} is-paid{% endif %}">{{ winner.is_winnings_paid ? 'Gain versé' : 'Gain à verser' }}</span></td>
+                        <th scope="row">{{ winner.contact_name }}</th>
+                        <td class="winner-table-amount">{{ (winner.winning_stake_cents / 100)|number_format(2, ',', ' ') }} $</td>
+                        <td class="winner-table-amount"><strong>{{ (winner.payout_cents / 100)|number_format(2, ',', ' ') }} $</strong></td>
+                        {% if can_manage_winnings %}
+                            <td>
+                                <form method="post" action="/bets/{{ bet.id }}/winners/{{ winner.contact_id }}/payment-status">
+                                    <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
+                                    <input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+                                    <input type="hidden" name="is_paid" value="{{ winner.is_winnings_paid ? '0' : '1' }}">
+                                    <button class="button button-secondary" type="submit">{{ winner.is_winnings_paid ? 'Annuler le versement' : 'Marquer versé' }}</button>
+                                </form>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state"><p>Aucune mise gagnante active.</p></div>
+            {% endif %}
+        </section>
+    {% endif %}
+
     <section class="bet-card" aria-labelledby="bet-statistics-title">
         <h2 id="bet-statistics-title">Participation</h2>
         {% if statistics.stake_count == 0 %}

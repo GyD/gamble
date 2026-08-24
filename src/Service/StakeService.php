@@ -141,6 +141,80 @@ final readonly class StakeService
         });
     }
 
+    /** @return list<array{contact_id: int, contact_name: string, winning_stake_cents: int, payout_cents: int, is_winnings_paid: bool}> */
+    public function winnings(Bet $bet): array
+    {
+        if ($bet->status !== BetStatus::Settled || $bet->winningOptionId === null) {
+            return [];
+        }
+
+        $winners = $this->stakes->findWinnersByBet($bet->id, $bet->winningOptionId);
+        if ($winners === []) {
+            return [];
+        }
+
+        $totalWinningStake = array_sum(array_column($winners, 'winning_stake_cents'));
+        $pot = $winners[0]['pot_cents'];
+        $allocated = 0;
+        foreach ($winners as $index => $winner) {
+            $numerator = $pot * $winner['winning_stake_cents'];
+            $winners[$index]['payout_cents'] = intdiv($numerator, $totalWinningStake);
+            $winners[$index]['remainder'] = $numerator % $totalWinningStake;
+            $allocated += $winners[$index]['payout_cents'];
+            unset($winners[$index]['pot_cents']);
+        }
+
+        $remainderOrder = array_keys($winners);
+        usort($remainderOrder, static fn(int $left, int $right): int =>
+            $winners[$right]['remainder'] <=> $winners[$left]['remainder']
+                ?: $winners[$left]['contact_id'] <=> $winners[$right]['contact_id']
+        );
+        foreach (array_slice($remainderOrder, 0, $pot - $allocated) as $index) {
+            ++$winners[$index]['payout_cents'];
+        }
+        foreach ($winners as $index => $winner) {
+            unset($winners[$index]['remainder']);
+        }
+
+        return $winners;
+    }
+
+    public function setWinningsPaid(
+        int $actorUserId,
+        int $betId,
+        int $contactId,
+        bool $isPaid,
+        ?string $ipAddress,
+    ): void {
+        $this->transactional(function () use ($actorUserId, $betId, $contactId, $isPaid, $ipAddress): void {
+            $bet = $this->ownedBet($actorUserId, $betId);
+            if ($bet->status !== BetStatus::Settled || $bet->winningOptionId === null) {
+                throw new InvalidArgumentException('Winnings can only be paid when the bet is settled.');
+            }
+            $winner = null;
+            foreach ($this->winnings($bet) as $candidate) {
+                if ($candidate['contact_id'] === $contactId) {
+                    $winner = $candidate;
+                    break;
+                }
+            }
+            if ($winner === null) {
+                throw new InvalidArgumentException('Unknown winner.');
+            }
+
+            $this->stakes->setWinningsPaid($betId, $bet->winningOptionId, $contactId, $isPaid);
+            $this->auditLogs->record(
+                $actorUserId,
+                'stake.winnings_payment_status_changed',
+                'bet_winner',
+                sprintf('%d:%d', $betId, $contactId),
+                ['is_winnings_paid' => $winner['is_winnings_paid']],
+                ['is_winnings_paid' => $isPaid],
+                $ipAddress,
+            );
+        });
+    }
+
     private function mutableBet(int $actorUserId, int $betId): Bet
     {
         $bet = $this->ownedBet($actorUserId, $betId);

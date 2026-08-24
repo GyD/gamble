@@ -82,6 +82,35 @@ final class StakeServiceTest extends TestCase
         $this->service->create(7, 1, 20, 10, '1.00', null);
     }
 
+    public function testWinningsDistributeEntirePotWithDeterministicRemainder(): void
+    {
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
+        $this->stakes->winners = [
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 1000, 'is_winnings_paid' => false],
+            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'pot_cents' => 1000, 'is_winnings_paid' => false],
+        ];
+
+        $winners = $this->service->winnings($this->bets->bets[1]);
+
+        self::assertSame([333, 667], array_column($winners, 'payout_cents'));
+        self::assertSame(1000, array_sum(array_column($winners, 'payout_cents')));
+    }
+
+    public function testOwnerCanMarkSettledWinningsPaidWithAudit(): void
+    {
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
+        $this->stakes->winners = [
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 100, 'is_winnings_paid' => false],
+        ];
+
+        $this->service->setWinningsPaid(7, 1, 20, true, '127.0.0.1');
+
+        self::assertTrue($this->stakes->winners[0]['is_winnings_paid']);
+        self::assertSame('stake.winnings_payment_status_changed', $this->audit->entries[0]['action']);
+        self::assertFalse($this->audit->entries[0]['before']['is_winnings_paid']);
+        self::assertTrue($this->audit->entries[0]['after']['is_winnings_paid']);
+    }
+
     public function testPaidStakeCanBeMarkedRefundedOnCancelledBet(): void
     {
         $this->stakes->stakes[1] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true);
@@ -222,11 +251,11 @@ final class StakeServiceTest extends TestCase
         $this->service->delete(7, 1, 1, null);
     }
 
-    private function withStatus(BetStatus $status): Bet
+    private function withStatus(BetStatus $status, ?int $winningOptionId = null): Bet
     {
         $bet = $this->bets->bets[1];
 
-        return new Bet($bet->id, $bet->ownerUserId, $bet->question, null, null, $status, null, $bet->options);
+        return new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
     }
 }
 
@@ -234,6 +263,8 @@ final class StakeTestStore implements StakeStore
 {
     /** @var array<int, Stake> */
     public array $stakes = [];
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
+    public array $winners = [];
 
     public function findByBet(int $betId): array
     {
@@ -269,6 +300,22 @@ final class StakeTestStore implements StakeStore
         $stake = $this->stakes[$id];
 
         return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
+    }
+
+    public function findWinnersByBet(int $betId, int $winningOptionId): array
+    {
+        return $this->winners;
+    }
+
+    public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void
+    {
+        foreach ($this->winners as $index => $winner) {
+            if ($winner['contact_id'] === $contactId) {
+                $this->winners[$index]['is_winnings_paid'] = $isPaid;
+                return;
+            }
+        }
+        throw new \RuntimeException('Unknown winner.');
     }
 
     public function delete(int $id): void

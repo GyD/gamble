@@ -93,6 +93,10 @@ return static function (App $app): void {
         ->add(RequireBetsSettlePermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)
         ->setName('bets.settle');
+    $app->post('/bets/{id}/winners/{contactId}/payment-status', [StakeController::class, 'setWinningsPaid'])
+        ->add(RequireStakesEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('winnings.payment_status');
     $app->get('/bets/{id}/stakes', [StakeController::class, 'index'])
         ->add(RequireStakesViewPermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)

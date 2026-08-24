@@ -168,6 +168,8 @@ final class BetTestStakeStore implements StakeStore
     public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
+    public function findWinnersByBet(int $betId, int $winningOptionId): array { return []; }
+    public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

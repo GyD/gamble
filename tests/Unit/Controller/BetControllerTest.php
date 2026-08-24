@@ -11,6 +11,7 @@ use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
+use App\Repository\ContactStore;
 use App\Repository\StakeStore;
 use App\Repository\StatisticsStore;
 use App\Domain\Stake\Stake;
@@ -18,6 +19,7 @@ use App\Security\AuthorizationService;
 use App\Security\PermissionResolver;
 use App\Service\BetService;
 use App\Service\StatisticsService;
+use App\Service\StakeService;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -29,6 +31,25 @@ use Twig\Loader\FilesystemLoader;
 
 final class BetControllerTest extends TestCase
 {
+    public function testSettledBetShowsWinnersAndExactPayouts(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Settled', null, null, BetStatus::Settled, 10, []);
+        $stakes = new ControllerBetStakeStore();
+        $stakes->winners = [
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 1000, 'is_winnings_paid' => false],
+            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'pot_cents' => 1000, 'is_winnings_paid' => true],
+        ];
+
+        $html = (string)$this->controller($store, false, $stakes)
+            ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('Gagnants', $html);
+        self::assertStringContainsString('3,33 $', $html);
+        self::assertStringContainsString('6,67 $', $html);
+        self::assertStringContainsString('Gain versé', $html);
+    }
+
     public function testIndexOnlyShowsOwnedBetsWithoutViewAllPermission(): void
     {
         $store = new ControllerBetStore();
@@ -108,9 +129,9 @@ final class BetControllerTest extends TestCase
         self::assertNull($store->findById(1));
     }
 
-    private function controller(ControllerBetStore $store, bool $viewAll): BetController
+    private function controller(ControllerBetStore $store, bool $viewAll, ?ControllerBetStakeStore $stakes = null): BetController
     {
-        $stakes = new ControllerBetStakeStore();
+        $stakes ??= new ControllerBetStakeStore();
         $permissions = new class($viewAll) implements PermissionResolver {
             public function __construct(private readonly bool $viewAll) {}
             public function effectFor(int $userId, string $permission): ?string
@@ -125,6 +146,7 @@ final class BetControllerTest extends TestCase
             new AuthorizationService($permissions),
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
             new StatisticsService(new ControllerBetStatisticsStore()),
+            new StakeService(new PDO('sqlite::memory:'), $stakes, $store, new ControllerBetContactStore(), new ControllerBetAuditLogger()),
         );
     }
 
@@ -171,12 +193,26 @@ final class ControllerBetStore implements BetStore
 
 final class ControllerBetStakeStore implements StakeStore
 {
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
+    public array $winners = [];
     public function findByBet(int $betId): array { return []; }
     public function findById(int $id): ?Stake { return null; }
     public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
     public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
+    public function findWinnersByBet(int $betId, int $winningOptionId): array { return $this->winners; }
+    public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void { throw new \LogicException(); }
+    public function delete(int $id): void { throw new \LogicException(); }
+}
+
+final class ControllerBetContactStore implements ContactStore
+{
+    public function findAll(): array { return []; }
+    public function findById(int $id): ?\App\Domain\Contact\Contact { return null; }
+    public function create(string $name, string $phoneNumber, ?string $note): \App\Domain\Contact\Contact { throw new \LogicException(); }
+    public function update(int $id, string $name, string $phoneNumber, ?string $note): void { throw new \LogicException(); }
+    public function setArchived(int $id, bool $archived): void { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

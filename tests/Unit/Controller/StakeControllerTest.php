@@ -149,6 +149,25 @@ final class StakeControllerTest extends TestCase
         self::assertFalse($this->stakes->stakes[1]->isPaid);
     }
 
+    public function testOwnerCanMarkSettledWinningsPaid(): void
+    {
+        $bet = $this->bets->bets[1];
+        $this->bets->bets[1] = new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, BetStatus::Settled, 10, $bet->options);
+        $this->stakes->winners = [
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 100, 'is_winnings_paid' => false],
+        ];
+
+        $response = $this->controller()->setWinningsPaid(
+            $this->request('POST', ['is_paid' => '1']),
+            new Response(),
+            ['id' => '1', 'contactId' => '20'],
+        );
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/bets/1?saved=1', $response->getHeaderLine('Location'));
+        self::assertTrue($this->stakes->winners[0]['is_winnings_paid']);
+    }
+
     public function testOtherUsersBetCannotBeChanged(): void
     {
         $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [new BetOption(10, 'Blue', 0)]);
@@ -212,6 +231,8 @@ final class ControllerStakeStore implements StakeStore
 {
     /** @var array<int, Stake> */
     public array $stakes = [];
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
+    public array $winners = [];
 
     public function findByBet(int $betId): array
     {
@@ -247,6 +268,22 @@ final class ControllerStakeStore implements StakeStore
         $stake = $this->stakes[$id];
 
         return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
+    }
+
+    public function findWinnersByBet(int $betId, int $winningOptionId): array
+    {
+        return $this->winners;
+    }
+
+    public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void
+    {
+        foreach ($this->winners as $index => $winner) {
+            if ($winner['contact_id'] === $contactId) {
+                $this->winners[$index]['is_winnings_paid'] = $isPaid;
+                return;
+            }
+        }
+        throw new \RuntimeException('Unknown winner.');
     }
 
     public function delete(int $id): void

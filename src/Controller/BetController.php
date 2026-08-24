@@ -11,6 +11,7 @@ use App\Repository\BetStore;
 use App\Security\AuthorizationService;
 use App\Service\BetService;
 use App\Service\StatisticsService;
+use App\Service\StakeService;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -24,6 +25,7 @@ final readonly class BetController
         private AuthorizationService $authorization,
         private Environment $twig,
         private StatisticsService $statistics,
+        private StakeService $stakes,
     ) {
     }
 
@@ -91,6 +93,9 @@ final readonly class BetController
             'can_settle' => $this->authorization->can($actor, 'bets.settle'),
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
             'statistics' => $this->statistics->bet($bet->id),
+            'winners' => $this->stakes->winnings($bet),
+            'can_manage_winnings' => $bet->isOwnedBy($actor->id)
+                && $this->authorization->can($actor, 'stakes.edit'),
         ]);
     }
 

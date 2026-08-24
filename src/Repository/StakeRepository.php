@@ -104,6 +104,61 @@ final readonly class StakeRepository implements StakeStore
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated stake.');
     }
 
+    public function findWinnersByBet(int $betId, int $winningOptionId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT stakes.contact_id,
+                    contacts.name AS contact_name,
+                    SUM(stakes.amount_cents) AS winning_stake_cents,
+                    totals.pot_cents,
+                    CASE WHEN COUNT(stakes.winnings_paid_at) = COUNT(*) THEN 1 ELSE 0 END AS is_winnings_paid
+             FROM stakes
+             INNER JOIN contacts ON contacts.id = stakes.contact_id
+             INNER JOIN (
+                 SELECT bet_id, SUM(amount_cents) AS pot_cents
+                 FROM stakes
+                 WHERE bet_id = :pot_bet_id AND is_cancelled = FALSE
+                 GROUP BY bet_id
+             ) totals ON totals.bet_id = stakes.bet_id
+             WHERE stakes.bet_id = :bet_id
+               AND stakes.bet_option_id = :winning_option_id
+               AND stakes.is_cancelled = FALSE
+             GROUP BY stakes.contact_id, contacts.name, totals.pot_cents
+             ORDER BY stakes.contact_id',
+        );
+        $statement->execute([
+            'pot_bet_id' => $betId,
+            'bet_id' => $betId,
+            'winning_option_id' => $winningOptionId,
+        ]);
+
+        return array_map(static fn(array $row): array => [
+            'contact_id' => (int)$row['contact_id'],
+            'contact_name' => (string)$row['contact_name'],
+            'winning_stake_cents' => (int)$row['winning_stake_cents'],
+            'pot_cents' => (int)$row['pot_cents'],
+            'is_winnings_paid' => (bool)$row['is_winnings_paid'],
+        ], $statement->fetchAll());
+    }
+
+    public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void
+    {
+        $winningsPaidAt = $isPaid ? 'CURRENT_TIMESTAMP' : 'NULL';
+        $statement = $this->pdo->prepare(
+            sprintf('UPDATE stakes
+             SET winnings_paid_at = %s
+             WHERE bet_id = :bet_id
+               AND bet_option_id = :winning_option_id
+               AND contact_id = :contact_id
+               AND is_cancelled = FALSE', $winningsPaidAt),
+        );
+        $statement->execute([
+            'bet_id' => $betId,
+            'winning_option_id' => $winningOptionId,
+            'contact_id' => $contactId,
+        ]);
+    }
+
     /** @param array<string, mixed> $row */
     private function hydrate(array $row): Stake
     {

@@ -189,6 +189,32 @@ final readonly class StakeController
     }
 
     /** @param array<string, string> $args */
+    public function setWinningsPaid(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        try {
+            $body = (array)$request->getParsedBody();
+            $betId = $this->positiveId($args['id'] ?? '', 'bet');
+            $isPaid = $this->stringValue($body, 'is_paid');
+            if (!in_array($isPaid, ['0', '1'], true)) {
+                throw new InvalidArgumentException('Invalid winnings payment status.');
+            }
+            $this->service->setWinningsPaid(
+                $this->actor($request)->id,
+                $betId,
+                $this->positiveId($args['contactId'] ?? '', 'contact'),
+                $isPaid === '1',
+                $this->ipAddress($request),
+            );
+        } catch (BetAccessDeniedException $exception) {
+            return $this->forbidden($response, $exception->getMessage());
+        } catch (InvalidArgumentException $exception) {
+            return $this->badRequest($response, $exception->getMessage());
+        }
+
+        return $response->withStatus(303)->withHeader('Location', sprintf('/bets/%d?saved=1', $betId));
+    }
+
+    /** @param array<string, string> $args */
     public function delete(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         try {
