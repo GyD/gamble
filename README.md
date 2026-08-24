@@ -15,7 +15,7 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Groupes** : ensembles de contacts permettant d'organiser les participants.
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
 - **Mises** : participations rattachées à un pari et à un contact.
-- **Paiements RP** : statut payé, non payé ou à rembourser porté par les mises ; les transferts sont réalisés directement en jeu.
+- **Paiements** : suivi des mises payées, non payées ou à rembourser et des gains versés ou à verser ; les transferts sont réalisés hors de l'application.
 - **Statistiques** : vues agrégées des paris, mises et résultats.
 - **Paramètres** : configuration fonctionnelle de l'application.
 - **Audit** : historique des opérations sensibles avec leur acteur et les états avant/après.
@@ -34,26 +34,29 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - protection des routes et masquage des actions selon les permissions ;
 - protection CSRF des mutations ;
 - audit atomique des changements de statut, de rôles et de permissions ;
-- tests automatisés du socle d'identité, des accès et des contacts ;
-- gestion des contacts avec nom et numéro de téléphone RP obligatoire, note facultative, archivage et réactivation ;
-- permissions et audit atomique des opérations sur les contacts.
-- gestion des groupes avec note facultative, archivage et membres visibles en lecture seule ;
-- gestion des appartenances aux groupes depuis la fiche du contact, avec la permission `contacts.edit`.
-- création des paris avec un nombre libre de choix, description et date limite facultatives ;
+- tests automatisés du socle d'identité, des accès, des contacts, des groupes, des paris, des mises, des statistiques et des gains ;
+- gestion des contacts avec nom et numéro de téléphone obligatoire, note facultative, archivage, réactivation et suppression définitive après archivage ;
+- permissions et audit atomique des opérations sur les contacts ;
+- gestion des groupes avec note facultative, archivage, suppression définitive après archivage et membres visibles en lecture seule ;
+- gestion des appartenances aux groupes depuis la fiche du contact, avec la permission `contacts.edit` ;
+- création des paris avec 2 à 20 choix uniques, une description et une date limite facultatives ;
+- modification des choix d'un pari uniquement tant qu'aucune mise n'existe ;
 - cycle de vie des paris `open` → `closed` → `settled`, avec annulation depuis les états `open` ou `closed` ;
 - désignation obligatoire d'un choix gagnant lors du règlement ;
-- permissions, contrôle de propriété et audit atomique des opérations sur les paris.
+- permissions, contrôle de propriété et audit atomique des opérations sur les paris ;
 - gestion de plusieurs mises par contact et par pari, sur un ou plusieurs choix ;
+- sélection recherchable des contacts dans les formulaires de mise, avec affichage de leurs groupes ;
 - création et modification des mises tant que le pari est ouvert ;
 - annulation possible d’une mise payée ou non payée, et obligatoire avant sa suppression définitive ;
 - une mise annulée et payée peut être marquée remboursée, sans devoir être réactivée ;
 - suppression définitive d’une mise uniquement lorsqu’elle est annulée et non payée ;
 - montants de mises stockés en centimes, statut payé/non payé, permissions dédiées et audit atomique ;
 - sur un pari annulé, une mise payée est à rembourser et une mise non payée est considérée comme remboursée ;
-- suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée.
+- suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée ;
+- calcul des gains après règlement : le pot de toutes les mises non annulées est réparti entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
+- affichage des gagnants, du montant à leur verser et suivi individuel du statut `gain à verser` ou `gain versé` ;
 - statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
-- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris ;
-- résultat net, ROI et gains volontairement absents tant qu'aucune règle de redistribution ni aucun montant de règlement n'est enregistré.
+- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris.
 
 ### À construire
 

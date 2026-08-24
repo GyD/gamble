@@ -28,12 +28,12 @@ final class GroupServiceTest extends TestCase
 
     public function testGroupIsNormalizedCreatedAndAudited(): void
     {
-        $group = $this->service->create(7, '  Friends  ', '  RP group  ', '127.0.0.1');
+        $group = $this->service->create(7, '  Friends  ', '  Close friends  ', '127.0.0.1');
 
         self::assertSame('Friends', $group->name);
-        self::assertSame('RP group', $group->note);
+        self::assertSame('Close friends', $group->note);
         self::assertSame('group.created', $this->audit->entries[0]['action']);
-        self::assertSame(['name' => 'Friends', 'note' => 'RP group', 'archived' => false, 'member_ids' => []], $this->audit->entries[0]['after']);
+        self::assertSame(['name' => 'Friends', 'note' => 'Close friends', 'archived' => false, 'member_ids' => []], $this->audit->entries[0]['after']);
     }
 
     public function testBlankNameIsRejected(): void

@@ -44,7 +44,7 @@ final class GroupControllerTest extends TestCase
 
     public function testIndexShowsMembersReadOnlyAndActions(): void
     {
-        $this->groups->groups[1] = new Group(1, 'Friends', 'RP', null);
+        $this->groups->groups[1] = new Group(1, 'Friends', 'Close friends', null);
 
         $response = $this->controller->index($this->request('GET'), new Response());
         $html = (string) $response->getBody();
