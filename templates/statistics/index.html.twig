@@ -1,0 +1,73 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Classement · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header">
+        <p class="eyebrow">Contacts</p>
+        <h1>Classement</h1>
+        <p class="identity">{{ scope_is_global ? 'Tous les paris accessibles' : 'Vos paris uniquement' }}</p>
+    </header>
+
+    <nav class="statistics-tabs" aria-label="Période">
+        {% for value, label in {'7d': '7 jours', '30d': '30 jours', 'all': 'Tout'} %}
+            <a class="{{ statistics.period == value ? 'is-active' : '' }}" href="/statistics?period={{ value }}&sort={{ statistics.sort }}">{{ label }}</a>
+        {% endfor %}
+    </nav>
+
+    <form class="statistics-sort" method="get" action="/statistics">
+        <input type="hidden" name="period" value="{{ statistics.period }}">
+        <label for="leaderboard-sort">Classer par</label>
+        <select id="leaderboard-sort" name="sort" onchange="this.form.submit()">
+            <option value="win_rate"{% if statistics.sort == 'win_rate' %} selected{% endif %}>Taux de victoire</option>
+            <option value="total_staked"{% if statistics.sort == 'total_staked' %} selected{% endif %}>Total misé</option>
+            <option value="participations"{% if statistics.sort == 'participations' %} selected{% endif %}>Participations</option>
+        </select>
+        <button class="button button-secondary" type="submit">Appliquer</button>
+    </form>
+
+    <p class="notice">Résultat net, ROI et gains ne sont pas affichés : le règlement actuel désigne un choix gagnant mais n’enregistre ni règle de redistribution ni montant retourné.</p>
+
+    <section aria-labelledby="leaderboard-title">
+        <h2 id="leaderboard-title">Parieurs</h2>
+        <div class="leaderboard-list">
+            {% for contact in statistics.contacts %}
+                <a class="leaderboard-row" href="/statistics/contacts/{{ contact.id }}?period={{ statistics.period }}">
+                    <strong class="leaderboard-rank">{{ loop.index }}</strong>
+                    <span class="leaderboard-person">
+                        <strong>{{ contact.name }}</strong>
+                        <small>{{ contact.wins }} / {{ contact.participations }} gagnés · {{ contact.win_rate|number_format(1, ',', ' ') }} %</small>
+                    </span>
+                    <span class="leaderboard-value">
+                        {% if statistics.sort == 'total_staked' %}
+                            {{ (contact.total_staked / 100)|number_format(2, ',', ' ') }} $
+                        {% elseif statistics.sort == 'participations' %}
+                            {{ contact.participations }} paris
+                        {% else %}
+                            {{ contact.win_rate|number_format(1, ',', ' ') }} %
+                        {% endif %}
+                    </span>
+                </a>
+            {% else %}
+                <div class="empty-state">
+                    <h2>Aucune statistique disponible</h2>
+                    <p>Le classement apparaîtra après le règlement d’un pari.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if statistics.contacts %}
+        <section aria-labelledby="records-title">
+            <h2 id="records-title">Records</h2>
+            <div class="record-grid">
+                {% if statistics.records.largest_stake %}<article><span>Plus grosse mise</span><strong>{{ statistics.records.largest_stake.name }}</strong><small>{{ (statistics.records.largest_stake.value / 100)|number_format(2, ',', ' ') }} $</small></article>{% endif %}
+                {% if statistics.records.largest_loss %}<article><span>Plus grosse perte</span><strong>{{ statistics.records.largest_loss.name }}</strong><small>{{ (statistics.records.largest_loss.value / 100)|number_format(2, ',', ' ') }} $</small></article>{% endif %}
+                {% if statistics.records.longest_win_streak %}<article><span>Victoires consécutives</span><strong>{{ statistics.records.longest_win_streak.name }}</strong><small>{{ statistics.records.longest_win_streak.value }}</small></article>{% endif %}
+                {% if statistics.records.longest_loss_streak %}<article><span>Défaites consécutives</span><strong>{{ statistics.records.longest_loss_streak.name }}</strong><small>{{ statistics.records.longest_loss_streak.value }}</small></article>{% endif %}
+                {% if statistics.records.most_participations %}<article><span>Plus de participations</span><strong>{{ statistics.records.most_participations.name }}</strong><small>{{ statistics.records.most_participations.value }}</small></article>{% endif %}
+                {% if statistics.records.largest_pot %}<article><span>Plus gros pot</span><strong>{{ statistics.records.largest_pot.question }}</strong><small>{{ (statistics.records.largest_pot.value / 100)|number_format(2, ',', ' ') }} $</small></article>{% endif %}
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

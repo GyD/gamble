@@ -25,6 +25,7 @@ use App\Middleware\RequireStakesCreatePermissionMiddleware;
 use App\Middleware\RequireStakesDeletePermissionMiddleware;
 use App\Middleware\RequireStakesEditPermissionMiddleware;
 use App\Middleware\RequireStakesViewPermissionMiddleware;
+use App\Middleware\RequireStatisticsViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Security\AuthorizationService;
@@ -158,6 +159,7 @@ final class RequireUsersViewPermissionMiddlewareTest extends TestCase
         yield 'create stakes' => [RequireStakesCreatePermissionMiddleware::class, 'stakes.create'];
         yield 'edit stakes' => [RequireStakesEditPermissionMiddleware::class, 'stakes.edit'];
         yield 'delete stakes' => [RequireStakesDeletePermissionMiddleware::class, 'stakes.delete'];
+        yield 'view statistics' => [RequireStatisticsViewPermissionMiddleware::class, 'statistics.view'];
         yield 'view users' => [RequireUsersViewPermissionMiddleware::class, 'users.view'];
         yield 'manage users' => [RequireUsersManagePermissionMiddleware::class, 'users.manage'];
         yield 'manage permissions' => [

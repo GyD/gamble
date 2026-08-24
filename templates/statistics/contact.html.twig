@@ -1,0 +1,63 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Statistiques de {{ contact.name }} · Gamble{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row">
+        <div><p class="eyebrow">Statistiques du contact</p><h1>{{ contact.name }}</h1></div>
+        <a class="button button-secondary" href="/statistics?period={{ statistics.period }}">Classement</a>
+    </header>
+
+    <nav class="statistics-tabs" aria-label="Période">
+        {% for value, label in {'7d': '7 jours', '30d': '30 jours', 'all': 'Tout'} %}
+            <a class="{{ statistics.period == value ? 'is-active' : '' }}" href="/statistics/contacts/{{ contact.id }}?period={{ value }}">{{ label }}</a>
+        {% endfor %}
+    </nav>
+
+    {% if statistics.participations == 0 %}
+        <section class="empty-state">
+            <h2>Aucune statistique disponible</h2>
+            <p>Les statistiques apparaîtront après le règlement du premier pari de ce contact sur cette période.</p>
+        </section>
+    {% else %}
+        <section class="contact-statistics-hero" aria-label="Indicateurs principaux">
+            <article><strong>{{ statistics.win_rate|number_format(1, ',', ' ') }} %</strong><span>Victoires</span></article>
+            <article><strong>{{ statistics.participations }}</strong><span>Paris</span></article>
+            <article><strong>{{ (statistics.total_staked / 100)|number_format(2, ',', ' ') }} $</strong><span>Total misé</span></article>
+        </section>
+
+        <section class="statistics-detail-grid" aria-label="Détails">
+            <article><span>Victoires</span><strong>{{ statistics.wins }}</strong></article>
+            <article><span>Défaites</span><strong>{{ statistics.losses }}</strong></article>
+            <article><span>Mise moyenne</span><strong>{{ (statistics.average_stake / 100)|number_format(2, ',', ' ') }} $</strong></article>
+            <article><span>Plus grosse mise</span><strong>{{ (statistics.largest_stake / 100)|number_format(2, ',', ' ') }} $</strong></article>
+            <article><span>Plus grosse perte</span><strong>{{ statistics.largest_loss is null ? '—' : (statistics.largest_loss / 100)|number_format(2, ',', ' ') ~ ' $' }}</strong></article>
+        </section>
+
+        <section aria-labelledby="streak-title">
+            <h2 id="streak-title">Forme</h2>
+            <div class="streak-card">
+                <div>
+                    <span>Série actuelle</span>
+                    <strong>{% if statistics.current_streak.type == 'win' %}🔥 {{ statistics.current_streak.count }} victoire{{ statistics.current_streak.count > 1 ? 's' : '' }}{% else %}❄️ {{ statistics.current_streak.count }} défaite{{ statistics.current_streak.count > 1 ? 's' : '' }}{% endif %}</strong>
+                </div>
+                <small>Record : {{ statistics.best_win_streak }} victoire{{ statistics.best_win_streak > 1 ? 's' : '' }} · {{ statistics.best_loss_streak }} défaite{{ statistics.best_loss_streak > 1 ? 's' : '' }}</small>
+            </div>
+        </section>
+
+        <p class="notice">Retours, résultat net, ROI et plus gros gain seront disponibles lorsqu’un montant de règlement sera enregistré. Les paiements RP ne sont pas utilisés comme performance.</p>
+
+        <section aria-labelledby="recent-title">
+            <h2 id="recent-title">Derniers paris</h2>
+            <div class="recent-results">
+                {% for result in statistics.recent_results %}
+                    <a href="/bets/{{ result.bet_id }}">
+                        <span class="result-icon" aria-label="{{ result.outcome == 'win' ? 'Victoire' : 'Défaite' }}">{{ result.outcome == 'win' ? '✅' : '❌' }}</span>
+                        <span><strong>{{ result.question }}</strong><small>{{ result.settled_at|date('d/m/Y') }}</small></span>
+                        <strong>{{ result.outcome == 'loss' ? '−' : '' }}{{ (result.staked_cents / 100)|number_format(2, ',', ' ') }} $ misés</strong>
+                    </a>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

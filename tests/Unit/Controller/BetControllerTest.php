@@ -12,10 +12,12 @@ use App\Domain\User\UserStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
 use App\Repository\StakeStore;
+use App\Repository\StatisticsStore;
 use App\Domain\Stake\Stake;
 use App\Security\AuthorizationService;
 use App\Security\PermissionResolver;
 use App\Service\BetService;
+use App\Service\StatisticsService;
 use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -122,6 +124,7 @@ final class BetControllerTest extends TestCase
             new BetService(new PDO('sqlite::memory:'), $store, $stakes, new ControllerBetAuditLogger()),
             new AuthorizationService($permissions),
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
+            new StatisticsService(new ControllerBetStatisticsStore()),
         );
     }
 
@@ -180,4 +183,17 @@ final class ControllerBetStakeStore implements StakeStore
 final class ControllerBetAuditLogger implements AuditLogger
 {
     public function record(int $actorUserId, string $action, string $entityType, string $entityId, ?array $before, ?array $after, ?string $ipAddress): void {}
+}
+
+final class ControllerBetStatisticsStore implements StatisticsStore
+{
+    public function settledContactBets(?int $ownerUserId, ?DateTimeImmutable $from, ?int $contactId = null): array
+    {
+        return [];
+    }
+
+    public function betStakes(int $betId): array
+    {
+        return [];
+    }
 }

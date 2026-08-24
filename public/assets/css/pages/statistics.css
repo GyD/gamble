@@ -1,0 +1,194 @@
+.statistics-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.2rem;
+    margin-bottom: var(--space-lg);
+    padding: 0.2rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+.statistics-tabs a {
+    padding: var(--space-md);
+    border-radius: var(--radius-sm);
+    color: var(--color-control-text);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+}
+
+.statistics-tabs a.is-active {
+    background: var(--color-primary);
+    color: var(--color-surface);
+}
+
+.statistics-sort {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.statistics-sort select {
+    min-height: 2.75rem;
+    flex: 1;
+    padding: var(--space-sm);
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+}
+
+.leaderboard-list,
+.recent-results {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.leaderboard-row,
+.recent-results a {
+    display: grid;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+.leaderboard-row {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+}
+
+.leaderboard-rank {
+    color: var(--color-primary);
+    font-size: 1.25rem;
+    text-align: center;
+}
+
+.leaderboard-person,
+.recent-results a > span:nth-child(2) {
+    display: grid;
+    min-width: 0;
+    gap: 0.2rem;
+}
+
+.leaderboard-person small,
+.record-grid span,
+.record-grid small,
+.streak-card span,
+.streak-card small,
+.recent-results small {
+    color: var(--color-text-muted);
+}
+
+.leaderboard-value {
+    font-weight: 800;
+    text-align: right;
+}
+
+.record-grid,
+.statistics-detail-grid,
+.contact-statistics-hero {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md);
+}
+
+.record-grid article,
+.statistics-detail-grid article,
+.contact-statistics-hero article,
+.streak-card {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+}
+
+.record-grid article strong,
+.record-grid article small,
+.statistics-detail-grid article strong,
+.statistics-detail-grid article span,
+.contact-statistics-hero article strong,
+.contact-statistics-hero article span {
+    overflow-wrap: anywhere;
+}
+
+.contact-statistics-hero {
+    margin-bottom: var(--space-xl);
+}
+
+.contact-statistics-hero article:first-child {
+    grid-column: 1 / -1;
+}
+
+.contact-statistics-hero strong {
+    color: var(--color-primary);
+    font-size: 1.75rem;
+}
+
+.statistics-detail-grid article span {
+    color: var(--color-text-muted);
+}
+
+.streak-card div {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.streak-card strong {
+    font-size: 1.25rem;
+}
+
+.recent-results a {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.recent-results a > strong {
+    text-align: right;
+}
+
+.result-icon {
+    font-size: 1.25rem;
+}
+
+@media (max-width: 34rem) {
+    .statistics-sort {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .leaderboard-row {
+        grid-template-columns: 1.75rem minmax(0, 1fr);
+    }
+
+    .leaderboard-value {
+        grid-column: 2;
+        text-align: left;
+    }
+
+    .recent-results a {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .recent-results a > strong {
+        grid-column: 2;
+        text-align: left;
+    }
+}
+
+@media (min-width: 48rem) {
+    .record-grid,
+    .statistics-detail-grid,
+    .contact-statistics-hero {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .contact-statistics-hero article:first-child {
+        grid-column: auto;
+    }
+}

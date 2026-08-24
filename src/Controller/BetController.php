@@ -10,6 +10,7 @@ use App\Domain\User\User;
 use App\Repository\BetStore;
 use App\Security\AuthorizationService;
 use App\Service\BetService;
+use App\Service\StatisticsService;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -22,6 +23,7 @@ final readonly class BetController
         private BetService $service,
         private AuthorizationService $authorization,
         private Environment $twig,
+        private StatisticsService $statistics,
     ) {
     }
 
@@ -88,6 +90,7 @@ final readonly class BetController
             'can_close' => $this->authorization->can($actor, 'bets.close'),
             'can_settle' => $this->authorization->can($actor, 'bets.settle'),
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
+            'statistics' => $this->statistics->bet($bet->id),
         ]);
     }
 
@@ -291,6 +294,7 @@ final readonly class BetController
         $context['can_view_bets'] = $this->authorization->can($actor, 'bets.view');
         $context['can_view_contacts'] = $this->authorization->can($actor, 'contacts.view');
         $context['can_view_groups'] = $this->authorization->can($actor, 'groups.view');
+        $context['can_view_statistics'] = $this->authorization->can($actor, 'statistics.view');
         $context['can_view_users'] = $this->authorization->can($actor, 'users.view');
         $context['csrf'] = [
             'name_key' => 'csrf_name', 'name' => $request->getAttribute('csrf_name'),

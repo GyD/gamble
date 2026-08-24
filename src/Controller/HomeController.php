@@ -27,6 +27,7 @@ final readonly class HomeController
             'can_view_bets' => $user instanceof User && $this->authorization->can($user, 'bets.view'),
             'can_view_contacts' => $user instanceof User && $this->authorization->can($user, 'contacts.view'),
             'can_view_groups' => $user instanceof User && $this->authorization->can($user, 'groups.view'),
+            'can_view_statistics' => $user instanceof User && $this->authorization->can($user, 'statistics.view'),
             'can_view_users' => $user instanceof User && $this->authorization->can($user, 'users.view'),
             'csrf' => [
                 'name_key' => 'csrf_name',

@@ -15,8 +15,8 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Groupes** : ensembles de contacts permettant d'organiser les participants.
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
 - **Mises** : participations rattachées à un pari et à un contact.
-- **Paiements** : mouvements permettant de suivre les sommes effectivement réglées entre les participants.
-- **Statistiques** : vues agrégées des paris, mises, résultats et paiements.
+- **Paiements RP** : statut payé, non payé ou à rembourser porté par les mises ; les transferts sont réalisés directement en jeu.
+- **Statistiques** : vues agrégées des paris, mises et résultats.
 - **Paramètres** : configuration fonctionnelle de l'application.
 - **Audit** : historique des opérations sensibles avec leur acteur et les états avant/après.
 
@@ -51,15 +51,16 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - montants de mises stockés en centimes, statut payé/non payé, permissions dédiées et audit atomique ;
 - sur un pari annulé, une mise payée est à rembourser et une mise non payée est considérée comme remboursée ;
 - suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée.
+- statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
+- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris ;
+- résultat net, ROI et gains volontairement absents tant qu'aucune règle de redistribution ni aucun montant de règlement n'est enregistré.
 
 ### À construire
 
-- suivi des paiements et des soldes ;
-- statistiques ;
 - paramètres fonctionnels ;
 - extension de l'audit aux futurs modules métier.
 
-Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris et Mises.
+Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris, Mises et Statistiques.
 
 ## Roadmap fonctionnelle
 
@@ -69,9 +70,8 @@ L'ordre prévu tient compte des dépendances entre les concepts :
 2. paris et définition de leur cycle de vie ;
 3. mises ;
 4. clôture et règlement des paris ;
-5. paiements et soldes ;
-6. statistiques ;
-7. paramètres fonctionnels.
+5. statistiques ;
+6. paramètres fonctionnels.
 
 Chaque lot doit inclure son modèle de données, ses règles métier, ses permissions, son interface mobile-first, son audit et ses tests automatisés.
 

@@ -44,6 +44,64 @@
     font-weight: 700;
 }
 
+.bet-statistics-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md);
+}
+
+.bet-statistics-summary article {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.bet-statistics-summary span,
+.option-distribution span {
+    color: var(--color-text-muted);
+}
+
+.option-distribution {
+    display: grid;
+    gap: var(--space-lg);
+    margin-top: var(--space-xl);
+}
+
+.option-distribution article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4rem;
+    align-items: center;
+    gap: var(--space-sm) var(--space-md);
+}
+
+.option-distribution article > div:first-child {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-sm);
+}
+
+.option-distribution article > strong {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    text-align: right;
+}
+
+.distribution-track {
+    height: 0.6rem;
+    overflow: hidden;
+    border-radius: var(--radius-pill);
+    background: var(--color-border);
+}
+
+.distribution-track span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-primary);
+}
+
 .settle-form select {
     width: 100%;
     min-height: 2.75rem;
@@ -56,5 +114,9 @@
 @media (min-width: 48rem) {
     .bet-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .bet-statistics-summary {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 }

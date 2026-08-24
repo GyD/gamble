@@ -31,4 +31,28 @@
             </div>
         {% endif %}
     </article>
+
+    <section class="bet-card" aria-labelledby="bet-statistics-title">
+        <h2 id="bet-statistics-title">Participation</h2>
+        {% if statistics.stake_count == 0 %}
+            <div class="empty-state"><p>Aucune mise active sur ce pari.</p></div>
+        {% else %}
+            <div class="bet-statistics-summary">
+                <article><strong>{{ statistics.participant_count }}</strong><span>Participants</span></article>
+                <article><strong>{{ (statistics.pot_cents / 100)|number_format(2, ',', ' ') }} $</strong><span>Pot total</span></article>
+                <article><strong>{{ (statistics.average_stake_cents / 100)|number_format(2, ',', ' ') }} $</strong><span>Mise moyenne</span></article>
+                <article><strong>{{ (statistics.median_stake_cents_x2 / 200)|number_format(2, ',', ' ') }} $</strong><span>Mise médiane</span></article>
+                <article><strong>{{ (statistics.largest_stake_cents / 100)|number_format(2, ',', ' ') }} $</strong><span>Plus grosse mise</span></article>
+            </div>
+            <div class="option-distribution">
+                {% for option in statistics.options %}
+                    <article>
+                        <div><strong>{{ option.label }}</strong><span>{{ option.participant_count }} participant{{ option.participant_count > 1 ? 's' : '' }} · {{ (option.amount_cents / 100)|number_format(2, ',', ' ') }} $</span></div>
+                        <div class="distribution-track" aria-hidden="true"><span style="width: {{ option.pot_percentage ?? 0 }}%"></span></div>
+                        <strong>{{ option.pot_percentage is null ? '—' : option.pot_percentage|number_format(1, ',', ' ') ~ ' %' }}</strong>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
 {% endblock %}

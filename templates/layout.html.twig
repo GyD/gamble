@@ -20,6 +20,9 @@
         {% if can_view_groups|default(false) %}
             <a class="button button-primary" href="/groups">Groupes</a>
         {% endif %}
+        {% if can_view_statistics|default(false) %}
+            <a class="button button-primary" href="/statistics">Statistiques</a>
+        {% endif %}
         {% if can_view_users|default(false) %}
             <a class="button button-primary" href="/admin/users">Utilisateurs</a>
         {% endif %}

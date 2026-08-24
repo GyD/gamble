@@ -230,6 +230,7 @@ final readonly class ContactController
         $context['can_view_bets'] = $this->authorization->can($actor, 'bets.view');
         $context['can_view_contacts'] = $this->authorization->can($actor, 'contacts.view');
         $context['can_view_groups'] = $this->authorization->can($actor, 'groups.view');
+        $context['can_view_statistics'] = $this->authorization->can($actor, 'statistics.view');
         $context['can_view_users'] = $this->authorization->can($actor, 'users.view');
         $context['csrf'] = [
             'name_key' => 'csrf_name',

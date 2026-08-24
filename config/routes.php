@@ -10,6 +10,7 @@ use App\Controller\GroupController;
 use App\Controller\HealthController;
 use App\Controller\HomeController;
 use App\Controller\StakeController;
+use App\Controller\StatisticsController;
 use App\Middleware\RequireActiveUserMiddleware;
 use App\Middleware\RequireBetsClosePermissionMiddleware;
 use App\Middleware\RequireBetsCreatePermissionMiddleware;
@@ -29,6 +30,7 @@ use App\Middleware\RequireStakesCreatePermissionMiddleware;
 use App\Middleware\RequireStakesDeletePermissionMiddleware;
 use App\Middleware\RequireStakesEditPermissionMiddleware;
 use App\Middleware\RequireStakesViewPermissionMiddleware;
+use App\Middleware\RequireStatisticsViewPermissionMiddleware;
 use App\Middleware\RequirePermissionsManagePermissionMiddleware;
 use App\Middleware\RequireUsersManagePermissionMiddleware;
 use App\Middleware\RequireUsersViewPermissionMiddleware;
@@ -45,6 +47,15 @@ return static function (App $app): void {
     $app->get('/access/pending', [AuthController::class, 'pending'])->setName('access.pending');
     $app->get('/access/suspended', [AuthController::class, 'suspended'])->setName('access.suspended');
     $app->post('/auth/logout', [AuthController::class, 'logout'])->setName('auth.logout');
+
+    $app->get('/statistics', [StatisticsController::class, 'index'])
+        ->add(RequireStatisticsViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('statistics');
+    $app->get('/statistics/contacts/{id}', [StatisticsController::class, 'contact'])
+        ->add(RequireStatisticsViewPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('statistics.contact');
 
     $app->get('/bets', [BetController::class, 'index'])
         ->add(RequireBetsViewPermissionMiddleware::class)

@@ -66,8 +66,11 @@
                 </div>
                 <p class="contact-phone-number">Téléphone : {{ contact.phoneNumber }}</p>
                 {% if contact.note %}<p class="contact-note">{{ contact.note }}</p>{% endif %}
-                {% if can_edit or can_archive %}
+                {% if can_edit or can_archive or can_view_statistics %}
                     <div class="card-actions">
+                        {% if can_view_statistics %}
+                            <a class="button button-secondary" href="/statistics/contacts/{{ contact.id }}">Statistiques</a>
+                        {% endif %}
                         {% if can_edit %}
                             <a class="button button-secondary" href="/contacts/{{ contact.id }}/edit">Modifier</a>
                         {% endif %}
