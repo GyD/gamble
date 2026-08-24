@@ -14,6 +14,7 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Contacts** : participants aux paris, qu'ils disposent ou non d'un compte utilisateur dans l'application.
 - **Groupes** : ensembles de contacts permettant d'organiser les participants.
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
+- **Cotes** : cotes mutuelles dynamiques calculées à partir de la répartition des mises actives et du montant redistribuable ; elles restent indicatives jusqu'à la fermeture du pari.
 - **Part du bookmaker** : commission prélevée sur le pot d'un pari réglé avant la répartition des gains.
 - **Mises** : participations rattachées à un pari et à un contact.
 - **Paiements** : suivi des mises payées, non payées ou à rembourser et des gains versés ou à verser ; les transferts sont réalisés hors de l'application.
@@ -60,12 +61,38 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 
 ### À construire
 
+- cotes mutuelles dynamiques recalculées à partir des mises non annulées pendant toute la période d'ouverture du pari ;
+- affichage des cotes comme indicatives pendant l'ouverture, puis comme finales après la fermeture du pari ;
 - part du bookmaker configurable pour chaque pari, fixée à 10 % par défaut et limitée à une valeur comprise entre 0 % et 25 % ;
-- calcul de la part du bookmaker sur le pot total des mises non annulées d'un pari réglé, puis répartition du pot restant entre les gagnants proportionnellement à leurs mises gagnantes ;
+- calcul de la part théorique du bookmaker sur le pot total des mises non annulées d'un pari réglé ;
+- garantie d'une cote minimale de `1,00` : la part réelle du bookmaker est limitée aux mises perdantes afin que les gagnants récupèrent au minimum leur mise ;
+- répartition du montant redistribuable entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
 - absence de part du bookmaker lorsqu'un pari est annulé ;
 - suivi et affichage du pot total, de la part du bookmaker et du montant effectivement redistribué ;
-- décision métier à prendre lorsque le choix gagnant ne comporte aucune mise active : remboursement, conservation du pot ou autre traitement ;
+- conservation de la totalité du pot par le bookmaker lorsque le choix gagnant ne comporte aucune mise active ;
+- enregistrement d'un état financier définitif lors du règlement afin que la cote finale, la part du bookmaker et les gains ne varient plus après le règlement ;
+- ajout du résultat net, du montant retourné et du retour sur investissement aux statistiques ;
 - extension de l'audit aux futurs modules métier.
+
+### Règles prévues pour les cotes et la part du bookmaker
+
+Les cotes sont mutuelles : elles ne sont pas fixées à l'avance par le bookmaker, mais dépendent des montants misés sur chaque choix. Pour un choix comportant au moins une mise active, la cote indicative est calculée ainsi :
+
+```text
+pot brut = somme de toutes les mises non annulées
+part théorique du bookmaker = pot brut × taux du bookmaker
+mises du choix = somme des mises non annulées sur le choix
+pertes disponibles = pot brut - mises du choix
+part applicable du bookmaker = minimum(part théorique du bookmaker, pertes disponibles)
+montant redistribuable = pot brut - part applicable du bookmaker
+cote du choix = montant redistribuable / mises du choix
+```
+
+La limitation de la part du bookmaker aux pertes disponibles garantit une cote minimale de `1,00`. Le montant retourné à un gagnant inclut donc toujours au moins sa mise. Une cote n'est pas calculable pour un choix sans mise active.
+
+Lors du règlement, si le choix gagnant comporte des mises actives, le montant redistribuable est partagé entre les gagnants proportionnellement à leurs mises sur ce choix. Si le choix gagnant ne comporte aucune mise active, aucun gain n'est distribué et le bookmaker conserve la totalité du pot.
+
+Les cotes évoluent après chaque création, modification ou annulation de mise tant que le pari est ouvert. Elles sont présentées comme indicatives pendant cette période. Les données financières sont figées lors du règlement afin de conserver un historique stable et auditable.
 
 Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris, Mises et Statistiques.
 
