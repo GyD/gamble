@@ -20,6 +20,7 @@ interface StatisticsStore
      *     stake_count: int,
      *     total_staked_cents: int,
      *     winning_staked_cents: int,
+     *     returned_cents: int,
      *     largest_stake_cents: int
      * }>
      */

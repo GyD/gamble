@@ -82,12 +82,12 @@ final class StakeServiceTest extends TestCase
         $this->service->create(7, 1, 20, 10, '1.00', null);
     }
 
-    public function testWinningsDistributeEntirePotWithDeterministicRemainder(): void
+    public function testWinningsReturnFrozenPayouts(): void
     {
         $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
         $this->stakes->winners = [
-            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 1000, 'is_winnings_paid' => false],
-            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'pot_cents' => 1000, 'is_winnings_paid' => false],
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'payout_cents' => 333, 'is_winnings_paid' => false],
+            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'payout_cents' => 667, 'is_winnings_paid' => true],
         ];
 
         $winners = $this->service->winnings($this->bets->bets[1]);
@@ -263,7 +263,7 @@ final class StakeTestStore implements StakeStore
 {
     /** @var array<int, Stake> */
     public array $stakes = [];
-    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, payout_cents: int, is_winnings_paid: bool}> */
     public array $winners = [];
 
     public function findByBet(int $betId): array
@@ -301,6 +301,8 @@ final class StakeTestStore implements StakeStore
 
         return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
     }
+
+    public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
 
     public function findWinnersByBet(int $betId, int $winningOptionId): array
     {
@@ -358,6 +360,8 @@ final class StakeTestBetStore implements BetStore
     {
         throw new \LogicException();
     }
+    public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
+    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

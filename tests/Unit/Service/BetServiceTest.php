@@ -22,6 +22,7 @@ final class BetServiceTest extends TestCase
     private BetTestStore $bets;
     private BetTestStakeStore $stakes;
     private BetTestAuditLogger $audit;
+    private PDO $pdo;
     private BetService $service;
 
     protected function setUp(): void
@@ -29,7 +30,8 @@ final class BetServiceTest extends TestCase
         $this->bets = new BetTestStore();
         $this->stakes = new BetTestStakeStore();
         $this->audit = new BetTestAuditLogger();
-        $this->service = new BetService(new PDO('sqlite::memory:'), $this->bets, $this->stakes, $this->audit);
+        $this->pdo = new PDO('sqlite::memory:');
+        $this->service = new BetService($this->pdo, $this->bets, $this->stakes, $this->audit);
     }
 
     public function testBetIsNormalizedCreatedOpenAndAudited(): void
@@ -149,6 +151,58 @@ final class BetServiceTest extends TestCase
         $this->expectExceptionMessage('Winning option does not belong to the bet.');
         $this->service->settle(7, $bet->id, 999, null);
     }
+
+    public function testSettlementPersistsFinancialSnapshotsAndFinalPayoutsAtomically(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $blueId = $bet->options[0]->id;
+        $redId = $bet->options[1]->id;
+        $this->stakes->stakes = [
+            new Stake(1, $bet->id, $blueId, 20, 100, 'Alice', 'Blue', false, true),
+            new Stake(2, $bet->id, $blueId, 21, 200, 'Bob', 'Blue', false, true),
+            new Stake(3, $bet->id, $redId, 22, 700, 'Carol', 'Red', false, true),
+        ];
+        $this->service->close(7, $bet->id, null);
+
+        $settled = $this->service->settle(7, $bet->id, $blueId, null);
+
+        self::assertFalse($this->pdo->inTransaction());
+        self::assertSame(1000, $settled->finalPotCents);
+        self::assertSame(100, $settled->finalBookmakerShareCents);
+        self::assertSame(900, $settled->finalRedistributedCents);
+        self::assertSame([3.0, 900 / 700], array_map(static fn(BetOption $option): ?float => $option->odds, $settled->options));
+        self::assertSame([300, 600, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
+
+        try {
+            $this->service->settle(7, $bet->id, $redId, null);
+            self::fail('A settled bet must not be settled again.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertSame('Bet must be closed to become settled.', $exception->getMessage());
+        }
+
+        self::assertFalse($this->pdo->inTransaction());
+        self::assertSame($blueId, $this->bets->findById($bet->id)?->winningOptionId);
+        self::assertSame([300, 600, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
+    }
+
+    public function testBookmakerRateCanOnlyBeChangedWhileBetIsOpen(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $updated = $this->service->update(7, $bet->id, 'Winner?', null, null, ['Blue', 'Red'], null, '12.5');
+
+        self::assertSame(1250, $updated->bookmakerRateBps);
+        $this->service->close(7, $bet->id, null);
+
+        try {
+            $this->service->update(7, $bet->id, 'Winner?', null, null, ['Blue', 'Red'], null, '5');
+            self::fail('A closed bet must not be editable.');
+        } catch (InvalidArgumentException $exception) {
+            self::assertSame('Only open bets can be edited.', $exception->getMessage());
+        }
+
+        self::assertFalse($this->pdo->inTransaction());
+        self::assertSame(1250, $this->bets->findById($bet->id)?->bookmakerRateBps);
+    }
 }
 
 final class BetTestStore implements BetStore
@@ -170,12 +224,37 @@ final class BetTestStore implements BetStore
         $bet = $this->bets[$id];
         $currentOptions = array_map(static fn(BetOption $option): string => $option->label, $bet->options);
         $updatedOptions = $options === $currentOptions ? $bet->options : $this->options($options);
-        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt, $bet->status, null, $updatedOptions);
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt,
+            $bet->status, $bet->winningOptionId, $updatedOptions, $bet->bookmakerRateBps,
+            $bet->finalPotCents, $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
     }
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet
     {
         $bet = $this->bets[$id];
-        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
+            $bet->closesAt, $status, $winningOptionId, $bet->options, $bet->bookmakerRateBps,
+            $bet->finalPotCents, $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+    }
+    public function setBookmakerRate(int $id, int $rateBps): Bet
+    {
+        $bet = $this->bets[$id];
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
+            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options, $rateBps,
+            $bet->finalPotCents, $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+    }
+    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet
+    {
+        $bet = $this->bets[$id];
+        $options = array_map(static fn(BetOption $option): BetOption => new BetOption(
+            $option->id,
+            $option->label,
+            $option->position,
+            $oddsByOptionId[$option->id],
+        ), $bet->options);
+
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
+            $bet->closesAt, BetStatus::Settled, $winningOptionId, $options, $bet->bookmakerRateBps,
+            $potCents, $bookmakerShareCents, $redistributedCents);
     }
     public function delete(int $id): void { unset($this->bets[$id]); }
     /** @param list<string> $labels @return list<BetOption> */
@@ -195,6 +274,22 @@ final class BetTestStakeStore implements StakeStore
     public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
+    public function setFinalPayouts(int $betId, array $payoutsByStakeId): void
+    {
+        $this->stakes = array_map(static fn(Stake $stake): Stake => new Stake(
+            $stake->id,
+            $stake->betId,
+            $stake->betOptionId,
+            $stake->contactId,
+            $stake->amountCents,
+            $stake->contactName,
+            $stake->optionLabel,
+            $stake->contactArchived,
+            $stake->isPaid,
+            $stake->isCancelled,
+            $stake->betId === $betId ? ($payoutsByStakeId[$stake->id] ?? 0) : $stake->finalPayoutCents,
+        ), $this->stakes);
+    }
     public function findWinnersByBet(int $betId, int $winningOptionId): array { return []; }
     public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }

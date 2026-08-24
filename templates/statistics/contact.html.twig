@@ -32,6 +32,10 @@
             <article><span>Mise moyenne</span><strong>{{ (statistics.average_stake / 100)|number_format(2, ',', ' ') }} $</strong></article>
             <article><span>Plus grosse mise</span><strong>{{ (statistics.largest_stake / 100)|number_format(2, ',', ' ') }} $</strong></article>
             <article><span>Plus grosse perte</span><strong>{{ statistics.largest_loss is null ? '—' : (statistics.largest_loss / 100)|number_format(2, ',', ' ') ~ ' $' }}</strong></article>
+            <article><span>Retours</span><strong>{{ (statistics.total_returned / 100)|number_format(2, ',', ' ') }} $</strong></article>
+            <article><span>Résultat net</span><strong>{{ (statistics.net / 100)|number_format(2, ',', ' ') }} $</strong></article>
+            <article><span>ROI</span><strong>{{ statistics.roi is null ? '—' : statistics.roi|number_format(1, ',', ' ') ~ ' %' }}</strong></article>
+            <article><span>Plus gros gain net</span><strong>{{ (statistics.largest_gain / 100)|number_format(2, ',', ' ') }} $</strong></article>
         </section>
 
         <section aria-labelledby="streak-title">
@@ -44,8 +48,6 @@
                 <small>Record : {{ statistics.best_win_streak }} victoire{{ statistics.best_win_streak > 1 ? 's' : '' }} · {{ statistics.best_loss_streak }} défaite{{ statistics.best_loss_streak > 1 ? 's' : '' }}</small>
             </div>
         </section>
-
-        <p class="notice">Retours, résultat net, ROI et plus gros gain seront disponibles lorsqu’un montant de règlement sera enregistré. Les statuts de paiement ne sont pas utilisés comme indicateurs de performance.</p>
 
         <section aria-labelledby="recent-title">
             <h2 id="recent-title">Derniers paris</h2>

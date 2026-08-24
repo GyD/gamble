@@ -297,6 +297,8 @@ final class ControllerStakeStore implements StakeStore
         return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
     }
 
+    public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
+
     public function findWinnersByBet(int $betId, int $winningOptionId): array
     {
         return $this->winners;
@@ -353,6 +355,8 @@ final class ControllerStakeBetStore implements BetStore
     {
         throw new \LogicException();
     }
+    public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
+    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

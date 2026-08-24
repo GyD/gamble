@@ -17,12 +17,16 @@ use Throwable;
 
 final readonly class BetService
 {
+    private BetFinancialCalculator $calculator;
+
     public function __construct(
         private PDO $pdo,
         private BetStore $bets,
         private StakeStore $stakes,
         private AuditLogger $auditLogs,
+        ?BetFinancialCalculator $calculator = null,
     ) {
+        $this->calculator = $calculator ?? new BetFinancialCalculator();
     }
 
     /** @param list<string> $options */
@@ -53,10 +57,12 @@ final readonly class BetService
         ?string $closesAt,
         array $options,
         ?string $ipAddress,
+        ?string $bookmakerPercentage = null,
     ): Bet {
         [$question, $description, $deadline, $options] = $this->normalize($question, $description, $closesAt, $options);
+        $rateBps = $bookmakerPercentage === null ? null : $this->parseBookmakerRate($bookmakerPercentage);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress): Bet {
+        return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress, $rateBps): Bet {
             $before = $this->ownedBet($actorUserId, $betId);
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Only open bets can be edited.');
@@ -66,6 +72,9 @@ final readonly class BetService
                 throw new InvalidArgumentException('Bet options cannot be changed once stakes have been placed.');
             }
             $after = $this->bets->update($betId, $question, $description, $deadline, $options);
+            if ($rateBps !== null && $rateBps !== $before->bookmakerRateBps) {
+                $after = $this->bets->setBookmakerRate($betId, $rateBps);
+            }
             $this->auditLogs->record($actorUserId, 'bet.updated', 'bet', (string) $betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
@@ -75,6 +84,51 @@ final readonly class BetService
     public function hasStakes(int $betId): bool
     {
         return $this->stakes->findByBet($betId) !== [];
+    }
+
+    public function withOdds(Bet $bet): Bet
+    {
+        if ($bet->status === BetStatus::Settled) {
+            return $bet;
+        }
+        $financials = $this->calculator->calculate(
+            array_map(static fn($option): int => $option->id, $bet->options),
+            $this->stakes->findByBet($bet->id),
+            $bet->bookmakerRateBps,
+        );
+        $options = array_map(static fn($option) => new \App\Domain\Bet\BetOption(
+            $option->id,
+            $option->label,
+            $option->position,
+            $financials->oddsByOptionId[$option->id],
+        ), $bet->options);
+
+        return new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $bet->status,
+            $bet->winningOptionId, $options, $bet->bookmakerRateBps, $bet->finalPotCents,
+            $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+    }
+
+    public function setBookmakerRate(int $actorUserId, int $betId, string $percentage, ?string $ipAddress): Bet
+    {
+        $rateBps = $this->parseBookmakerRate($percentage);
+        return $this->transactional(function () use ($actorUserId, $betId, $rateBps, $ipAddress): Bet {
+            $before = $this->ownedBet($actorUserId, $betId);
+            if ($before->status !== BetStatus::Open) {
+                throw new InvalidArgumentException('Bookmaker rate can only be changed while the bet is open.');
+            }
+            $after = $this->bets->setBookmakerRate($betId, $rateBps);
+            $this->auditLogs->record($actorUserId, 'bet.bookmaker_rate_changed', 'bet', (string)$betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
+            return $after;
+        });
+    }
+
+    private function parseBookmakerRate(string $percentage): int
+    {
+        if (!preg_match('/^(?:\d|1\d|2[0-5])(?:[.,]\d{1,2})?$/', trim($percentage))) {
+            throw new InvalidArgumentException('Bookmaker rate must be between 0% and 25%.');
+        }
+
+        return (int) round((float) str_replace(',', '.', $percentage) * 100);
     }
 
     public function close(int $actorUserId, int $betId, ?string $ipAddress): Bet
@@ -115,20 +169,26 @@ final readonly class BetService
 
     public function settle(int $actorUserId, int $betId, int $winningOptionId, ?string $ipAddress): Bet
     {
-        $bet = $this->ownedBet($actorUserId, $betId);
-        if (!in_array($winningOptionId, array_map(static fn($option): int => $option->id, $bet->options), true)) {
-            throw new InvalidArgumentException('Winning option does not belong to the bet.');
-        }
-
-        return $this->transition(
-            $actorUserId,
-            $betId,
-            BetStatus::Closed,
-            BetStatus::Settled,
-            $winningOptionId,
-            'bet.settled',
-            $ipAddress,
-        );
+        return $this->transactional(function () use ($actorUserId, $betId, $winningOptionId, $ipAddress): Bet {
+            $before = $this->ownedBet($actorUserId, $betId);
+            if ($before->status !== BetStatus::Closed) {
+                throw new InvalidArgumentException('Bet must be closed to become settled.');
+            }
+            if (!in_array($winningOptionId, array_map(static fn($option): int => $option->id, $before->options), true)) {
+                throw new InvalidArgumentException('Winning option does not belong to the bet.');
+            }
+            $financials = $this->calculator->calculate(
+                array_map(static fn($option): int => $option->id, $before->options),
+                $this->stakes->findByBet($betId),
+                $before->bookmakerRateBps,
+                $winningOptionId,
+            );
+            $this->stakes->setFinalPayouts($betId, $financials->payoutsByStakeId);
+            $after = $this->bets->settleFinancials($betId, $winningOptionId, $financials->potCents,
+                $financials->bookmakerShareCents, $financials->redistributedCents, $financials->oddsByOptionId);
+            $this->auditLogs->record($actorUserId, 'bet.settled', 'bet', (string)$betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
+            return $after;
+        });
     }
 
     private function transition(
@@ -231,6 +291,10 @@ final readonly class BetService
             'closes_at' => $bet->closesAt?->format(DATE_ATOM),
             'status' => $bet->status->value,
             'winning_option_id' => $bet->winningOptionId,
+            'bookmaker_rate_bps' => $bet->bookmakerRateBps,
+            'final_pot_cents' => $bet->finalPotCents,
+            'final_bookmaker_share_cents' => $bet->finalBookmakerShareCents,
+            'final_redistributed_cents' => $bet->finalRedistributedCents,
             'options' => array_map(static fn($option): array => ['id' => $option->id, 'label' => $option->label], $bet->options),
         ];
     }

@@ -153,29 +153,6 @@ final readonly class StakeService
             return [];
         }
 
-        $totalWinningStake = array_sum(array_column($winners, 'winning_stake_cents'));
-        $pot = $winners[0]['pot_cents'];
-        $allocated = 0;
-        foreach ($winners as $index => $winner) {
-            $numerator = $pot * $winner['winning_stake_cents'];
-            $winners[$index]['payout_cents'] = intdiv($numerator, $totalWinningStake);
-            $winners[$index]['remainder'] = $numerator % $totalWinningStake;
-            $allocated += $winners[$index]['payout_cents'];
-            unset($winners[$index]['pot_cents']);
-        }
-
-        $remainderOrder = array_keys($winners);
-        usort($remainderOrder, static fn(int $left, int $right): int =>
-            $winners[$right]['remainder'] <=> $winners[$left]['remainder']
-                ?: $winners[$left]['contact_id'] <=> $winners[$right]['contact_id']
-        );
-        foreach (array_slice($remainderOrder, 0, $pot - $allocated) as $index) {
-            ++$winners[$index]['payout_cents'];
-        }
-        foreach ($winners as $index => $winner) {
-            unset($winners[$index]['remainder']);
-        }
-
         return $winners;
     }
 

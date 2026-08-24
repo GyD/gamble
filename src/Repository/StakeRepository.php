@@ -17,7 +17,7 @@ final readonly class StakeRepository implements StakeStore
     public function findByBet(int $betId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount_cents, stakes.is_paid, stakes.is_cancelled,
+            'SELECT stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount_cents, stakes.final_payout_cents, stakes.is_paid, stakes.is_cancelled,
                     contacts.name AS contact_name, contacts.archived_at AS contact_archived_at,
                     bet_options.label AS option_label
              FROM stakes
@@ -34,7 +34,7 @@ final readonly class StakeRepository implements StakeStore
     public function findById(int $id): ?Stake
     {
         $statement = $this->pdo->prepare(
-            'SELECT stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount_cents, stakes.is_paid, stakes.is_cancelled,
+            'SELECT stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount_cents, stakes.final_payout_cents, stakes.is_paid, stakes.is_cancelled,
                     contacts.name AS contact_name, contacts.archived_at AS contact_archived_at,
                     bet_options.label AS option_label
              FROM stakes
@@ -104,30 +104,33 @@ final readonly class StakeRepository implements StakeStore
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated stake.');
     }
 
+    public function setFinalPayouts(int $betId, array $payoutsByStakeId): void
+    {
+        $clear = $this->pdo->prepare('UPDATE stakes SET final_payout_cents = NULL WHERE bet_id = :bet_id');
+        $clear->execute(['bet_id' => $betId]);
+        $update = $this->pdo->prepare('UPDATE stakes SET final_payout_cents = :payout WHERE id = :id AND bet_id = :bet_id');
+        foreach ($payoutsByStakeId as $stakeId => $payout) {
+            $update->execute(['payout' => $payout, 'id' => $stakeId, 'bet_id' => $betId]);
+        }
+    }
+
     public function findWinnersByBet(int $betId, int $winningOptionId): array
     {
         $statement = $this->pdo->prepare(
             'SELECT stakes.contact_id,
                     contacts.name AS contact_name,
                     SUM(stakes.amount_cents) AS winning_stake_cents,
-                    totals.pot_cents,
+                    SUM(stakes.final_payout_cents) AS payout_cents,
                     CASE WHEN COUNT(stakes.winnings_paid_at) = COUNT(*) THEN 1 ELSE 0 END AS is_winnings_paid
              FROM stakes
              INNER JOIN contacts ON contacts.id = stakes.contact_id
-             INNER JOIN (
-                 SELECT bet_id, SUM(amount_cents) AS pot_cents
-                 FROM stakes
-                 WHERE bet_id = :pot_bet_id AND is_cancelled = FALSE
-                 GROUP BY bet_id
-             ) totals ON totals.bet_id = stakes.bet_id
              WHERE stakes.bet_id = :bet_id
                AND stakes.bet_option_id = :winning_option_id
                AND stakes.is_cancelled = FALSE
-             GROUP BY stakes.contact_id, contacts.name, totals.pot_cents
+             GROUP BY stakes.contact_id, contacts.name
              ORDER BY stakes.contact_id',
         );
         $statement->execute([
-            'pot_bet_id' => $betId,
             'bet_id' => $betId,
             'winning_option_id' => $winningOptionId,
         ]);
@@ -136,7 +139,7 @@ final readonly class StakeRepository implements StakeStore
             'contact_id' => (int)$row['contact_id'],
             'contact_name' => (string)$row['contact_name'],
             'winning_stake_cents' => (int)$row['winning_stake_cents'],
-            'pot_cents' => (int)$row['pot_cents'],
+            'payout_cents' => (int)$row['payout_cents'],
             'is_winnings_paid' => (bool)$row['is_winnings_paid'],
         ], $statement->fetchAll());
     }
@@ -173,6 +176,7 @@ final readonly class StakeRepository implements StakeStore
             $row['contact_archived_at'] !== null,
             (bool)$row['is_paid'],
             (bool)$row['is_cancelled'],
+            $row['final_payout_cents'] === null ? null : (int)$row['final_payout_cents'],
         );
     }
 }

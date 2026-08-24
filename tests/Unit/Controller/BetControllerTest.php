@@ -38,8 +38,8 @@ final class BetControllerTest extends TestCase
         $store->bets[1] = new Bet(1, 1, 'Settled', null, null, BetStatus::Settled, 10, []);
         $stakes = new ControllerBetStakeStore();
         $stakes->winners = [
-            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 1000, 'is_winnings_paid' => false],
-            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'pot_cents' => 1000, 'is_winnings_paid' => true],
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'payout_cents' => 333, 'is_winnings_paid' => false],
+            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'payout_cents' => 667, 'is_winnings_paid' => true],
         ];
 
         $html = (string)$this->controller($store, false, $stakes)
@@ -74,6 +74,26 @@ final class BetControllerTest extends TestCase
 
         self::assertStringContainsString('Mine', $html);
         self::assertStringContainsString('Theirs', $html);
+    }
+
+    public function testIndexShowsCalculatedOddsForEachOption(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Mine', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 1),
+            new BetOption(11, 'Red', 2),
+        ]);
+        $stakes = new ControllerBetStakeStore();
+        $stakes->stakes = [
+            new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true),
+            new Stake(2, 1, 11, 21, 2000, 'Bob', 'Red', false, true),
+        ];
+
+        $html = (string) $this->controller($store, false, $stakes)
+            ->index($this->request('GET'), new Response())->getBody();
+
+        self::assertStringContainsString('Blue — cote 2,70', $html);
+        self::assertStringContainsString('Red — cote 1,35', $html);
     }
 
     public function testIndexShowsLinkToBetStakes(): void
@@ -210,6 +230,11 @@ final class ControllerBetStore implements BetStore
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
     }
+    public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
+    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet
+    {
+        return $this->changeStatus($id, BetStatus::Settled, $winningOptionId);
+    }
     public function delete(int $id): void { unset($this->bets[$id]); }
 }
 
@@ -217,7 +242,7 @@ final class ControllerBetStakeStore implements StakeStore
 {
     /** @var list<Stake> */
     public array $stakes = [];
-    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, payout_cents: int, is_winnings_paid: bool}> */
     public array $winners = [];
     public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
@@ -225,6 +250,7 @@ final class ControllerBetStakeStore implements StakeStore
     public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
+    public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
     public function findWinnersByBet(int $betId, int $winningOptionId): array { return $this->winners; }
     public function setWinningsPaid(int $betId, int $winningOptionId, int $contactId, bool $isPaid): void { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }

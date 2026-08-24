@@ -3,14 +3,58 @@
     gap: 1.5rem;
 }
 
+.stake-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xl);
+}
+
+.stake-summary article {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+.stake-summary strong {
+    font-size: clamp(1.1rem, 4vw, 1.5rem);
+}
+
+.stake-summary span,
+.stake-list-heading span {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+.stake-list-section {
+    min-width: 0;
+}
+
+.stake-list-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+.stake-list-heading h2 {
+    margin: 0;
+}
+
 .stake-list {
     display: grid;
     gap: 1rem;
 }
 
 .stake-card {
-    background: var(--surface, #fff);
-    border: 1px solid var(--border, #dbe3ef);
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 1rem;
     padding: 1rem;
 }
@@ -19,9 +63,26 @@
     opacity: 0.75;
 }
 
-.stake-card h2,
+.stake-card h3,
 .stake-card p {
     margin-top: 0;
+}
+
+.stake-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-md);
+}
+
+.stake-card-header h3,
+.stake-card-header p {
+    margin: 0;
+}
+
+.stake-card-header p {
+    margin-top: var(--space-xs);
+    color: var(--color-text-muted);
 }
 
 .stake-form {
@@ -31,8 +92,11 @@
 
 .stake-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     margin-top: 1rem;
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
 }
 
 .stake-actions > .button,
@@ -46,29 +110,70 @@
 }
 
 .stake-amount {
+    flex: 0 0 auto;
     font-size: 1.15rem;
     font-weight: 700;
+    white-space: nowrap;
 }
 
-.stake-payment-status {
-    color: var(--danger, #b42318);
+.stake-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin: var(--space-lg) 0;
+}
+
+.stake-payment-status,
+.stake-cancellation-status,
+.stake-archived-status {
+    display: inline-flex;
+    padding: 0.3rem 0.55rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-danger-soft);
+    color: var(--color-danger-text);
+    font-size: 0.75rem;
     font-weight: 700;
 }
 
 .stake-payment-status.is-paid {
-    color: var(--success, #067647);
+    background: var(--color-success-soft);
+    color: var(--color-success-text);
 }
 
 .stake-payment-status.is-refunded {
+    background: var(--color-background);
     color: var(--color-text-muted, #475467);
 }
 
-.stake-cancellation-status {
-    color: var(--danger, #b42318);
-    font-weight: 700;
+.stake-archived-status {
+    background: var(--color-warning-soft);
+    color: var(--color-warning-text);
+}
+
+.stake-payout {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--color-success-soft);
+    color: var(--color-success-text);
+}
+
+.stake-payout span {
+    font-size: 0.85rem;
 }
 
 @media (min-width: 48rem) {
+    .stake-summary {
+        gap: var(--space-lg);
+    }
+
+    .stake-summary article {
+        padding: var(--space-lg);
+    }
+
     .stake-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }

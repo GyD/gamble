@@ -27,9 +27,9 @@ final class StatisticsServiceTest extends TestCase
     public function testContactAggregatesWinsLossesStakesAndLargestLoss(): void
     {
         $statistics = $this->service([
-            $this->row(1, '2026-08-20', 3000, 1000, 2000),
+            $this->row(1, '2026-08-20', 3000, 1000, 2000, returned: 6000),
             $this->row(2, '2026-08-21', 5000, 0, 5000),
-            $this->row(3, '2026-08-22', 4000, 4000, 4000),
+            $this->row(3, '2026-08-22', 4000, 4000, 4000, returned: 7000),
         ])->contact(1, null, 'all');
 
         self::assertSame(3, $statistics['participations']);
@@ -40,6 +40,10 @@ final class StatisticsServiceTest extends TestCase
         self::assertSame(4000, $statistics['average_stake']);
         self::assertSame(5000, $statistics['largest_stake']);
         self::assertSame(5000, $statistics['largest_loss']);
+        self::assertSame(13000, $statistics['total_returned']);
+        self::assertSame(1000, $statistics['net']);
+        self::assertSame(8.3, $statistics['roi']);
+        self::assertSame(3000, $statistics['largest_gain']);
     }
 
     #[DataProvider('streakCases')]
@@ -129,11 +133,21 @@ final class StatisticsServiceTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function row(int $betId, string $date, int $total, int $winning, int $largest, int $contactId = 1, string $name = 'Alice'): array
+    private function row(
+        int $betId,
+        string $date,
+        int $total,
+        int $winning,
+        int $largest,
+        int $contactId = 1,
+        string $name = 'Alice',
+        int $returned = 0,
+    ): array
     {
         return ['contact_id' => $contactId, 'contact_name' => $name, 'bet_id' => $betId, 'question' => 'Bet ' . $betId,
             'settled_at' => $date . ' 12:00:00', 'stake_count' => 1, 'total_staked_cents' => $total,
-            'winning_staked_cents' => $winning, 'largest_stake_cents' => $largest];
+            'winning_staked_cents' => $winning, 'returned_cents' => $returned,
+            'largest_stake_cents' => $largest];
     }
 
     /** @return array<string, mixed> */

@@ -45,7 +45,7 @@
                 {% if bet.closesAt %}<p class="form-help">Date limite : {{ bet.closesAt|date('d/m/Y H:i') }}</p>{% endif %}
                 <ol class="bet-option-list">
                     {% for option in bet.options %}
-                        <li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>
+                        <li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — cote {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>
                     {% endfor %}
                 </ol>
 

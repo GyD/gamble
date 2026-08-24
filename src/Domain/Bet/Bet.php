@@ -18,6 +18,10 @@ final readonly class Bet
         public BetStatus $status,
         public ?int $winningOptionId,
         public array $options,
+        public int $bookmakerRateBps = 1000,
+        public ?int $finalPotCents = null,
+        public ?int $finalBookmakerShareCents = null,
+        public ?int $finalRedistributedCents = null,
     ) {
     }
 

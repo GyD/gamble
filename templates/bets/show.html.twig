@@ -12,7 +12,9 @@
         <div class="bet-card-header"><h2>Détails</h2><span class="status status-{{ bet.status.value }}">{{ {'open': 'Ouvert', 'closed': 'Fermé', 'settled': 'Réglé', 'cancelled': 'Annulé'}[bet.status.value] }}</span></div>
         {% if bet.description %}<p>{{ bet.description }}</p>{% endif %}
         {% if bet.closesAt %}<p class="form-help">Date limite : {{ bet.closesAt|date('d/m/Y H:i') }}</p>{% endif %}
-        <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
+        <p class="form-help">Taux bookmaker : {{ (bet.bookmakerRateBps / 100)|number_format(2, ',', ' ') }} %</p>
+        <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — cote {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
+        {% if bet.status.value == 'settled' %}<p><strong>Pot :</strong> {{ (bet.finalPotCents / 100)|number_format(2, ',', ' ') }} $ · <strong>Commission :</strong> {{ (bet.finalBookmakerShareCents / 100)|number_format(2, ',', ' ') }} $ · <strong>Redistribué :</strong> {{ (bet.finalRedistributedCents / 100)|number_format(2, ',', ' ') }} $</p>{% endif %}
 
         {% if can_view_stakes or is_owner %}
             <div class="card-actions">

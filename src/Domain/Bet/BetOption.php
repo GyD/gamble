@@ -10,6 +10,7 @@ final readonly class BetOption
         public int $id,
         public string $label,
         public int $position,
+        public ?float $odds = null,
     ) {
     }
 }

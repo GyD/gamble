@@ -35,6 +35,8 @@ final readonly class BetController
         $bets = $this->authorization->can($actor, 'bets.view_all')
             ? $this->bets->findAll()
             : $this->bets->findByOwner($actor->id);
+        $bets = array_map($this->service->withOdds(...), $bets);
+
         return $this->render($request, $response, 'bets/index.html.twig', [
             'bets' => $bets,
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
@@ -78,6 +80,7 @@ final readonly class BetController
         if ($bet === null) {
             return $response->withStatus(404);
         }
+        $bet = $this->service->withOdds($bet);
 
         $actor = $this->actor($request);
         if (!$bet->isOwnedBy($actor->id) && !$this->authorization->can($actor, 'bets.view_all')) {
@@ -134,6 +137,7 @@ final readonly class BetController
                 $this->nullableStringValue($body, 'closes_at'),
                 $this->stringList($body, 'options'),
                 $this->ipAddress($request),
+                $this->nullableStringValue($body, 'bookmaker_percentage'),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());

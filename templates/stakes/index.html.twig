@@ -14,6 +14,23 @@
 
     {% if saved %}<p class="notice notice-success" role="status">Modification enregistrée.</p>{% endif %}
 
+    {% set active_stake_count = 0 %}
+    {% set active_stake_total = 0 %}
+    {% set paid_stake_count = 0 %}
+    {% for stake in stakes %}
+        {% if not stake.isCancelled %}
+            {% set active_stake_count = active_stake_count + 1 %}
+            {% set active_stake_total = active_stake_total + stake.amountCents %}
+        {% endif %}
+        {% if stake.isPaid %}{% set paid_stake_count = paid_stake_count + 1 %}{% endif %}
+    {% endfor %}
+
+    <section class="stake-summary" aria-label="Résumé des mises">
+        <article><strong>{{ active_stake_count }}</strong><span>Mise{{ active_stake_count > 1 ? 's' : '' }} active{{ active_stake_count > 1 ? 's' : '' }}</span></article>
+        <article><strong>{{ (active_stake_total / 100)|number_format(2, ',', ' ') }} $</strong><span>Pot actif</span></article>
+        <article><strong>{{ paid_stake_count }}</strong><span>{{ bet.status.value == 'cancelled' ? 'À rembourser' : 'Payée' ~ (paid_stake_count > 1 ? 's' : '') }}</span></article>
+    </section>
+
     <div class="stake-layout{% if can_create %} has-create-form{% endif %}">
     {% if can_create %}
         <section class="form-section stake-create-panel">
@@ -33,11 +50,29 @@
         </section>
     {% endif %}
 
-    <div class="stake-list">
+    <section class="stake-list-section" aria-labelledby="stake-list-title">
+        <div class="stake-list-heading">
+            <h2 id="stake-list-title">Mises enregistrées</h2>
+            <span>{{ stakes|length }} au total</span>
+        </div>
+        <div class="stake-list">
         {% for stake in stakes %}
             <article class="stake-card{% if stake.isCancelled %} is-cancelled{% endif %}">
-                {% if stake.isCancelled %}<p class="stake-cancellation-status">Annulée</p>{% endif %}
-                <p class="stake-payment-status{% if bet.status.value == 'cancelled' and not stake.isPaid %} is-refunded{% elseif stake.isPaid %} is-paid{% endif %}">{{ bet.status.value == 'cancelled' ? (stake.isPaid ? 'À rembourser' : 'Remboursée') : (stake.isPaid ? 'Payée' : 'Non payée') }}</p>
+                <header class="stake-card-header">
+                    <div>
+                        <h3>{{ stake.contactName }}</h3>
+                        <p>{{ stake.optionLabel }}</p>
+                    </div>
+                    <strong class="stake-amount">{{ (stake.amountCents / 100)|number_format(2, ',', ' ') }} $</strong>
+                </header>
+                <div class="stake-statuses">
+                    <span class="stake-payment-status{% if bet.status.value == 'cancelled' and not stake.isPaid %} is-refunded{% elseif stake.isPaid %} is-paid{% endif %}">{{ bet.status.value == 'cancelled' ? (stake.isPaid ? 'À rembourser' : 'Remboursée') : (stake.isPaid ? 'Payée' : 'Non payée') }}</span>
+                    {% if stake.isCancelled %}<span class="stake-cancellation-status">Mise annulée</span>{% endif %}
+                    {% if stake.contactArchived %}<span class="stake-archived-status">Contact archivé</span>{% endif %}
+                </div>
+                {% if stake.finalPayoutCents is not null %}
+                    <p class="stake-payout"><span>Gain final</span><strong>{{ (stake.finalPayoutCents / 100)|number_format(2, ',', ' ') }} $</strong></p>
+                {% endif %}
                 {% if can_edit and not stake.contactArchived and not stake.isCancelled %}
                     <form id="stake-edit-{{ stake.id }}" method="post" action="/bets/{{ bet.id }}/stakes/{{ stake.id }}" class="stake-form">
                         <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}">
@@ -47,10 +82,7 @@
                         <div class="form-field"><label for="amount-{{ stake.id }}">Montant</label><input id="amount-{{ stake.id }}" name="amount" type="number" min="0.01" max="999999.99" step="0.01" inputmode="decimal" value="{{ '%.2f'|format(stake.amountCents / 100) }}" required></div>
                     </form>
                 {% else %}
-                    <h2>{{ stake.contactName }}</h2>
                     <p class="form-help">{{ contact_groups[stake.contactId] is defined ? 'Groupes : ' ~ contact_groups[stake.contactId]|join(', ') : 'Sans groupe' }}</p>
-                    <p>{{ stake.optionLabel }}</p>
-                    <p class="stake-amount">{{ '%.2f'|format(stake.amountCents / 100) }} $</p>
                     {% if stake.contactArchived %}<p class="form-help">Contact archivé : cette mise reste consultable mais ne peut plus être modifiée.</p>{% endif %}
                     {% if stake.isCancelled %}<p class="form-help">Cette mise est annulée. Réactive-la pour pouvoir la modifier.</p>{% endif %}
                 {% endif %}
@@ -103,7 +135,8 @@
         {% else %}
             <section class="empty-state"><p>Aucune mise.</p></section>
         {% endfor %}
-    </div>
+        </div>
+    </section>
     </div>
 {% endblock %}
 

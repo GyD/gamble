@@ -39,6 +39,7 @@ final readonly class StatisticsRepository implements StatisticsStore
                     COUNT(*) AS stake_count,
                     SUM(stakes.amount_cents) AS total_staked_cents,
                     SUM(CASE WHEN stakes.bet_option_id = bets.winning_option_id THEN stakes.amount_cents ELSE 0 END) AS winning_staked_cents,
+                    SUM(COALESCE(stakes.final_payout_cents, 0)) AS returned_cents,
                     MAX(stakes.amount_cents) AS largest_stake_cents
              FROM stakes
              INNER JOIN bets ON bets.id = stakes.bet_id
@@ -59,6 +60,7 @@ final readonly class StatisticsRepository implements StatisticsStore
             'stake_count' => (int)$row['stake_count'],
             'total_staked_cents' => (int)$row['total_staked_cents'],
             'winning_staked_cents' => (int)$row['winning_staked_cents'],
+            'returned_cents' => (int)$row['returned_cents'],
             'largest_stake_cents' => (int)$row['largest_stake_cents'],
         ], $statement->fetchAll());
     }

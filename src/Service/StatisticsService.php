@@ -115,6 +115,8 @@ final readonly class StatisticsService
         $participations = count($rows);
         $totalStaked = array_sum(array_column($rows, 'total_staked_cents'));
         $stakeCount = array_sum(array_column($rows, 'stake_count'));
+        $totalReturned = array_sum(array_column($rows, 'returned_cents'));
+        $net = $totalReturned - $totalStaked;
         $streaks = $this->streaks($outcomes);
 
         return [
@@ -131,10 +133,10 @@ final readonly class StatisticsService
             'current_streak' => $streaks['current'],
             'best_win_streak' => $streaks['best_win'],
             'best_loss_streak' => $streaks['best_loss'],
-            'total_returned' => null,
-            'net' => null,
-            'roi' => null,
-            'largest_gain' => null,
+            'total_returned' => $totalReturned,
+            'net' => $net,
+            'roi' => $totalStaked === 0 ? null : round($net * 100 / $totalStaked, 1),
+            'largest_gain' => max(array_map(static fn(array $row): int => $row['returned_cents'] - $row['total_staked_cents'], $rows)),
         ];
     }
 
@@ -145,7 +147,7 @@ final readonly class StatisticsService
             'participations' => 0, 'wins' => 0, 'losses' => 0, 'win_rate' => null,
             'total_staked' => 0, 'average_stake' => null, 'largest_stake' => null,
             'largest_loss' => null, 'current_streak' => null, 'best_win_streak' => 0,
-            'best_loss_streak' => 0, 'total_returned' => null, 'net' => null,
+            'best_loss_streak' => 0, 'total_returned' => 0, 'net' => null,
             'roi' => null, 'largest_gain' => null,
         ];
     }

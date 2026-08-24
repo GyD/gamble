@@ -21,12 +21,15 @@ interface StakeStore
 
     public function setCancelled(int $id, bool $isCancelled): Stake;
 
+    /** @param array<int, int> $payoutsByStakeId */
+    public function setFinalPayouts(int $betId, array $payoutsByStakeId): void;
+
     /**
      * @return list<array{
      *     contact_id: int,
      *     contact_name: string,
      *     winning_stake_cents: int,
-     *     pot_cents: int,
+     *     payout_cents: int,
      *     is_winnings_paid: bool
      * }>
      */

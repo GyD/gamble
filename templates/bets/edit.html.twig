@@ -12,6 +12,7 @@
         <div class="form-field"><label for="bet-question">Question</label><input id="bet-question" name="question" type="text" maxlength="255" value="{{ bet.question }}" required></div>
         <div class="form-field"><label for="bet-description">Description <span>(facultative)</span></label><textarea id="bet-description" name="description" maxlength="2000" rows="5">{{ bet.description }}</textarea></div>
         <div class="form-field"><label for="bet-closes-at">Date limite <span>(facultative)</span></label><input id="bet-closes-at" name="closes_at" type="datetime-local" value="{{ bet.closesAt ? bet.closesAt|date('Y-m-d\\TH:i') : '' }}"></div>
+        <div class="form-field"><label for="bet-bookmaker-rate">Taux bookmaker (%)</label><input id="bet-bookmaker-rate" name="bookmaker_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.bookmakerRateBps / 100)|number_format(2, '.', '') }}" required><p class="form-help">Entre 0 et 25 %. La commission est plafonnée aux pertes.</p></div>
         <fieldset class="bet-options"><legend>Choix</legend>
             <p class="form-help">{{ has_stakes ? 'Des mises existent : les choix ne peuvent plus être modifiés.' : 'Entre 2 et 20 choix uniques.' }}</p>
             <div class="bet-option-fields" data-option-fields>

@@ -17,6 +17,7 @@ final readonly class Stake
         public bool   $contactArchived,
         public bool   $isPaid,
         public bool   $isCancelled = false,
+        public ?int   $finalPayoutCents = null,
     )
     {
     }

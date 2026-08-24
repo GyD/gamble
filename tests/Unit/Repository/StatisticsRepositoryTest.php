@@ -22,6 +22,7 @@ final class StatisticsRepositoryTest extends TestCase
         self::assertSame(2, $rows[0]['stake_count']);
         self::assertSame(3000, $rows[0]['total_staked_cents']);
         self::assertSame(3000, $rows[0]['winning_staked_cents']);
+        self::assertSame(4500, $rows[0]['returned_cents']);
         self::assertSame(2000, $rows[0]['largest_stake_cents']);
     }
 
@@ -50,7 +51,7 @@ final class StatisticsRepositoryTest extends TestCase
         $pdo->exec('CREATE TABLE bets (id INTEGER PRIMARY KEY, owner_user_id INTEGER, question TEXT, status TEXT, winning_option_id INTEGER, updated_at TEXT)');
         $pdo->exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY, name TEXT)');
         $pdo->exec('CREATE TABLE bet_options (id INTEGER PRIMARY KEY, bet_id INTEGER, label TEXT, position INTEGER)');
-        $pdo->exec('CREATE TABLE stakes (id INTEGER PRIMARY KEY, bet_id INTEGER, bet_option_id INTEGER, contact_id INTEGER, amount_cents INTEGER, is_cancelled INTEGER)');
+        $pdo->exec('CREATE TABLE stakes (id INTEGER PRIMARY KEY, bet_id INTEGER, bet_option_id INTEGER, contact_id INTEGER, amount_cents INTEGER, final_payout_cents INTEGER, is_cancelled INTEGER)');
         $pdo->exec("INSERT INTO contacts VALUES (1, 'Alice')");
         $pdo->exec("INSERT INTO bets VALUES
             (1, 1, 'Settled', 'settled', 1, '2026-08-20 12:00:00'),
@@ -58,11 +59,11 @@ final class StatisticsRepositoryTest extends TestCase
             (3, 1, 'Cancelled', 'cancelled', NULL, '2026-08-22 12:00:00')");
         $pdo->exec("INSERT INTO bet_options VALUES (1, 1, 'Blue', 1), (2, 1, 'Red', 2), (3, 2, 'Yes', 1), (4, 3, 'No', 1)");
         $pdo->exec('INSERT INTO stakes VALUES
-            (1, 1, 1, 1, 1000, 0),
-            (2, 1, 1, 1, 5000, 1),
-            (3, 1, 1, 1, 2000, 0),
-            (4, 2, 3, 1, 4000, 0),
-            (5, 3, 4, 1, 8000, 0)');
+            (1, 1, 1, 1, 1000, 1500, 0),
+            (2, 1, 1, 1, 5000, NULL, 1),
+            (3, 1, 1, 1, 2000, 3000, 0),
+            (4, 2, 3, 1, 4000, NULL, 0),
+            (5, 3, 4, 1, 8000, NULL, 0)');
 
         return $pdo;
     }
