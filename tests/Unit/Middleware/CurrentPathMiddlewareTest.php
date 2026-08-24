@@ -17,8 +17,36 @@ use Twig\Loader\FilesystemLoader;
 
 final class CurrentPathMiddlewareTest extends TestCase
 {
+    public function testNavigationUsesAccessibleMobileMenuControl(): void
+    {
+        $html = $this->renderNavigation('/');
+
+        self::assertStringContainsString('<div class="navigation-menu">', $html);
+        self::assertStringContainsString(
+            '<button class="navigation-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">',
+            $html,
+        );
+        self::assertStringContainsString('class="navigation-toggle-icon" aria-hidden="true"', $html);
+        self::assertStringContainsString(
+            '<nav class="primary-navigation" id="primary-navigation" aria-label="Navigation principale">',
+            $html,
+        );
+        self::assertStringContainsString('<script src="/assets/js/navigation-menu.js"></script>', $html);
+    }
+
     #[DataProvider('navigationCases')]
     public function testCurrentNavigationItemIsActive(string $path, string $activeHref): void
+    {
+        $html = $this->renderNavigation($path);
+
+        self::assertSame(1, substr_count($html, 'aria-current="page"'));
+        self::assertMatchesRegularExpression(
+            sprintf('/<a class="button button-primary" href="%s" aria-current="page">/', preg_quote($activeHref, '/')),
+            $html,
+        );
+    }
+
+    private function renderNavigation(string $path): string
     {
         $twig = new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates'));
         $twig->addGlobal('current_path', '');
@@ -44,13 +72,7 @@ final class CurrentPathMiddlewareTest extends TestCase
             }
         };
 
-        $html = (string) $middleware->process($request, $handler)->getBody();
-
-        self::assertSame(1, substr_count($html, 'aria-current="page"'));
-        self::assertMatchesRegularExpression(
-            sprintf('/<a class="button button-primary" href="%s" aria-current="page">/', preg_quote($activeHref, '/')),
-            $html,
-        );
+        return (string) $middleware->process($request, $handler)->getBody();
     }
 
     /** @return iterable<string, array{string, string}> */
