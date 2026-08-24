@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#172554">
-    <title>{% block title %}Gamble{% endblock %}</title>
+    <title>{% block title %}{{ app_name|default('Gamble') }}{% endblock %}</title>
     {% block vendor_stylesheets %}{% endblock %}
     <link rel="stylesheet" href="/assets/app.css">
 </head>

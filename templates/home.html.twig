@@ -1,6 +1,6 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Gamble · Paris{% endblock %}
+{% block title %}{{ app_name|default('Gamble') }}{% endblock %}
 
 {% block content %}
     <header class="page-header">

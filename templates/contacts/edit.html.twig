@@ -1,6 +1,6 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Modifier {{ contact.name }} · Gamble{% endblock %}
+{% block title %}Modifier {{ contact.name }} · {{ app_name|default('Gamble') }}{% endblock %}
 
 {% block content %}
     <header class="page-header page-header-row">

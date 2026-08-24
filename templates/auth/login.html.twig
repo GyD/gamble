@@ -1,10 +1,10 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Connexion · Gamble{% endblock %}
+{% block title %}Connexion · {{ app_name|default('Gamble') }}{% endblock %}
 
 {% block content %}
     <section class="auth-card">
-        <p class="eyebrow">Gamble</p>
+        <p class="login-brand">{{ app_name|default('Gamble') }}</p>
         <h1>Connexion</h1>
         <p>Utilisez votre compte Twitch pour accéder à vos paris privés.</p>
         <a class="button button-primary" href="/auth/twitch">Continuer avec Twitch</a>

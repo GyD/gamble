@@ -67,7 +67,7 @@ return [
         return $logger;
     }),
     Environment::class => factory(static function () use ($settings): Environment {
-        return new Environment(
+        $environment = new Environment(
             new FilesystemLoader($settings['paths']['templates']),
             [
                 'cache' => false,
@@ -75,6 +75,9 @@ return [
                 'strict_variables' => $settings['app']['debug'],
             ],
         );
+        $environment->addGlobal('app_name', $settings['app']['name']);
+
+        return $environment;
     }),
     UserStore::class => DI\get(UserRepository::class),
     UserAdministrationStore::class => DI\get(UserRepository::class),

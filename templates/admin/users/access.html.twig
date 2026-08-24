@@ -1,6 +1,6 @@
 {% extends 'layout.html.twig' %}
 
-{% block title %}Accès de {{ target.twitchDisplayName }} · Gamble{% endblock %}
+{% block title %}Accès de {{ target.displayName }} · {{ app_name|default('Gamble') }}{% endblock %}
 
 {% block content %}
     <header class="page-header page-header-row">

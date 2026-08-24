@@ -17,7 +17,6 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Mises** : participations rattachées à un pari et à un contact.
 - **Paiements** : suivi des mises payées, non payées ou à rembourser et des gains versés ou à verser ; les transferts sont réalisés hors de l'application.
 - **Statistiques** : vues agrégées des paris, mises et résultats.
-- **Paramètres** : configuration fonctionnelle de l'application.
 - **Audit** : historique des opérations sensibles avec leur acteur et les états avant/après.
 
 Les règles détaillées de cycle de vie, de règlement et de calcul seront précisées avant l'implémentation de chaque module métier. Le présent document décrit le périmètre fonctionnel sans figer les règles qui ne sont pas encore arbitrées.
@@ -60,7 +59,6 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 
 ### À construire
 
-- paramètres fonctionnels ;
 - extension de l'audit aux futurs modules métier.
 
 Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris, Mises et Statistiques.
@@ -74,7 +72,6 @@ L'ordre prévu tient compte des dépendances entre les concepts :
 3. mises ;
 4. clôture et règlement des paris ;
 5. statistiques ;
-6. paramètres fonctionnels.
 
 Chaque lot doit inclure son modèle de données, ses règles métier, ses permissions, son interface mobile-first, son audit et ses tests automatisés.
 
@@ -105,7 +102,7 @@ ddev composer install
 cp .env.example .env
 ```
 
-Les valeurs de connexion à la base DDEV sont déjà présentes dans `.env.example`. Renseigner les autres variables dans `.env`, puis appliquer les migrations :
+Les valeurs de connexion à la base DDEV sont déjà présentes dans `.env.example`. Renseigner les autres variables dans `.env`, notamment `APP_NAME` pour le nom public de l'application, puis appliquer les migrations :
 
 ```bash
 ddev composer migrate
