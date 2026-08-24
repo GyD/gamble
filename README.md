@@ -14,6 +14,7 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Contacts** : participants aux paris, qu'ils disposent ou non d'un compte utilisateur dans l'application.
 - **Groupes** : ensembles de contacts permettant d'organiser les participants.
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
+- **Part du bookmaker** : commission prélevée sur le pot d'un pari réglé avant la répartition des gains.
 - **Mises** : participations rattachées à un pari et à un contact.
 - **Paiements** : suivi des mises payées, non payées ou à rembourser et des gains versés ou à verser ; les transferts sont réalisés hors de l'application.
 - **Statistiques** : vues agrégées des paris, mises et résultats.
@@ -59,6 +60,11 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 
 ### À construire
 
+- part du bookmaker configurable pour chaque pari, fixée à 10 % par défaut et limitée à une valeur comprise entre 0 % et 25 % ;
+- calcul de la part du bookmaker sur le pot total des mises non annulées d'un pari réglé, puis répartition du pot restant entre les gagnants proportionnellement à leurs mises gagnantes ;
+- absence de part du bookmaker lorsqu'un pari est annulé ;
+- suivi et affichage du pot total, de la part du bookmaker et du montant effectivement redistribué ;
+- décision métier à prendre lorsque le choix gagnant ne comporte aucune mise active : remboursement, conservation du pot ou autre traitement ;
 - extension de l'audit aux futurs modules métier.
 
 Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris, Mises et Statistiques.
