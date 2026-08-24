@@ -95,6 +95,7 @@ final readonly class BetService
             array_map(static fn($option): int => $option->id, $bet->options),
             $this->stakes->findByBet($bet->id),
             $bet->bookmakerRateBps,
+            includeUnpaidInOdds: $bet->status === BetStatus::Open,
         );
         $options = array_map(static fn($option) => new \App\Domain\Bet\BetOption(
             $option->id,

@@ -219,6 +219,23 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('Groupes : Amis, Anciens', (string)$readOnlyResponse->getBody());
     }
 
+    public function testSummarySeparatesPaidAndUnpaidStakesAndExcludesCancelledStakes(): void
+    {
+        $this->stakes->stakes = [
+            1 => new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true),
+            2 => new Stake(2, 1, 11, 20, 2000, 'Alice', 'Red', false, false),
+            3 => new Stake(3, 1, 10, 20, 4000, 'Alice', 'Blue', false, true, true),
+            4 => new Stake(4, 1, 11, 20, 8000, 'Alice', 'Red', false, false, true),
+        ];
+
+        $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('<strong>1</strong><span>Mise payée</span>', $body);
+        self::assertStringContainsString('<strong>10,00 $</strong><span>Pot payé</span>', $body);
+        self::assertStringContainsString('<strong>1</strong><span>Mise non payée</span>', $body);
+        self::assertStringContainsString('<strong>20,00 $</strong><span>Pot non payé</span>', $body);
+    }
+
     private function controller(bool $viewAll = false): StakeController
     {
         $permissions = new class($viewAll) implements PermissionResolver {

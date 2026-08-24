@@ -110,6 +110,21 @@ final class BetServiceTest extends TestCase
         $this->service->update(7, $bet->id, 'New question?', null, null, ['Blue', 'Green'], null);
     }
 
+    public function testOpenOddsIncludeUnpaidStakesAndClosedOddsExcludeThem(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $this->stakes->stakes = [
+            new Stake(1, $bet->id, $bet->options[0]->id, 20, 1000, 'Alice', 'Blue', false, true),
+            new Stake(2, $bet->id, $bet->options[1]->id, 21, 2000, 'Bob', 'Red', false, false),
+        ];
+
+        $open = $this->service->withOdds($bet);
+        $closed = $this->service->withOdds($this->service->close(7, $bet->id, null));
+
+        self::assertSame([2.7, 1.35], array_column($open->options, 'odds'));
+        self::assertSame([1.0, null], array_column($closed->options, 'odds'));
+    }
+
     public function testCancelledBetCannotBeDeletedWhilePaidStakeIsNotRefunded(): void
     {
         $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
@@ -161,6 +176,7 @@ final class BetServiceTest extends TestCase
             new Stake(1, $bet->id, $blueId, 20, 100, 'Alice', 'Blue', false, true),
             new Stake(2, $bet->id, $blueId, 21, 200, 'Bob', 'Blue', false, true),
             new Stake(3, $bet->id, $redId, 22, 700, 'Carol', 'Red', false, true),
+            new Stake(4, $bet->id, $blueId, 23, 500, 'Dave', 'Blue', false, false),
         ];
         $this->service->close(7, $bet->id, null);
 
@@ -171,7 +187,7 @@ final class BetServiceTest extends TestCase
         self::assertSame(100, $settled->finalBookmakerShareCents);
         self::assertSame(900, $settled->finalRedistributedCents);
         self::assertSame([3.0, 900 / 700], array_map(static fn(BetOption $option): ?float => $option->odds, $settled->options));
-        self::assertSame([300, 600, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
+        self::assertSame([300, 600, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
 
         try {
             $this->service->settle(7, $bet->id, $redId, null);
@@ -182,7 +198,7 @@ final class BetServiceTest extends TestCase
 
         self::assertFalse($this->pdo->inTransaction());
         self::assertSame($blueId, $this->bets->findById($bet->id)?->winningOptionId);
-        self::assertSame([300, 600, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
+        self::assertSame([300, 600, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
     }
 
     public function testBookmakerRateCanOnlyBeChangedWhileBetIsOpen(): void

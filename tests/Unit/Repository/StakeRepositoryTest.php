@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 final class StakeRepositoryTest extends TestCase
 {
-    public function testWinnersAreAggregatedAndCancelledStakesAreExcludedFromWinningsAndPot(): void
+    public function testWinnersAreAggregatedAndUnpaidAndCancelledStakesAreExcludedFromWinningsAndPot(): void
     {
         $repository = new StakeRepository($this->database());
 
@@ -23,7 +23,7 @@ final class StakeRepositoryTest extends TestCase
         self::assertSame([false, true], array_column($winners, 'is_winnings_paid'));
     }
 
-    public function testWinningsPaymentStatusUpdatesEveryActiveWinningStakeForContact(): void
+    public function testWinningsPaymentStatusUpdatesEveryPaidActiveWinningStakeForContact(): void
     {
         $repository = new StakeRepository($this->database());
 
@@ -58,7 +58,8 @@ final class StakeRepositoryTest extends TestCase
             (2, 1, 10, 1, 200, 1, 0, 300, NULL, '2026-08-24 10:01:00'),
             (3, 1, 10, 2, 300, 1, 0, 500, '2026-08-24 11:00:00', '2026-08-24 10:02:00'),
             (4, 1, 11, 2, 400, 1, 0, 0, NULL, '2026-08-24 10:03:00'),
-            (5, 1, 10, 1, 5000, 1, 1, NULL, NULL, '2026-08-24 10:04:00')");
+            (5, 1, 10, 1, 5000, 1, 1, NULL, NULL, '2026-08-24 10:04:00'),
+            (6, 1, 10, 1, 7000, 0, 0, NULL, NULL, '2026-08-24 10:05:00')");
 
         return $pdo;
     }

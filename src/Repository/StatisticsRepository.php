@@ -18,7 +18,7 @@ final readonly class StatisticsRepository implements StatisticsStore
         ?DateTimeImmutable $from,
         ?int $contactId = null,
     ): array {
-        $conditions = ["bets.status = 'settled'", 'stakes.is_cancelled = 0'];
+        $conditions = ["bets.status = 'settled'", 'stakes.is_paid = 1', 'stakes.is_cancelled = 0'];
         $parameters = [];
         if ($ownerUserId !== null) {
             $conditions[] = 'bets.owner_user_id = :owner_user_id';
@@ -74,6 +74,7 @@ final readonly class StatisticsRepository implements StatisticsStore
              FROM bet_options
              LEFT JOIN stakes ON stakes.bet_option_id = bet_options.id
                  AND stakes.bet_id = bet_options.bet_id
+                  AND stakes.is_paid = 1
                  AND stakes.is_cancelled = 0
              WHERE bet_options.bet_id = :bet_id
              ORDER BY bet_options.position, bet_options.id, stakes.id',

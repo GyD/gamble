@@ -126,6 +126,7 @@ final readonly class StakeRepository implements StakeStore
              INNER JOIN contacts ON contacts.id = stakes.contact_id
              WHERE stakes.bet_id = :bet_id
                AND stakes.bet_option_id = :winning_option_id
+               AND stakes.is_paid = TRUE
                AND stakes.is_cancelled = FALSE
              GROUP BY stakes.contact_id, contacts.name
              ORDER BY stakes.contact_id',
@@ -153,6 +154,7 @@ final readonly class StakeRepository implements StakeStore
              WHERE bet_id = :bet_id
                AND bet_option_id = :winning_option_id
                AND contact_id = :contact_id
+                AND is_paid = TRUE
                AND is_cancelled = FALSE', $winningsPaidAt),
         );
         $statement->execute([

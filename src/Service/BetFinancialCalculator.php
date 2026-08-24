@@ -14,28 +14,42 @@ final class BetFinancialCalculator
      * @param list<int> $optionIds
      * @param list<Stake> $stakes
      */
-    public function calculate(array $optionIds, array $stakes, int $rateBps, ?int $winningOptionId = null): BetFinancials
+    public function calculate(
+        array $optionIds,
+        array $stakes,
+        int $rateBps,
+        ?int $winningOptionId = null,
+        bool $includeUnpaidInOdds = false,
+    ): BetFinancials
     {
         if ($rateBps < 0 || $rateBps > 2500) {
             throw new InvalidArgumentException('Bookmaker rate must be between 0% and 25%.');
         }
 
-        $active = array_values(array_filter($stakes, static fn(Stake $stake): bool => !$stake->isCancelled));
+        $active = array_values(array_filter(
+            $stakes,
+            static fn(Stake $stake): bool => $stake->isPaid && !$stake->isCancelled,
+        ));
         $pot = array_sum(array_column($active, 'amountCents'));
-        $amounts = array_fill_keys($optionIds, 0);
-        foreach ($active as $stake) {
-            $amounts[$stake->betOptionId] = ($amounts[$stake->betOptionId] ?? 0) + $stake->amountCents;
+        $oddsStakes = array_values(array_filter(
+            $stakes,
+            static fn(Stake $stake): bool => !$stake->isCancelled && ($includeUnpaidInOdds || $stake->isPaid),
+        ));
+        $oddsPot = array_sum(array_column($oddsStakes, 'amountCents'));
+        $oddsAmounts = array_fill_keys($optionIds, 0);
+        foreach ($oddsStakes as $stake) {
+            $oddsAmounts[$stake->betOptionId] = ($oddsAmounts[$stake->betOptionId] ?? 0) + $stake->amountCents;
         }
 
         $odds = [];
         foreach ($optionIds as $optionId) {
-            $stakeAmount = $amounts[$optionId];
+            $stakeAmount = $oddsAmounts[$optionId];
             if ($stakeAmount === 0) {
                 $odds[$optionId] = null;
                 continue;
             }
-            $share = min($this->roundedRate($pot, $rateBps), $pot - $stakeAmount);
-            $odds[$optionId] = (float) (($pot - $share) / $stakeAmount);
+            $share = min($this->roundedRate($oddsPot, $rateBps), $oddsPot - $stakeAmount);
+            $odds[$optionId] = (float) (($oddsPot - $share) / $stakeAmount);
         }
 
         if ($winningOptionId === null) {
@@ -46,7 +60,7 @@ final class BetFinancialCalculator
             $active,
             static fn(Stake $stake): bool => $stake->betOptionId === $winningOptionId,
         ));
-        $winningAmount = $amounts[$winningOptionId] ?? 0;
+        $winningAmount = array_sum(array_column($winningStakes, 'amountCents'));
         $bookmakerShare = $winningAmount === 0
             ? $pot
             : min($this->roundedRate($pot, $rateBps), $pot - $winningAmount);

@@ -5,7 +5,7 @@
 
 .stake-summary {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-sm);
     margin-bottom: var(--space-xl);
 }
@@ -167,6 +167,7 @@
 
 @media (min-width: 48rem) {
     .stake-summary {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: var(--space-lg);
     }
 

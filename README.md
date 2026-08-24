@@ -53,19 +53,20 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - une mise annulée et payée peut être marquée remboursée, sans devoir être réactivée ;
 - suppression définitive d’une mise uniquement lorsqu’elle est annulée et non payée ;
 - montants de mises stockés en centimes, statut payé/non payé, permissions dédiées et audit atomique ;
+- résumé séparant le nombre et le montant des mises payées et non payées, hors mises annulées ;
 - sur un pari annulé, une mise payée est à rembourser et une mise non payée est considérée comme remboursée ;
 - suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée ;
-- calcul des gains après règlement : le pot de toutes les mises non annulées est réparti entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
+- calcul des gains après règlement : le pot de toutes les mises payées et non annulées est réparti entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
 - affichage des gagnants, du montant à leur verser et suivi individuel du statut `gain à verser` ou `gain versé` ;
 - statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
 - filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris.
 
 ### À construire
 
-- cotes mutuelles dynamiques recalculées à partir des mises non annulées pendant toute la période d'ouverture du pari ;
+- cotes mutuelles dynamiques recalculées à partir des mises non annulées pendant toute la période d'ouverture du pari, qu'elles soient payées ou non ;
 - affichage des cotes comme indicatives pendant l'ouverture, puis comme finales après la fermeture du pari ;
 - part du bookmaker configurable pour chaque pari, fixée à 10 % par défaut et limitée à une valeur comprise entre 0 % et 25 % ;
-- calcul de la part théorique du bookmaker sur le pot total des mises non annulées d'un pari réglé ;
+- calcul de la part théorique du bookmaker sur le pot total des mises payées et non annulées d'un pari réglé ;
 - garantie d'une cote minimale de `1,00` : la part réelle du bookmaker est limitée aux mises perdantes afin que les gagnants récupèrent au minimum leur mise ;
 - répartition du montant redistribuable entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
 - absence de part du bookmaker lorsqu'un pari est annulé ;
@@ -77,12 +78,12 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 
 ### Règles prévues pour les cotes et la part du bookmaker
 
-Les cotes sont mutuelles : elles ne sont pas fixées à l'avance par le bookmaker, mais dépendent des montants misés sur chaque choix. Pour un choix comportant au moins une mise active, la cote indicative est calculée ainsi :
+Les cotes sont mutuelles : elles ne sont pas fixées à l'avance par le bookmaker, mais dépendent des montants misés sur chaque choix. Tant que le pari est ouvert, elles retiennent toutes les mises non annulées, payées ou non. Après sa fermeture, elles ne retiennent que les mises payées et non annulées. Pour un choix comportant au moins une mise retenue, la cote est calculée ainsi :
 
 ```text
-pot brut = somme de toutes les mises non annulées
+pot brut des cotes = somme de toutes les mises retenues
 part théorique du bookmaker = pot brut × taux du bookmaker
-mises du choix = somme des mises non annulées sur le choix
+mises du choix = somme des mises retenues sur le choix
 pertes disponibles = pot brut - mises du choix
 part applicable du bookmaker = minimum(part théorique du bookmaker, pertes disponibles)
 montant redistribuable = pot brut - part applicable du bookmaker
@@ -93,7 +94,7 @@ La limitation de la part du bookmaker aux pertes disponibles garantit une cote m
 
 Lors du règlement, si le choix gagnant comporte des mises actives, le montant redistribuable est partagé entre les gagnants proportionnellement à leurs mises sur ce choix. Si le choix gagnant ne comporte aucune mise active, aucun gain n'est distribué et le bookmaker conserve la totalité du pot.
 
-Les cotes évoluent après chaque création, modification ou annulation de mise tant que le pari est ouvert. Elles sont présentées comme indicatives pendant cette période. Les données financières sont figées lors du règlement afin de conserver un historique stable et auditable.
+Les cotes évoluent après chaque création, modification, paiement ou annulation de mise tant que le pari est ouvert. Une mise non payée entre dans les cotes indicatives pendant cette période, mais jamais dans le pot, les statistiques ou les gains. Dès la fermeture, les cotes ne retiennent plus que les mises payées et non annulées. Les données financières sont figées lors du règlement afin de conserver un historique stable et auditable.
 
 Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris, Mises et Statistiques.
 

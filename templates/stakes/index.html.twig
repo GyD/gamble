@@ -14,21 +14,26 @@
 
     {% if saved %}<p class="notice notice-success" role="status">Modification enregistrée.</p>{% endif %}
 
-    {% set active_stake_count = 0 %}
-    {% set active_stake_total = 0 %}
     {% set paid_stake_count = 0 %}
+    {% set paid_stake_total = 0 %}
+    {% set unpaid_stake_count = 0 %}
+    {% set unpaid_stake_total = 0 %}
     {% for stake in stakes %}
-        {% if not stake.isCancelled %}
-            {% set active_stake_count = active_stake_count + 1 %}
-            {% set active_stake_total = active_stake_total + stake.amountCents %}
+        {% if stake.isPaid and not stake.isCancelled %}
+            {% set paid_stake_count = paid_stake_count + 1 %}
+            {% set paid_stake_total = paid_stake_total + stake.amountCents %}
         {% endif %}
-        {% if stake.isPaid %}{% set paid_stake_count = paid_stake_count + 1 %}{% endif %}
+        {% if not stake.isPaid and not stake.isCancelled %}
+            {% set unpaid_stake_count = unpaid_stake_count + 1 %}
+            {% set unpaid_stake_total = unpaid_stake_total + stake.amountCents %}
+        {% endif %}
     {% endfor %}
 
     <section class="stake-summary" aria-label="Résumé des mises">
-        <article><strong>{{ active_stake_count }}</strong><span>Mise{{ active_stake_count > 1 ? 's' : '' }} active{{ active_stake_count > 1 ? 's' : '' }}</span></article>
-        <article><strong>{{ (active_stake_total / 100)|number_format(2, ',', ' ') }} $</strong><span>Pot actif</span></article>
-        <article><strong>{{ paid_stake_count }}</strong><span>{{ bet.status.value == 'cancelled' ? 'À rembourser' : 'Payée' ~ (paid_stake_count > 1 ? 's' : '') }}</span></article>
+        <article><strong>{{ paid_stake_count }}</strong><span>Mise{{ paid_stake_count > 1 ? 's' : '' }} payée{{ paid_stake_count > 1 ? 's' : '' }}</span></article>
+        <article><strong>{{ (paid_stake_total / 100)|number_format(2, ',', ' ') }} $</strong><span>Pot payé</span></article>
+        <article><strong>{{ unpaid_stake_count }}</strong><span>Mise{{ unpaid_stake_count > 1 ? 's' : '' }} non payée{{ unpaid_stake_count > 1 ? 's' : '' }}</span></article>
+        <article><strong>{{ (unpaid_stake_total / 100)|number_format(2, ',', ' ') }} $</strong><span>Pot non payé</span></article>
     </section>
 
     <div class="stake-layout{% if can_create %} has-create-form{% endif %}">
