@@ -31,6 +31,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - création automatique des utilisateurs inconnus avec le statut `pending` ;
 - activation, suspension et réactivation des utilisateurs ;
 - rôles et permissions, avec autorisations ou interdictions individuelles ;
+- rôle `bookmaker` autorisé à consulter tous les paris et à archiver, réactiver ou supprimer les contacts et les groupes selon leurs règles métier ;
 - administration des utilisateurs et de leurs accès ;
 - protection des routes et masquage des actions selon les permissions ;
 - navigation indiquant la page ou la rubrique active, y compris sur les sous-pages ;
