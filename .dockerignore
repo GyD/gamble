@@ -1,0 +1,14 @@
+.ddev
+.env
+.git
+.github
+.idea
+.phpunit.cache
+compose*.yaml
+compose*.yml
+Dockerfile*
+README.md
+tests
+var/cache
+var/log/*.log
+vendor

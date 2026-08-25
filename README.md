@@ -126,7 +126,7 @@ Chaque lot doit inclure son modèle de données, ses règles métier, ses permis
 
 - Docker
 - DDEV
-- HTTPS en production sur le NAS
+- HTTPS en production
 
 ## Installation locale
 
@@ -183,10 +183,119 @@ La commande active le compte et lui affecte le rôle `admin`. Elle modifie la ba
 ddev composer test
 ```
 
+## Déploiement sur Raspberry Pi
+
+Le déploiement de production utilise Docker Compose avec trois services :
+
+- `app` : Nginx et PHP-FPM 8.4 ;
+- `db` : MariaDB 11.8 avec stockage persistant ;
+- `cloudflared` : tunnel HTTPS sortant vers Cloudflare.
+
+Les images utilisées prennent en charge l'architecture ARM64. Un système 64 bits est donc recommandé sur le Raspberry Pi. Aucun port du Raspberry Pi ou du routeur ne doit être ouvert : MariaDB reste sur un réseau Docker interne et l'application est publiée uniquement par Cloudflare Tunnel.
+
+### Préparer Cloudflare et Twitch
+
+1. Ajouter le domaine à Cloudflare.
+2. Dans Cloudflare Zero Trust, créer un tunnel géré à distance et copier son jeton.
+3. Ajouter une route d'application publiée avec le nom public souhaité et le service `http://app:8080`.
+4. Dans la console développeur Twitch, déclarer exactement `https://<nom-public>/auth/twitch/callback` comme URL de redirection.
+
+Cloudflare termine HTTPS sur son réseau, puis le tunnel joint `app` en HTTP à l'intérieur du réseau Docker privé. Il est aussi possible d'ajouter une politique Cloudflare Access, mais elle ne doit pas interrompre le flux de redirection Twitch.
+
+### Configurer et démarrer
+
+Cloner le dépôt sur le Raspberry Pi, créer `.env` à partir de `.env.example`, puis utiliser des valeurs de production :
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://gamble.example.com
+APP_SECRET=<longue-valeur-aleatoire>
+
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=gamble
+DB_USERNAME=gamble
+DB_PASSWORD=<mot-de-passe-fort>
+MARIADB_ROOT_PASSWORD=<autre-mot-de-passe-fort>
+
+TWITCH_CLIENT_ID=<identifiant-twitch>
+TWITCH_CLIENT_SECRET=<secret-twitch>
+TWITCH_REDIRECT_URI=https://gamble.example.com/auth/twitch/callback
+
+SESSION_NAME=gamble_session
+SESSION_SECURE=true
+CLOUDFLARE_TUNNEL_TOKEN=<jeton-du-tunnel>
+TZ=Europe/Paris
+```
+
+Les secrets ne doivent jamais être ajoutés à Git. Construire et démarrer ensuite la stack :
+
+```bash
+docker compose build --pull
+docker compose up -d
+docker compose ps
+```
+
+Les migrations restent volontaires et ne sont jamais lancées lors d'un simple redémarrage :
+
+```bash
+docker compose exec app php bin/migrate
+```
+
+Après une première connexion Twitch, promouvoir le premier administrateur :
+
+```bash
+docker compose exec app php bin/promote-admin <twitch-id>
+```
+
+Points de contrôle :
+
+- `docker compose ps` indique les services `app` et `db` comme sains ;
+- le tunnel apparaît `Healthy` dans Cloudflare Zero Trust ;
+- `https://<nom-public>/health` répond avec succès ;
+- aucun port `80`, `443`, `8080` ou `3306` n'est redirigé par le routeur.
+
+### Mettre à jour
+
+Depuis la copie du dépôt sur le Raspberry Pi :
+
+```bash
+git pull --ff-only
+docker compose build --pull
+docker compose up -d
+docker compose exec app php bin/migrate
+docker image prune
+```
+
+### Sauvegarder et restaurer MariaDB
+
+Créer un répertoire de sauvegarde hors du dépôt, puis exporter la base :
+
+```bash
+mkdir -p ~/backups/gamble
+docker compose exec -T db mariadb-dump \
+  -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" \
+  > ~/backups/gamble/gamble-$(date +%F-%H%M%S).sql
+```
+
+Pour restaurer une sauvegarde, arrêter d'abord les écritures sur l'application, puis exécuter :
+
+```bash
+docker compose stop app
+docker compose exec -T db mariadb \
+  -u"$DB_USERNAME" -p"$DB_PASSWORD" "$DB_DATABASE" \
+  < ~/backups/gamble/<sauvegarde>.sql
+docker compose start app
+```
+
+Les commandes de sauvegarde supposent que les variables de `.env` ont été chargées dans le shell, par exemple avec `set -a; . ./.env; set +a`. Conserver les sauvegardes chiffrées sur un autre support que la carte SD du Raspberry Pi.
+
 ## Architecture
 
 - `config/` : assemblage de l'application et configuration
 - `database/migrations/` : migrations SQL versionnées
+- `docker/` : configuration de l'image de production
 - `public/` : front controller et ressources publiques
 - `src/` : contrôleurs, domaine, repositories et services
 - `templates/` : vues Twig
