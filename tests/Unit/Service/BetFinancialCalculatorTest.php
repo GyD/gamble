@@ -26,9 +26,9 @@ final class BetFinancialCalculatorTest extends TestCase
             $this->stake(3, 20, 101),
         ], 1000, 10);
 
-        self::assertSame(301, $result->potCents);
-        self::assertSame(30, $result->bookmakerShareCents);
-        self::assertSame(271, $result->redistributedCents);
+        self::assertSame(301, $result->pot);
+        self::assertSame(30, $result->bookmakerShare);
+        self::assertSame(271, $result->redistributed);
         self::assertSame([1 => 136, 2 => 135], $result->payoutsByStakeId);
     }
 
@@ -39,8 +39,8 @@ final class BetFinancialCalculatorTest extends TestCase
             $this->stake(2, 20, 10),
         ], 2500, 10);
 
-        self::assertSame(10, $result->bookmakerShareCents);
-        self::assertSame(990, $result->redistributedCents);
+        self::assertSame(10, $result->bookmakerShare);
+        self::assertSame(990, $result->redistributed);
         self::assertSame(1.0, $result->oddsByOptionId[10]);
     }
 
@@ -51,8 +51,8 @@ final class BetFinancialCalculatorTest extends TestCase
             $this->stake(2, 20, 900, true),
         ], 1000, 10);
 
-        self::assertSame(100, $result->potCents);
-        self::assertSame(0, $result->bookmakerShareCents);
+        self::assertSame(100, $result->pot);
+        self::assertSame(0, $result->bookmakerShare);
         self::assertSame([1 => 100], $result->payoutsByStakeId);
     }
 
@@ -65,9 +65,9 @@ final class BetFinancialCalculatorTest extends TestCase
             $this->stake(4, 10, 400, false, false),
         ], 1000, 10);
 
-        self::assertSame(200, $result->potCents);
-        self::assertSame(20, $result->bookmakerShareCents);
-        self::assertSame(180, $result->redistributedCents);
+        self::assertSame(200, $result->pot);
+        self::assertSame(20, $result->bookmakerShare);
+        self::assertSame(180, $result->redistributed);
         self::assertSame([10 => 1.8, 20 => 1.8], $result->oddsByOptionId);
         self::assertSame([1 => 180], $result->payoutsByStakeId);
     }
@@ -81,7 +81,7 @@ final class BetFinancialCalculatorTest extends TestCase
             $this->stake(4, 10, 400, true, false),
         ], 1000, includeUnpaidInOdds: true);
 
-        self::assertSame(200, $result->potCents);
+        self::assertSame(200, $result->pot);
         self::assertSame([10 => 9.0, 20 => 1.0], $result->oddsByOptionId);
         self::assertSame([], $result->payoutsByStakeId);
     }
@@ -90,8 +90,8 @@ final class BetFinancialCalculatorTest extends TestCase
     {
         $result = $this->calculator->calculate([10, 20], [$this->stake(1, 10, 500)], 1000, 20);
 
-        self::assertSame(500, $result->bookmakerShareCents);
-        self::assertSame(0, $result->redistributedCents);
+        self::assertSame(500, $result->bookmakerShare);
+        self::assertSame(0, $result->redistributed);
         self::assertSame([], $result->payoutsByStakeId);
     }
 

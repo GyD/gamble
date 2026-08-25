@@ -11,13 +11,13 @@ final readonly class Stake
         public int    $betId,
         public int    $betOptionId,
         public int    $contactId,
-        public int    $amountCents,
+        public int    $amount,
         public string $contactName,
         public string $optionLabel,
         public bool   $contactArchived,
         public bool   $isPaid,
         public bool   $isCancelled = false,
-        public ?int   $finalPayoutCents = null,
+        public ?int   $finalPayout = null,
     )
     {
     }

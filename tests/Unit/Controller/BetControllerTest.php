@@ -38,16 +38,16 @@ final class BetControllerTest extends TestCase
         $store->bets[1] = new Bet(1, 1, 'Settled', null, null, BetStatus::Settled, 10, []);
         $stakes = new ControllerBetStakeStore();
         $stakes->winners = [
-            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'payout_cents' => 333, 'is_winnings_paid' => false],
-            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'payout_cents' => 667, 'is_winnings_paid' => true],
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 333, 'is_winnings_paid' => false],
+            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake' => 200, 'payout' => 667, 'is_winnings_paid' => true],
         ];
 
         $html = (string)$this->controller($store, false, $stakes)
             ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
 
         self::assertStringContainsString('Gagnants', $html);
-        self::assertStringContainsString('3,33 $', $html);
-        self::assertStringContainsString('6,67 $', $html);
+        self::assertStringContainsString('333 $', $html);
+        self::assertStringContainsString('667 $', $html);
         self::assertStringContainsString('Gain versé', $html);
     }
 
@@ -232,7 +232,7 @@ final class ControllerBetStore implements BetStore
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
     }
     public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
-    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet
     {
         return $this->changeStatus($id, BetStatus::Settled, $winningOptionId);
     }
@@ -243,12 +243,12 @@ final class ControllerBetStakeStore implements StakeStore
 {
     /** @var list<Stake> */
     public array $stakes = [];
-    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, payout_cents: int, is_winnings_paid: bool}> */
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake: int, payout: int, is_winnings_paid: bool}> */
     public array $winners = [];
     public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
-    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
-    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
+    public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}

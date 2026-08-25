@@ -56,8 +56,8 @@ final readonly class StatisticsService
             'bet_id' => $row['bet_id'],
             'question' => $row['question'],
             'settled_at' => $row['settled_at'],
-            'outcome' => $row['winning_staked_cents'] > 0 ? 'win' : 'loss',
-            'staked_cents' => $row['total_staked_cents'],
+            'outcome' => $row['winning_staked'] > 0 ? 'win' : 'loss',
+            'staked' => $row['total_staked'],
         ], $rows)), 0, 10);
 
         return $summary;
@@ -75,23 +75,23 @@ final readonly class StatisticsService
                 'id' => $row['option_id'],
                 'label' => $row['option_label'],
                 'participants' => [],
-                'amount_cents' => 0,
+                'amount' => 0,
             ];
             if ($row['stake_id'] === null) {
                 continue;
             }
-            $amount = $row['amount_cents'];
+            $amount = $row['amount'];
             $amounts[] = $amount;
             $participants[$row['contact_id']] = true;
             $options[$row['option_id']]['participants'][$row['contact_id']] = true;
-            $options[$row['option_id']]['amount_cents'] += $amount;
+            $options[$row['option_id']]['amount'] += $amount;
         }
         sort($amounts, SORT_NUMERIC);
         $pot = array_sum($amounts);
         $optionStatistics = array_map(static function (array $option) use ($pot): array {
             $option['participant_count'] = count($option['participants']);
             unset($option['participants']);
-            $option['pot_percentage'] = $pot === 0 ? null : round($option['amount_cents'] * 100 / $pot, 1);
+            $option['pot_percentage'] = $pot === 0 ? null : (float) (($option['amount'] * 100) / $pot);
 
             return $option;
         }, array_values($options));
@@ -99,10 +99,10 @@ final readonly class StatisticsService
         return [
             'participant_count' => count($participants),
             'stake_count' => count($amounts),
-            'pot_cents' => $pot,
-            'average_stake_cents' => $amounts === [] ? null : $this->roundedAverage($pot, count($amounts)),
-            'median_stake_cents_x2' => $this->medianCentsTimesTwo($amounts),
-            'largest_stake_cents' => $amounts === [] ? null : max($amounts),
+            'pot' => $pot,
+            'average_stake' => $amounts === [] ? null : $this->roundedAverage($pot, count($amounts)),
+            'median_stake_x2' => $this->medianTimesTwo($amounts),
+            'largest_stake' => $amounts === [] ? null : max($amounts),
             'options' => $optionStatistics,
         ];
     }
@@ -110,12 +110,12 @@ final readonly class StatisticsService
     /** @param list<array<string, mixed>> $rows @return array<string, mixed> */
     private function summarize(array $rows): array
     {
-        $outcomes = array_map(static fn(array $row): string => $row['winning_staked_cents'] > 0 ? 'win' : 'loss', $rows);
+        $outcomes = array_map(static fn(array $row): string => $row['winning_staked'] > 0 ? 'win' : 'loss', $rows);
         $wins = count(array_filter($outcomes, static fn(string $outcome): bool => $outcome === 'win'));
         $participations = count($rows);
-        $totalStaked = array_sum(array_column($rows, 'total_staked_cents'));
         $stakeCount = array_sum(array_column($rows, 'stake_count'));
-        $totalReturned = array_sum(array_column($rows, 'returned_cents'));
+        $totalStaked = array_sum(array_column($rows, 'total_staked'));
+        $totalReturned = array_sum(array_column($rows, 'returned'));
         $net = $totalReturned - $totalStaked;
         $streaks = $this->streaks($outcomes);
 
@@ -128,7 +128,7 @@ final readonly class StatisticsService
             'win_rate' => $participations === 0 ? null : round($wins * 100 / $participations, 1),
             'total_staked' => $totalStaked,
             'average_stake' => $stakeCount === 0 ? null : $this->roundedAverage($totalStaked, $stakeCount),
-            'largest_stake' => max(array_column($rows, 'largest_stake_cents')),
+            'largest_stake' => max(array_column($rows, 'largest_stake')),
             'largest_loss' => $this->largestLoss($rows),
             'current_streak' => $streaks['current'],
             'best_win_streak' => $streaks['best_win'],
@@ -136,7 +136,7 @@ final readonly class StatisticsService
             'total_returned' => $totalReturned,
             'net' => $net,
             'roi' => $totalStaked === 0 ? null : round($net * 100 / $totalStaked, 1),
-            'largest_gain' => max(array_map(static fn(array $row): int => $row['returned_cents'] - $row['total_staked_cents'], $rows)),
+            'largest_gain' => max(array_map(static fn(array $row): int => $row['returned'] - $row['total_staked'], $rows)),
         ];
     }
 
@@ -178,13 +178,13 @@ final readonly class StatisticsService
     /** @param list<array<string, mixed>> $rows */
     private function largestLoss(array $rows): ?int
     {
-        $losses = array_column(array_filter($rows, static fn(array $row): bool => $row['winning_staked_cents'] === 0), 'total_staked_cents');
+        $losses = array_column(array_filter($rows, static fn(array $row): bool => $row['winning_staked'] === 0), 'total_staked');
 
         return $losses === [] ? null : max($losses);
     }
 
     /** @param list<int> $amounts */
-    private function medianCentsTimesTwo(array $amounts): ?int
+    private function medianTimesTwo(array $amounts): ?int
     {
         $count = count($amounts);
         if ($count === 0) {
@@ -222,7 +222,7 @@ final readonly class StatisticsService
         $pots = [];
         $questions = [];
         foreach ($rows as $row) {
-            $pots[$row['bet_id']] = ($pots[$row['bet_id']] ?? 0) + $row['total_staked_cents'];
+            $pots[$row['bet_id']] = ($pots[$row['bet_id']] ?? 0) + $row['total_staked'];
             $questions[$row['bet_id']] = $row['question'];
         }
         arsort($pots, SORT_NUMERIC);

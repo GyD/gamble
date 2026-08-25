@@ -45,14 +45,14 @@ final class StakeServiceTest extends TestCase
 
     public function testContactCanPlaceSeveralAuditedStakesAcrossOptions(): void
     {
-        $first = $this->service->create(7, 1, 20, 10, '12,34', '127.0.0.1');
+        $first = $this->service->create(7, 1, 20, 10, '12', '127.0.0.1');
         $second = $this->service->create(7, 1, 20, 11, '5', null);
 
         self::assertNotSame($first->id, $second->id);
-        self::assertSame([1234, 500], array_column($this->stakes->stakes, 'amountCents'));
+        self::assertSame([12, 5], array_column($this->stakes->stakes, 'amount'));
         self::assertSame([10, 11], array_column($this->stakes->stakes, 'betOptionId'));
         self::assertSame(['stake.created', 'stake.created'], array_column($this->audit->entries, 'action'));
-        self::assertSame(1234, $this->audit->entries[0]['after']['amount_cents']);
+        self::assertSame(12, $this->audit->entries[0]['after']['amount']);
     }
 
     /** @param string $amount */
@@ -68,9 +68,18 @@ final class StakeServiceTest extends TestCase
     {
         yield 'zero' => ['0'];
         yield 'negative' => ['-1'];
-        yield 'too precise' => ['1.234'];
+        yield 'decimal with dot' => ['1.5'];
+        yield 'decimal with comma' => ['1,5'];
+        yield 'decimal zero fraction' => ['1.00'];
         yield 'not numeric' => ['money'];
         yield 'too large' => ['1000000'];
+    }
+
+    public function testMaximumWholeAmountIsAccepted(): void
+    {
+        $stake = $this->service->create(7, 1, 20, 10, '999999', null);
+
+        self::assertSame(999_999, $stake->amount);
     }
 
     public function testClosedBetRejectsChanges(): void
@@ -79,28 +88,28 @@ final class StakeServiceTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('while the bet is open');
-        $this->service->create(7, 1, 20, 10, '1.00', null);
+        $this->service->create(7, 1, 20, 10, '1', null);
     }
 
     public function testWinningsReturnFrozenPayouts(): void
     {
         $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
         $this->stakes->winners = [
-            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'payout_cents' => 333, 'is_winnings_paid' => false],
-            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake_cents' => 200, 'payout_cents' => 667, 'is_winnings_paid' => true],
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 333, 'is_winnings_paid' => false],
+            ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake' => 200, 'payout' => 667, 'is_winnings_paid' => true],
         ];
 
         $winners = $this->service->winnings($this->bets->bets[1]);
 
-        self::assertSame([333, 667], array_column($winners, 'payout_cents'));
-        self::assertSame(1000, array_sum(array_column($winners, 'payout_cents')));
+        self::assertSame([333, 667], array_column($winners, 'payout'));
+        self::assertSame(1000, array_sum(array_column($winners, 'payout')));
     }
 
     public function testOwnerCanMarkSettledWinningsPaidWithAudit(): void
     {
         $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
         $this->stakes->winners = [
-            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 100, 'is_winnings_paid' => false],
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 100, 'is_winnings_paid' => false],
         ];
 
         $this->service->setWinningsPaid(7, 1, 20, true, '127.0.0.1');
@@ -146,14 +155,14 @@ final class StakeServiceTest extends TestCase
     public function testOnlyOwnerCanManageStakes(): void
     {
         $this->expectException(BetAccessDeniedException::class);
-        $this->service->create(8, 1, 20, 10, '1.00', null);
+        $this->service->create(8, 1, 20, 10, '1', null);
     }
 
     public function testOptionMustBelongToBet(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('does not belong');
-        $this->service->create(7, 1, 20, 999, '1.00', null);
+        $this->service->create(7, 1, 20, 999, '1', null);
     }
 
     public function testArchivedContactIsRejected(): void
@@ -162,26 +171,26 @@ final class StakeServiceTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Archived contacts');
-        $this->service->create(7, 1, 20, 10, '1.00', null);
+        $this->service->create(7, 1, 20, 10, '1', null);
     }
 
     public function testStakeCanBeUpdatedAndDeletedWithAuditSnapshots(): void
     {
-        $stake = $this->service->create(7, 1, 20, 10, '1.00', null);
-        $updated = $this->service->update(7, 1, $stake->id, 20, 11, '2.50', null);
+        $stake = $this->service->create(7, 1, 20, 10, '1', null);
+        $updated = $this->service->update(7, 1, $stake->id, 20, 11, '2', null);
         $this->service->setCancelled(7, 1, $stake->id, true, null);
         $this->service->delete(7, 1, $stake->id, null);
 
-        self::assertSame(250, $updated->amountCents);
+        self::assertSame(2, $updated->amount);
         self::assertSame([], $this->stakes->stakes);
         self::assertSame(['stake.created', 'stake.updated', 'stake.cancellation_status_changed', 'stake.deleted'], array_column($this->audit->entries, 'action'));
-        self::assertSame(100, $this->audit->entries[1]['before']['amount_cents']);
-        self::assertSame(250, $this->audit->entries[3]['before']['amount_cents']);
+        self::assertSame(1, $this->audit->entries[1]['before']['amount']);
+        self::assertSame(2, $this->audit->entries[3]['before']['amount']);
     }
 
     public function testStakeCannotBeDeletedBeforeCancellation(): void
     {
-        $stake = $this->service->create(7, 1, 20, 10, '1.00', null);
+        $stake = $this->service->create(7, 1, 20, 10, '1', null);
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('must be cancelled');
@@ -190,7 +199,7 @@ final class StakeServiceTest extends TestCase
 
     public function testPaidStakeCanBeCancelledButCannotBeDeleted(): void
     {
-        $stake = $this->service->create(7, 1, 20, 10, '1.00', null);
+        $stake = $this->service->create(7, 1, 20, 10, '1', null);
         $this->service->setPaid(7, 1, $stake->id, true, null);
         $cancelled = $this->service->setCancelled(7, 1, $stake->id, true, null);
 
@@ -203,7 +212,7 @@ final class StakeServiceTest extends TestCase
 
     public function testCancelledPaidStakeCanBeMarkedUnpaidAndDeleted(): void
     {
-        $stake = $this->service->create(7, 1, 20, 10, '1.00', null);
+        $stake = $this->service->create(7, 1, 20, 10, '1', null);
         $this->service->setPaid(7, 1, $stake->id, true, null);
         $this->service->setCancelled(7, 1, $stake->id, true, null);
 
@@ -217,7 +226,7 @@ final class StakeServiceTest extends TestCase
 
     public function testCancelledStakeCannotBeChanged(): void
     {
-        $stake = $this->service->create(7, 1, 20, 10, '1.00', null);
+        $stake = $this->service->create(7, 1, 20, 10, '1', null);
         $this->service->setCancelled(7, 1, $stake->id, true, null);
 
         $this->expectException(InvalidArgumentException::class);
@@ -227,7 +236,7 @@ final class StakeServiceTest extends TestCase
 
     public function testStakeCanBeMarkedPaidAndUnpaidWithAuditSnapshots(): void
     {
-        $stake = $this->service->create(7, 1, 20, 10, '1.00', null);
+        $stake = $this->service->create(7, 1, 20, 10, '1', null);
 
         $paid = $this->service->setPaid(7, 1, $stake->id, true, '127.0.0.1');
         $unpaid = $this->service->setPaid(7, 1, $stake->id, false, null);
@@ -263,7 +272,7 @@ final class StakeTestStore implements StakeStore
 {
     /** @var array<int, Stake> */
     public array $stakes = [];
-    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, payout_cents: int, is_winnings_paid: bool}> */
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake: int, payout: int, is_winnings_paid: bool}> */
     public array $winners = [];
 
     public function findByBet(int $betId): array
@@ -276,30 +285,30 @@ final class StakeTestStore implements StakeStore
         return $this->stakes[$id] ?? null;
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake
     {
         $id = count($this->stakes) + 1;
-        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amountCents, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, false);
+        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, false);
     }
 
-    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake
+    public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake
     {
         $stake = $this->stakes[$id];
-        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amountCents, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, $stake->isPaid, $stake->isCancelled);
+        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, $stake->isPaid, $stake->isCancelled);
     }
 
     public function setPaid(int $id, bool $isPaid): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled);
     }
 
     public function setCancelled(int $id, bool $isCancelled): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
     }
 
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
@@ -366,7 +375,7 @@ final class StakeTestBetStore implements BetStore
         throw new \LogicException();
     }
     public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
-    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet { throw new \LogicException(); }
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

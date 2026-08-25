@@ -18,10 +18,10 @@ interface StatisticsStore
      *     question: string,
      *     settled_at: string,
      *     stake_count: int,
-     *     total_staked_cents: int,
-     *     winning_staked_cents: int,
-     *     returned_cents: int,
-     *     largest_stake_cents: int
+     *     total_staked: int,
+     *     winning_staked: int,
+     *     returned: int,
+     *     largest_stake: int
      * }>
      */
     public function settledContactBets(
@@ -37,7 +37,7 @@ interface StatisticsStore
      *     option_position: int,
      *     stake_id: int|null,
      *     contact_id: int|null,
-     *     amount_cents: int|null
+     *     amount: int|null
      * }>
      */
     public function betStakes(int $betId): array;

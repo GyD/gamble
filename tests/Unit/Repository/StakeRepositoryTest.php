@@ -6,6 +6,7 @@ namespace Tests\Unit\Repository;
 
 use App\Repository\StakeRepository;
 use PDO;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 
 final class StakeRepositoryTest extends TestCase
@@ -18,8 +19,8 @@ final class StakeRepositoryTest extends TestCase
 
         self::assertCount(2, $winners);
         self::assertSame([1, 2], array_column($winners, 'contact_id'));
-        self::assertSame([300, 300], array_column($winners, 'winning_stake_cents'));
-        self::assertSame([450, 500], array_column($winners, 'payout_cents'));
+        self::assertSame([300, 300], array_column($winners, 'winning_stake'));
+        self::assertSame([450, 500], array_column($winners, 'payout'));
         self::assertSame([false, true], array_column($winners, 'is_winnings_paid'));
     }
 
@@ -33,6 +34,14 @@ final class StakeRepositoryTest extends TestCase
         self::assertTrue($winner['is_winnings_paid']);
     }
 
+    public function testDatabaseRejectsStakeAmountThatIsNotAWholeUnit(): void
+    {
+        $repository = new StakeRepository($this->database());
+
+        $this->expectException(PDOException::class);
+        $repository->create(1, 10, 1, 1_000_000);
+    }
+
     private function database(): PDO
     {
         $pdo = new PDO('sqlite::memory:');
@@ -44,10 +53,10 @@ final class StakeRepositoryTest extends TestCase
             bet_id INTEGER,
             bet_option_id INTEGER,
             contact_id INTEGER,
-            amount_cents INTEGER,
+            amount INTEGER CHECK (amount BETWEEN 1 AND 999999),
             is_paid INTEGER,
             is_cancelled INTEGER,
-            final_payout_cents INTEGER,
+            final_payout INTEGER,
             winnings_paid_at TEXT,
             created_at TEXT
         )');

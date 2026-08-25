@@ -37,7 +37,7 @@
                     </span>
                     <span class="leaderboard-value">
                         {% if statistics.sort == 'total_staked' %}
-                            {{ (contact.total_staked / 100)|number_format(2, ',', ' ') }} $
+                            {{ contact.total_staked|number_format(0, ',', ' ') }} $
                         {% elseif statistics.sort == 'participations' %}
                             {{ contact.participations }} paris
                         {% else %}
@@ -58,12 +58,12 @@
         <section aria-labelledby="records-title">
             <h2 id="records-title">Records</h2>
             <div class="record-grid">
-                {% if statistics.records.largest_stake %}<article><span>Plus grosse mise</span><strong>{{ statistics.records.largest_stake.name }}</strong><small>{{ (statistics.records.largest_stake.value / 100)|number_format(2, ',', ' ') }} $</small></article>{% endif %}
-                {% if statistics.records.largest_loss %}<article><span>Plus grosse perte</span><strong>{{ statistics.records.largest_loss.name }}</strong><small>{{ (statistics.records.largest_loss.value / 100)|number_format(2, ',', ' ') }} $</small></article>{% endif %}
+                {% if statistics.records.largest_stake %}<article><span>Plus grosse mise</span><strong>{{ statistics.records.largest_stake.name }}</strong><small>{{ statistics.records.largest_stake.value|number_format(0, ',', ' ') }} $</small></article>{% endif %}
+                {% if statistics.records.largest_loss %}<article><span>Plus grosse perte</span><strong>{{ statistics.records.largest_loss.name }}</strong><small>{{ statistics.records.largest_loss.value|number_format(0, ',', ' ') }} $</small></article>{% endif %}
                 {% if statistics.records.longest_win_streak %}<article><span>Victoires consécutives</span><strong>{{ statistics.records.longest_win_streak.name }}</strong><small>{{ statistics.records.longest_win_streak.value }}</small></article>{% endif %}
                 {% if statistics.records.longest_loss_streak %}<article><span>Défaites consécutives</span><strong>{{ statistics.records.longest_loss_streak.name }}</strong><small>{{ statistics.records.longest_loss_streak.value }}</small></article>{% endif %}
                 {% if statistics.records.most_participations %}<article><span>Plus de participations</span><strong>{{ statistics.records.most_participations.name }}</strong><small>{{ statistics.records.most_participations.value }}</small></article>{% endif %}
-                {% if statistics.records.largest_pot %}<article><span>Plus gros pot</span><strong>{{ statistics.records.largest_pot.question }}</strong><small>{{ (statistics.records.largest_pot.value / 100)|number_format(2, ',', ' ') }} $</small></article>{% endif %}
+                {% if statistics.records.largest_pot %}<article><span>Plus gros pot</span><strong>{{ statistics.records.largest_pot.question }}</strong><small>{{ statistics.records.largest_pot.value|number_format(0, ',', ' ') }} $</small></article>{% endif %}
             </div>
         </section>
     {% endif %}

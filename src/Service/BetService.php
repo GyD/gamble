@@ -105,8 +105,8 @@ final readonly class BetService
         ), $bet->options);
 
         return new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $bet->status,
-            $bet->winningOptionId, $options, $bet->bookmakerRateBps, $bet->finalPotCents,
-            $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+            $bet->winningOptionId, $options, $bet->bookmakerRateBps, $bet->finalPot,
+            $bet->finalBookmakerShare, $bet->finalRedistributed);
     }
 
     public function setBookmakerRate(int $actorUserId, int $betId, string $percentage, ?string $ipAddress): Bet
@@ -188,8 +188,8 @@ final readonly class BetService
                 $winningOptionId,
             );
             $this->stakes->setFinalPayouts($betId, $financials->payoutsByStakeId);
-            $after = $this->bets->settleFinancials($betId, $winningOptionId, $financials->potCents,
-                $financials->bookmakerShareCents, $financials->redistributedCents, $financials->oddsByOptionId);
+            $after = $this->bets->settleFinancials($betId, $winningOptionId, $financials->pot,
+                $financials->bookmakerShare, $financials->redistributed, $financials->oddsByOptionId);
             $this->auditLogs->record($actorUserId, 'bet.settled', 'bet', (string)$betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
             return $after;
         });
@@ -296,9 +296,9 @@ final readonly class BetService
             'status' => $bet->status->value,
             'winning_option_id' => $bet->winningOptionId,
             'bookmaker_rate_bps' => $bet->bookmakerRateBps,
-            'final_pot_cents' => $bet->finalPotCents,
-            'final_bookmaker_share_cents' => $bet->finalBookmakerShareCents,
-            'final_redistributed_cents' => $bet->finalRedistributedCents,
+            'final_pot' => $bet->finalPot,
+            'final_bookmaker_share' => $bet->finalBookmakerShare,
+            'final_redistributed' => $bet->finalRedistributed,
             'options' => array_map(static fn($option): array => ['id' => $option->id, 'label' => $option->label], $bet->options),
         ];
     }

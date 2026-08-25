@@ -184,11 +184,11 @@ final class BetServiceTest extends TestCase
 
         self::assertFalse($this->pdo->inTransaction());
         self::assertSame([$bet->id], $this->bets->lockedBetIds);
-        self::assertSame(1000, $settled->finalPotCents);
-        self::assertSame(100, $settled->finalBookmakerShareCents);
-        self::assertSame(900, $settled->finalRedistributedCents);
+        self::assertSame(1000, $settled->finalPot);
+        self::assertSame(100, $settled->finalBookmakerShare);
+        self::assertSame(900, $settled->finalRedistributed);
         self::assertSame([3.0, 900 / 700], array_map(static fn(BetOption $option): ?float => $option->odds, $settled->options));
-        self::assertSame([300, 600, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
+        self::assertSame([300, 600, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayout, $this->stakes->stakes));
 
         try {
             $this->service->settle(7, $bet->id, $redId, null);
@@ -199,7 +199,7 @@ final class BetServiceTest extends TestCase
 
         self::assertFalse($this->pdo->inTransaction());
         self::assertSame($blueId, $this->bets->findById($bet->id)?->winningOptionId);
-        self::assertSame([300, 600, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayoutCents, $this->stakes->stakes));
+        self::assertSame([300, 600, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayout, $this->stakes->stakes));
     }
 
     public function testBookmakerRateCanOnlyBeChangedWhileBetIsOpen(): void
@@ -251,23 +251,23 @@ final class BetTestStore implements BetStore
         $updatedOptions = $options === $currentOptions ? $bet->options : $this->options($options);
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt,
             $bet->status, $bet->winningOptionId, $updatedOptions, $bet->bookmakerRateBps,
-            $bet->finalPotCents, $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+            $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed);
     }
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet
     {
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
             $bet->closesAt, $status, $winningOptionId, $bet->options, $bet->bookmakerRateBps,
-            $bet->finalPotCents, $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+            $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed);
     }
     public function setBookmakerRate(int $id, int $rateBps): Bet
     {
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
             $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options, $rateBps,
-            $bet->finalPotCents, $bet->finalBookmakerShareCents, $bet->finalRedistributedCents);
+            $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed);
     }
-    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet
     {
         $bet = $this->bets[$id];
         $options = array_map(static fn(BetOption $option): BetOption => new BetOption(
@@ -279,7 +279,7 @@ final class BetTestStore implements BetStore
 
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
             $bet->closesAt, BetStatus::Settled, $winningOptionId, $options, $bet->bookmakerRateBps,
-            $potCents, $bookmakerShareCents, $redistributedCents);
+            $pot, $bookmakerShare, $redistributed);
     }
     public function delete(int $id): void { unset($this->bets[$id]); }
     /** @param list<string> $labels @return list<BetOption> */
@@ -295,8 +295,8 @@ final class BetTestStakeStore implements StakeStore
     public array $stakes = [];
     public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
-    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
-    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake { throw new \LogicException(); }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
+    public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void
@@ -306,13 +306,13 @@ final class BetTestStakeStore implements StakeStore
             $stake->betId,
             $stake->betOptionId,
             $stake->contactId,
-            $stake->amountCents,
+            $stake->amount,
             $stake->contactName,
             $stake->optionLabel,
             $stake->contactArchived,
             $stake->isPaid,
             $stake->isCancelled,
-            $stake->betId === $betId ? ($payoutsByStakeId[$stake->id] ?? 0) : $stake->finalPayoutCents,
+            $stake->betId === $betId ? ($payoutsByStakeId[$stake->id] ?? 0) : $stake->finalPayout,
         ), $this->stakes);
     }
     public function findWinnersByBet(int $betId, int $winningOptionId): array { return []; }

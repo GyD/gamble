@@ -38,7 +38,7 @@ final readonly class BetRepository implements BetStore
     {
         $statement = $this->pdo->prepare(
             'SELECT id, owner_user_id, question, description, closes_at, status, winning_option_id,
-                    bookmaker_rate_bps, final_pot_cents, final_bookmaker_share_cents, final_redistributed_cents
+                    bookmaker_rate_bps, final_pot, final_bookmaker_share, final_redistributed
              FROM bets WHERE id = :id FOR UPDATE',
         );
         $statement->execute(['id' => $id]);
@@ -119,23 +119,23 @@ final readonly class BetRepository implements BetStore
     public function settleFinancials(
         int $id,
         int $winningOptionId,
-        int $potCents,
-        int $bookmakerShareCents,
-        int $redistributedCents,
+        int $pot,
+        int $bookmakerShare,
+        int $redistributed,
         array $oddsByOptionId,
     ): Bet {
         $statement = $this->pdo->prepare(
             "UPDATE bets SET status = 'settled', winning_option_id = :winning_option_id,
-                    final_pot_cents = :pot, final_bookmaker_share_cents = :bookmaker_share,
-                    final_redistributed_cents = :redistributed
+                    final_pot = :pot, final_bookmaker_share = :bookmaker_share,
+                    final_redistributed = :redistributed
              WHERE id = :id AND status = 'closed'",
         );
         $statement->execute([
             'id' => $id,
             'winning_option_id' => $winningOptionId,
-            'pot' => $potCents,
-            'share' => $bookmakerShareCents,
-            'redistributed' => $redistributedCents,
+            'pot' => $pot,
+            'bookmaker_share' => $bookmakerShare,
+            'redistributed' => $redistributed,
         ]);
         if ($statement->rowCount() !== 1) {
             throw new RuntimeException('Bet is no longer available for settlement.');
@@ -160,7 +160,7 @@ final readonly class BetRepository implements BetStore
         $statement = $this->pdo->prepare(
             sprintf(
                 'SELECT id, owner_user_id, question, description, closes_at, status, winning_option_id,
-                        bookmaker_rate_bps, final_pot_cents, final_bookmaker_share_cents, final_redistributed_cents
+                        bookmaker_rate_bps, final_pot, final_bookmaker_share, final_redistributed
                  FROM bets WHERE %s ORDER BY created_at DESC, id DESC',
                 $condition,
             ),
@@ -198,9 +198,9 @@ final readonly class BetRepository implements BetStore
             $row['winning_option_id'] === null ? null : (int) $row['winning_option_id'],
             $options,
             (int) $row['bookmaker_rate_bps'],
-            $row['final_pot_cents'] === null ? null : (int) $row['final_pot_cents'],
-            $row['final_bookmaker_share_cents'] === null ? null : (int) $row['final_bookmaker_share_cents'],
-            $row['final_redistributed_cents'] === null ? null : (int) $row['final_redistributed_cents'],
+            $row['final_pot'] === null ? null : (int) $row['final_pot'],
+            $row['final_bookmaker_share'] === null ? null : (int) $row['final_bookmaker_share'],
+            $row['final_redistributed'] === null ? null : (int) $row['final_redistributed'],
         );
     }
 

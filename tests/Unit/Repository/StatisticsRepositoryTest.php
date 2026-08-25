@@ -20,10 +20,10 @@ final class StatisticsRepositoryTest extends TestCase
         self::assertCount(1, $rows);
         self::assertSame(1, $rows[0]['contact_id']);
         self::assertSame(2, $rows[0]['stake_count']);
-        self::assertSame(3000, $rows[0]['total_staked_cents']);
-        self::assertSame(3000, $rows[0]['winning_staked_cents']);
-        self::assertSame(4500, $rows[0]['returned_cents']);
-        self::assertSame(2000, $rows[0]['largest_stake_cents']);
+        self::assertSame(3000, $rows[0]['total_staked']);
+        self::assertSame(3000, $rows[0]['winning_staked']);
+        self::assertSame(4500, $rows[0]['returned']);
+        self::assertSame(2000, $rows[0]['largest_stake']);
     }
 
     public function testSettledRowsApplyOwnerContactAndPeriodFilters(): void
@@ -41,7 +41,7 @@ final class StatisticsRepositoryTest extends TestCase
 
         self::assertCount(3, $rows);
         self::assertSame([1, 1, 2], array_column($rows, 'option_id'));
-        self::assertSame([1000, 2000, null], array_column($rows, 'amount_cents'));
+        self::assertSame([1000, 2000, null], array_column($rows, 'amount'));
     }
 
     private function database(): PDO
@@ -51,7 +51,7 @@ final class StatisticsRepositoryTest extends TestCase
         $pdo->exec('CREATE TABLE bets (id INTEGER PRIMARY KEY, owner_user_id INTEGER, question TEXT, status TEXT, winning_option_id INTEGER, updated_at TEXT)');
         $pdo->exec('CREATE TABLE contacts (id INTEGER PRIMARY KEY, name TEXT)');
         $pdo->exec('CREATE TABLE bet_options (id INTEGER PRIMARY KEY, bet_id INTEGER, label TEXT, position INTEGER)');
-        $pdo->exec('CREATE TABLE stakes (id INTEGER PRIMARY KEY, bet_id INTEGER, bet_option_id INTEGER, contact_id INTEGER, amount_cents INTEGER, final_payout_cents INTEGER, is_paid INTEGER, is_cancelled INTEGER)');
+        $pdo->exec('CREATE TABLE stakes (id INTEGER PRIMARY KEY, bet_id INTEGER, bet_option_id INTEGER, contact_id INTEGER, amount INTEGER, final_payout INTEGER, is_paid INTEGER, is_cancelled INTEGER)');
         $pdo->exec("INSERT INTO contacts VALUES (1, 'Alice')");
         $pdo->exec("INSERT INTO bets VALUES
             (1, 1, 'Settled', 'settled', 1, '2026-08-20 12:00:00'),

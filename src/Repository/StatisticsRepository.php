@@ -37,10 +37,10 @@ final readonly class StatisticsRepository implements StatisticsStore
             'SELECT contacts.id AS contact_id, contacts.name AS contact_name,
                     bets.id AS bet_id, bets.question, bets.updated_at AS settled_at,
                     COUNT(*) AS stake_count,
-                    SUM(stakes.amount_cents) AS total_staked_cents,
-                    SUM(CASE WHEN stakes.bet_option_id = bets.winning_option_id THEN stakes.amount_cents ELSE 0 END) AS winning_staked_cents,
-                    SUM(COALESCE(stakes.final_payout_cents, 0)) AS returned_cents,
-                    MAX(stakes.amount_cents) AS largest_stake_cents
+                    SUM(stakes.amount) AS total_staked,
+                    SUM(CASE WHEN stakes.bet_option_id = bets.winning_option_id THEN stakes.amount ELSE 0 END) AS winning_staked,
+                    SUM(COALESCE(stakes.final_payout, 0)) AS returned,
+                    MAX(stakes.amount) AS largest_stake
              FROM stakes
              INNER JOIN bets ON bets.id = stakes.bet_id
              INNER JOIN contacts ON contacts.id = stakes.contact_id
@@ -58,10 +58,10 @@ final readonly class StatisticsRepository implements StatisticsStore
             'question' => (string)$row['question'],
             'settled_at' => (string)$row['settled_at'],
             'stake_count' => (int)$row['stake_count'],
-            'total_staked_cents' => (int)$row['total_staked_cents'],
-            'winning_staked_cents' => (int)$row['winning_staked_cents'],
-            'returned_cents' => (int)$row['returned_cents'],
-            'largest_stake_cents' => (int)$row['largest_stake_cents'],
+            'total_staked' => (int)$row['total_staked'],
+            'winning_staked' => (int)$row['winning_staked'],
+            'returned' => (int)$row['returned'],
+            'largest_stake' => (int)$row['largest_stake'],
         ], $statement->fetchAll());
     }
 
@@ -70,7 +70,7 @@ final readonly class StatisticsRepository implements StatisticsStore
         $statement = $this->pdo->prepare(
             'SELECT bet_options.id AS option_id, bet_options.label AS option_label,
                     bet_options.position AS option_position, stakes.id AS stake_id,
-                    stakes.contact_id, stakes.amount_cents
+                    stakes.contact_id, stakes.amount
              FROM bet_options
              LEFT JOIN stakes ON stakes.bet_option_id = bet_options.id
                  AND stakes.bet_id = bet_options.bet_id
@@ -87,7 +87,7 @@ final readonly class StatisticsRepository implements StatisticsStore
             'option_position' => (int)$row['option_position'],
             'stake_id' => $row['stake_id'] === null ? null : (int)$row['stake_id'],
             'contact_id' => $row['contact_id'] === null ? null : (int)$row['contact_id'],
-            'amount_cents' => $row['amount_cents'] === null ? null : (int)$row['amount_cents'],
+            'amount' => $row['amount'] === null ? null : (int)$row['amount'],
         ], $statement->fetchAll());
     }
 }

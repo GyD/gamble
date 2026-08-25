@@ -101,10 +101,10 @@ final class StatisticsServiceTest extends TestCase
         $statistics = $service->bet(10);
 
         self::assertSame(2, $statistics['participant_count']);
-        self::assertSame(5000, $statistics['pot_cents']);
-        self::assertSame(1667, $statistics['average_stake_cents']);
-        self::assertSame(2000, $statistics['median_stake_cents_x2']);
-        self::assertSame(3000, $statistics['largest_stake_cents']);
+        self::assertSame(5000, $statistics['pot']);
+        self::assertSame(1667, $statistics['average_stake']);
+        self::assertSame(2000, $statistics['median_stake_x2']);
+        self::assertSame(3000, $statistics['largest_stake']);
         self::assertSame([40.0, 60.0, 0.0], array_column($statistics['options'], 'pot_percentage'));
         self::assertSame([2, 1, 0], array_column($statistics['options'], 'participant_count'));
     }
@@ -112,18 +112,18 @@ final class StatisticsServiceTest extends TestCase
     public function testBetStatisticsHandleNoStakeOneStakeAndEvenMedian(): void
     {
         $empty = (new StatisticsService(new StatisticsServiceStore([], [$this->emptyOption(1, 'A')])))->bet(1);
-        self::assertNull($empty['median_stake_cents_x2']);
-        self::assertNull($empty['average_stake_cents']);
+        self::assertNull($empty['median_stake_x2']);
+        self::assertNull($empty['average_stake']);
         self::assertNull($empty['options'][0]['pot_percentage']);
 
         $one = (new StatisticsService(new StatisticsServiceStore([], [$this->stake(1, 'A', 1, 1, 999)])))->bet(1);
-        self::assertSame(1998, $one['median_stake_cents_x2']);
+        self::assertSame(1998, $one['median_stake_x2']);
 
         $even = (new StatisticsService(new StatisticsServiceStore([], [
             $this->stake(1, 'A', 1, 1, 1000),
             $this->stake(1, 'A', 2, 2, 1001),
         ])))->bet(1);
-        self::assertSame(2001, $even['median_stake_cents_x2']);
+        self::assertSame(2001, $even['median_stake_x2']);
     }
 
     /** @param list<array<string, mixed>> $rows */
@@ -145,23 +145,23 @@ final class StatisticsServiceTest extends TestCase
     ): array
     {
         return ['contact_id' => $contactId, 'contact_name' => $name, 'bet_id' => $betId, 'question' => 'Bet ' . $betId,
-            'settled_at' => $date . ' 12:00:00', 'stake_count' => 1, 'total_staked_cents' => $total,
-            'winning_staked_cents' => $winning, 'returned_cents' => $returned,
-            'largest_stake_cents' => $largest];
+            'settled_at' => $date . ' 12:00:00', 'stake_count' => 1, 'total_staked' => $total,
+            'winning_staked' => $winning, 'returned' => $returned,
+            'largest_stake' => $largest];
     }
 
     /** @return array<string, mixed> */
     private function stake(int $optionId, string $label, int $stakeId, int $contactId, int $amount): array
     {
         return ['option_id' => $optionId, 'option_label' => $label, 'option_position' => $optionId,
-            'stake_id' => $stakeId, 'contact_id' => $contactId, 'amount_cents' => $amount];
+            'stake_id' => $stakeId, 'contact_id' => $contactId, 'amount' => $amount];
     }
 
     /** @return array<string, mixed> */
     private function emptyOption(int $optionId, string $label): array
     {
         return ['option_id' => $optionId, 'option_label' => $label, 'option_position' => $optionId,
-            'stake_id' => null, 'contact_id' => null, 'amount_cents' => null];
+            'stake_id' => null, 'contact_id' => null, 'amount' => null];
     }
 }
 

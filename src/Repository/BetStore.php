@@ -44,7 +44,7 @@ interface BetStore
     public function setBookmakerRate(int $id, int $rateBps): Bet;
 
     /** @param array<int, float|null> $oddsByOptionId */
-    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet;
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet;
 
     public function delete(int $id): void;
 }

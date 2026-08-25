@@ -56,20 +56,32 @@ final class StakeControllerTest extends TestCase
     public function testOwnerCanCreateStakeAndIsRedirected(): void
     {
         $response = $this->controller()->create(
-            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '12.50']),
+            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '12']),
             new Response(),
             ['id' => '1'],
         );
 
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/bets/1/stakes?saved=1', $response->getHeaderLine('Location'));
-        self::assertSame(1250, $this->stakes->stakes[1]->amountCents);
+        self::assertSame(12, $this->stakes->stakes[1]->amount);
     }
 
     public function testInvalidAmountReturnsBadRequest(): void
     {
         $response = $this->controller()->create(
             $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '0']),
+            new Response(),
+            ['id' => '1'],
+        );
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame([], $this->stakes->stakes);
+    }
+
+    public function testDecimalAmountReturnsBadRequest(): void
+    {
+        $response = $this->controller()->create(
+            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '12.00']),
             new Response(),
             ['id' => '1'],
         );
@@ -161,7 +173,7 @@ final class StakeControllerTest extends TestCase
         $bet = $this->bets->bets[1];
         $this->bets->bets[1] = new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, BetStatus::Settled, 10, $bet->options);
         $this->stakes->winners = [
-            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake_cents' => 100, 'pot_cents' => 100, 'is_winnings_paid' => false],
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 100, 'is_winnings_paid' => false],
         ];
 
         $response = $this->controller()->setWinningsPaid(
@@ -231,9 +243,9 @@ final class StakeControllerTest extends TestCase
         $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
 
         self::assertStringContainsString('<strong>1</strong><span>Mise payée</span>', $body);
-        self::assertStringContainsString('<strong>10,00 $</strong><span>Pot payé</span>', $body);
+        self::assertStringContainsString('<strong>1 000 $</strong><span>Pot payé</span>', $body);
         self::assertStringContainsString('<strong>1</strong><span>Mise non payée</span>', $body);
-        self::assertStringContainsString('<strong>20,00 $</strong><span>Pot non payé</span>', $body);
+        self::assertStringContainsString('<strong>2 000 $</strong><span>Pot non payé</span>', $body);
     }
 
     private function controller(bool $viewAll = false): StakeController
@@ -275,7 +287,7 @@ final class ControllerStakeStore implements StakeStore
 {
     /** @var array<int, Stake> */
     public array $stakes = [];
-    /** @var list<array{contact_id: int, contact_name: string, winning_stake_cents: int, pot_cents: int, is_winnings_paid: bool}> */
+    /** @var list<array{contact_id: int, contact_name: string, winning_stake: int, payout: int, is_winnings_paid: bool}> */
     public array $winners = [];
 
     public function findByBet(int $betId): array
@@ -288,30 +300,30 @@ final class ControllerStakeStore implements StakeStore
         return $this->stakes[$id] ?? null;
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake
     {
         $id = count($this->stakes) + 1;
-        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amountCents, 'Alice', 'Blue', false, false);
+        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, false);
     }
 
-    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake
+    public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake
     {
         $stake = $this->stakes[$id];
-        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amountCents, 'Alice', 'Blue', false, $stake->isPaid, $stake->isCancelled);
+        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, $stake->isPaid, $stake->isCancelled);
     }
 
     public function setPaid(int $id, bool $isPaid): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled);
     }
 
     public function setCancelled(int $id, bool $isCancelled): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amountCents, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
     }
 
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
@@ -378,7 +390,7 @@ final class ControllerStakeBetStore implements BetStore
         throw new \LogicException();
     }
     public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
-    public function settleFinancials(int $id, int $winningOptionId, int $potCents, int $bookmakerShareCents, int $redistributedCents, array $oddsByOptionId): Bet { throw new \LogicException(); }
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

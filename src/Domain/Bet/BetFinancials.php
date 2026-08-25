@@ -11,9 +11,9 @@ final readonly class BetFinancials
      * @param array<int, int> $payoutsByStakeId
      */
     public function __construct(
-        public int $potCents,
-        public int $bookmakerShareCents,
-        public int $redistributedCents,
+        public int   $pot,
+        public int   $bookmakerShare,
+        public int   $redistributed,
         public array $oddsByOptionId,
         public array $payoutsByStakeId = [],
     ) {

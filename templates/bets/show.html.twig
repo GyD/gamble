@@ -14,7 +14,7 @@
         {% if bet.closesAt %}<p class="form-help">Date limite : {{ bet.closesAt|date('d/m/Y H:i') }}</p>{% endif %}
         <p class="form-help">Taux bookmaker : {{ (bet.bookmakerRateBps / 100)|number_format(2, ',', ' ') }} %</p>
         <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — cote {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
-        {% if bet.status.value == 'settled' %}<p><strong>Pot :</strong> {{ (bet.finalPotCents / 100)|number_format(2, ',', ' ') }} $ · <strong>Commission :</strong> {{ (bet.finalBookmakerShareCents / 100)|number_format(2, ',', ' ') }} $ · <strong>Redistribué :</strong> {{ (bet.finalRedistributedCents / 100)|number_format(2, ',', ' ') }} $</p>{% endif %}
+        {% if bet.status.value == 'settled' %}<p><strong>Pot :</strong> {{ bet.finalPot|number_format(0, ',', ' ') }} $ · <strong>Commission :</strong> {{ bet.finalBookmakerShare|number_format(0, ',', ' ') }} $ · <strong>Redistribué :</strong> {{ bet.finalRedistributed|number_format(0, ',', ' ') }} $</p>{% endif %}
 
         {% if can_view_stakes or is_owner %}
             <div class="card-actions">
@@ -55,8 +55,8 @@
                     <tr>
                         <td class="winner-status"><span class="stake-payment-status{% if winner.is_winnings_paid %} is-paid{% endif %}">{{ winner.is_winnings_paid ? 'Gain versé' : 'Gain à verser' }}</span></td>
                         <th scope="row" class="winner-name">{{ winner.contact_name }}</th>
-                        <td class="winner-table-amount winner-stake" data-label="Mise gagnante">{{ (winner.winning_stake_cents / 100)|number_format(2, ',', ' ') }} $</td>
-                        <td class="winner-table-amount winner-payout" data-label="Versement"><strong>{{ (winner.payout_cents / 100)|number_format(2, ',', ' ') }} $</strong></td>
+                        <td class="winner-table-amount winner-stake" data-label="Mise gagnante">{{ winner.winning_stake|number_format(0, ',', ' ') }} $</td>
+                        <td class="winner-table-amount winner-payout" data-label="Versement"><strong>{{ winner.payout|number_format(0, ',', ' ') }} $</strong></td>
                         {% if can_manage_winnings %}
                             <td class="winner-action">
                                 <form method="post" action="/bets/{{ bet.id }}/winners/{{ winner.contact_id }}/payment-status">
@@ -85,15 +85,15 @@
         {% else %}
             <div class="bet-statistics-summary">
                 <article><strong>{{ statistics.participant_count }}</strong><span>Participants</span></article>
-                <article><strong>{{ (statistics.pot_cents / 100)|number_format(2, ',', ' ') }} $</strong><span>Pot total</span></article>
-                <article><strong>{{ (statistics.average_stake_cents / 100)|number_format(2, ',', ' ') }} $</strong><span>Mise moyenne</span></article>
-                <article><strong>{{ (statistics.median_stake_cents_x2 / 200)|number_format(2, ',', ' ') }} $</strong><span>Mise médiane</span></article>
-                <article><strong>{{ (statistics.largest_stake_cents / 100)|number_format(2, ',', ' ') }} $</strong><span>Plus grosse mise</span></article>
+                <article><strong>{{ statistics.pot|number_format(0, ',', ' ') }} $</strong><span>Pot total</span></article>
+                <article><strong>{{ statistics.average_stake|number_format(0, ',', ' ') }} $</strong><span>Mise moyenne</span></article>
+                <article><strong>{{ (statistics.median_stake_x2 / 2)|number_format(1, ',', ' ') }} $</strong><span>Mise médiane</span></article>
+                <article><strong>{{ statistics.largest_stake|number_format(0, ',', ' ') }} $</strong><span>Plus grosse mise</span></article>
             </div>
             <div class="option-distribution">
                 {% for option in statistics.options %}
                     <article>
-                        <div><strong>{{ option.label }}</strong><span>{{ option.participant_count }} participant{{ option.participant_count > 1 ? 's' : '' }} · {{ (option.amount_cents / 100)|number_format(2, ',', ' ') }} $</span></div>
+                        <div><strong>{{ option.label }}</strong><span>{{ option.participant_count }} participant{{ option.participant_count > 1 ? 's' : '' }} · {{ option.amount|number_format(0, ',', ' ') }} $</span></div>
                         <div class="distribution-track" aria-hidden="true"><span style="width: {{ option.pot_percentage ?? 0 }}%"></span></div>
                         <strong>{{ option.pot_percentage is null ? '—' : option.pot_percentage|number_format(1, ',', ' ') ~ ' %' }}</strong>
                     </article>

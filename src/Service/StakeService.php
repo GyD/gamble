@@ -18,7 +18,7 @@ use Throwable;
 
 final readonly class StakeService
 {
-    private const MAX_AMOUNT_CENTS = 99_999_999;
+    private const MAX_AMOUNT_UNITS = 999_999;
 
     public function __construct(
         private PDO          $pdo,
@@ -39,13 +39,13 @@ final readonly class StakeService
         ?string $ipAddress,
     ): Stake
     {
-        $amountCents = $this->amountInCents($amount);
+        $amount = $this->amount($amount);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $contactId, $betOptionId, $amountCents, $ipAddress): Stake {
+        return $this->transactional(function () use ($actorUserId, $betId, $contactId, $betOptionId, $amount, $ipAddress): Stake {
             $bet = $this->mutableBet($actorUserId, $betId);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
             $this->activeContact($contactId);
-            $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amountCents);
+            $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amount);
             $this->auditLogs->record($actorUserId, 'stake.created', 'stake', (string)$stake->id, null, $this->snapshot($stake), $ipAddress);
 
             return $stake;
@@ -62,15 +62,15 @@ final readonly class StakeService
         ?string $ipAddress,
     ): Stake
     {
-        $amountCents = $this->amountInCents($amount);
+        $amount = $this->amount($amount);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $contactId, $betOptionId, $amountCents, $ipAddress): Stake {
+        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $contactId, $betOptionId, $amount, $ipAddress): Stake {
             $bet = $this->mutableBet($actorUserId, $betId);
             $before = $this->stakeForBet($stakeId, $betId);
             $this->assertActiveStake($before);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
             $this->activeContact($contactId);
-            $after = $this->stakes->update($stakeId, $betOptionId, $contactId, $amountCents);
+            $after = $this->stakes->update($stakeId, $betOptionId, $contactId, $amount);
             $this->auditLogs->record($actorUserId, 'stake.updated', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
@@ -141,7 +141,7 @@ final readonly class StakeService
         });
     }
 
-    /** @return list<array{contact_id: int, contact_name: string, winning_stake_cents: int, payout_cents: int, is_winnings_paid: bool}> */
+    /** @return list<array{contact_id: int, contact_name: string, winning_stake: int, payout: int, is_winnings_paid: bool}> */
     public function winnings(Bet $bet): array
     {
         if ($bet->status !== BetStatus::Settled || $bet->winningOptionId === null) {
@@ -249,18 +249,18 @@ final readonly class StakeService
         }
     }
 
-    private function amountInCents(string $amount): int
+    private function amount(string $amount): int
     {
-        $amount = str_replace(',', '.', trim($amount));
-        if (preg_match('/^(\d{1,6})(?:\.(\d{1,2}))?$/', $amount, $matches) !== 1) {
-            throw new InvalidArgumentException('Stake amount must be a positive amount with at most two decimals.');
+        $amount = trim($amount);
+        if (preg_match('/^[1-9]\d{0,5}$/', $amount) !== 1) {
+            throw new InvalidArgumentException('Stake amount must be a whole number between 1 and 999999.');
         }
-        $amountCents = ((int)$matches[1] * 100) + (int)str_pad($matches[2] ?? '', 2, '0');
-        if ($amountCents < 1 || $amountCents > self::MAX_AMOUNT_CENTS) {
-            throw new InvalidArgumentException('Stake amount must be between 0.01 and 999999.99.');
+        $amount = (int)$amount;
+        if ($amount > self::MAX_AMOUNT_UNITS) {
+            throw new InvalidArgumentException('Stake amount must be a whole number between 1 and 999999.');
         }
 
-        return $amountCents;
+        return $amount;
     }
 
     /** @return array<string, int|string|bool> */
@@ -270,7 +270,7 @@ final readonly class StakeService
             'bet_id' => $stake->betId,
             'bet_option_id' => $stake->betOptionId,
             'contact_id' => $stake->contactId,
-            'amount_cents' => $stake->amountCents,
+            'amount' => $stake->amount,
             'is_paid' => $stake->isPaid,
             'is_cancelled' => $stake->isCancelled,
         ];

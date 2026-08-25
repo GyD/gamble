@@ -16,7 +16,7 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
 - **Cotes** : cotes mutuelles dynamiques calculées à partir de la répartition des mises actives et du montant redistribuable ; elles restent indicatives jusqu'à la fermeture du pari.
 - **Part du bookmaker** : commission prélevée sur le pot d'un pari réglé avant la répartition des gains.
-- **Mises** : participations rattachées à un pari et à un contact.
+- **Mises** : participations rattachées à un pari et à un contact, saisies, stockées et affichées en dollars entiers.
 - **Paiements** : suivi des mises payées, non payées ou à rembourser et des gains versés ou à verser ; les transferts sont réalisés hors de l'application.
 - **Statistiques** : vues agrégées des paris, mises et résultats.
 - **Audit** : historique des opérations sensibles avec leur acteur et les états avant/après.
@@ -52,7 +52,8 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - annulation possible d’une mise payée ou non payée, et obligatoire avant sa suppression définitive ;
 - une mise annulée et payée peut être marquée remboursée, sans devoir être réactivée ;
 - suppression définitive d’une mise uniquement lorsqu’elle est annulée et non payée ;
-- montants de mises stockés en centimes, statut payé/non payé, permissions dédiées et audit atomique ;
+- montants de mises en dollars entiers de `1` à `999999`, avec statut payé/non payé, permissions dédiées et audit atomique ;
+- migration des anciennes mises au montant entier le plus proche (minimum `1`), avec recalcul des pots, commissions, cotes finales et gains des paris réglés sans modifier leurs statuts de paiement ;
 - résumé séparant le nombre et le montant des mises payées et non payées, hors mises annulées ;
 - sur un pari annulé, une mise payée est à rembourser et une mise non payée est considérée comme remboursée ;
 - suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée ;

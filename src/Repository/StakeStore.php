@@ -13,9 +13,9 @@ interface StakeStore
 
     public function findById(int $id): ?Stake;
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amountCents): Stake;
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake;
 
-    public function update(int $id, int $betOptionId, int $contactId, int $amountCents): Stake;
+    public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake;
 
     public function setPaid(int $id, bool $isPaid): Stake;
 
@@ -28,8 +28,8 @@ interface StakeStore
      * @return list<array{
      *     contact_id: int,
      *     contact_name: string,
-     *     winning_stake_cents: int,
-     *     payout_cents: int,
+     *     winning_stake: int,
+     *     payout: int,
      *     is_winnings_paid: bool
      * }>
      */
