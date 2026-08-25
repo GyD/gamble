@@ -1,0 +1,38 @@
+#!/bin/sh
+
+set -eu
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROJECT_DIR=$(dirname -- "$SCRIPT_DIR")
+
+cd "$PROJECT_DIR"
+
+if [ ! -f .env ]; then
+    printf '%s\n' 'Error: .env is missing.' >&2
+    exit 1
+fi
+
+if [ -n "$(git status --porcelain)" ]; then
+    printf '%s\n' 'Error: the Git working tree is not clean.' >&2
+    exit 1
+fi
+
+printf '%s\n' 'Pulling the latest changes...'
+git pull --ff-only
+
+printf '%s\n' 'Building the application image...'
+docker compose build --pull
+
+printf '%s\n' 'Starting the updated services...'
+docker compose up -d
+
+printf '%s\n' 'Running database migrations...'
+docker compose exec -T app php bin/migrate
+
+printf '%s\n' 'Checking service status...'
+docker compose ps
+
+printf '%s\n' 'Removing unused images...'
+docker image prune -f
+
+printf '%s\n' 'Update completed successfully.'
