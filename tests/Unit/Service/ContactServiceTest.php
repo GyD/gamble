@@ -69,6 +69,23 @@ final class ContactServiceTest extends TestCase
         $this->service->create(7, 'Alice', '0042', null, null, ['2']);
     }
 
+    public function testContactCannotBelongToMultipleGroups(): void
+    {
+        $this->groups->groups[1] = new Group(1, 'Friends', null, null);
+        $this->groups->groups[2] = new Group(2, 'Players', null, null);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('A contact can only belong to one group.');
+
+        $this->service->create(7, 'Alice', '0042', null, null, ['1', '2']);
+    }
+
+    public function testEmptyGroupSelectionCreatesContactWithoutGroup(): void
+    {
+        $contact = $this->service->create(7, 'Alice', '0042', null, null, ['']);
+
+        self::assertSame([], $this->groups->memberships[$contact->id]);
+    }
+
     /** @param string|null $note */
     #[DataProvider('invalidContacts')]
     public function testInvalidContactIsRejected(string $name, string $phoneNumber, ?string $note, string $message): void

@@ -40,7 +40,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - gestion des contacts avec nom et numéro de téléphone obligatoire, note facultative, archivage, réactivation et suppression définitive après archivage ;
 - permissions et audit atomique des opérations sur les contacts ;
 - gestion des groupes avec note facultative, archivage, suppression définitive après archivage et membres visibles en lecture seule ;
-- gestion des appartenances aux groupes depuis la fiche du contact, avec la permission `contacts.edit` ;
+- gestion de l'appartenance facultative à un seul groupe depuis la fiche du contact, avec la permission `contacts.edit` ;
 - création des paris avec 2 à 20 choix uniques, une description et une date limite facultatives ;
 - modification des choix d'un pari uniquement tant qu'aucune mise n'existe ;
 - cycle de vie des paris `open` → `closed` → `settled`, avec annulation depuis les états `open` ou `closed` ;

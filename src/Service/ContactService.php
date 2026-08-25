@@ -186,10 +186,16 @@ final readonly class ContactService
                 throw new InvalidArgumentException('Invalid group identifier.');
             }
             $value = (string) $groupId;
+            if ($value === '') {
+                continue;
+            }
             if (preg_match('/^[1-9]\d*$/', $value) !== 1) {
                 throw new InvalidArgumentException('Invalid group identifier.');
             }
             $normalized[(int) $value] = true;
+        }
+        if (count($normalized) > 1) {
+            throw new InvalidArgumentException('A contact can only belong to one group.');
         }
         $currentIds = array_flip($this->groups->memberGroupIds($contactId));
         foreach (array_keys($normalized) as $groupId) {

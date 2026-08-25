@@ -83,7 +83,7 @@ final class ContactControllerTest extends TestCase
     {
         $html = (string) $this->controller->index($this->request('GET'), new Response())->getBody();
 
-        self::assertStringContainsString('<legend>Groupes</legend>', $html);
+        self::assertStringContainsString('<legend>Groupe <span>(facultatif)</span></legend>', $html);
         self::assertStringContainsString('Aucun groupe disponible.', $html);
     }
 
@@ -94,7 +94,7 @@ final class ContactControllerTest extends TestCase
 
         $html = (string) $this->controller->index($this->request('GET'), new Response())->getBody();
 
-        self::assertStringContainsString('name="group_ids[]" value="2"', $html);
+        self::assertStringContainsString('type="radio" name="group_id" value="2"', $html);
         self::assertStringContainsString('<strong>Amis</strong>', $html);
         self::assertStringNotContainsString('<strong>Anciens</strong>', $html);
     }
@@ -107,7 +107,7 @@ final class ContactControllerTest extends TestCase
             ->edit($this->request('GET'), new Response(), ['id' => '1'])
             ->getBody();
 
-        self::assertStringContainsString('<legend>Groupes</legend>', $html);
+        self::assertStringContainsString('<legend>Groupe <span>(facultatif)</span></legend>', $html);
         self::assertStringContainsString('Aucun groupe disponible.', $html);
     }
 
@@ -121,7 +121,7 @@ final class ContactControllerTest extends TestCase
             ->edit($this->request('GET'), new Response(), ['id' => '1'])
             ->getBody();
 
-        self::assertStringContainsString('name="group_ids[]" value="2" checked', $html);
+        self::assertStringContainsString('type="radio" name="group_id" value="2" checked', $html);
         self::assertStringContainsString('<strong>Amis</strong>', $html);
     }
 
@@ -160,7 +160,7 @@ final class ContactControllerTest extends TestCase
                 'name' => 'Alice',
                 'phone_number' => '0042',
                 'note' => '',
-                'group_ids' => ['2'],
+                'group_id' => '2',
             ]),
             new Response(),
         );
@@ -168,6 +168,25 @@ final class ContactControllerTest extends TestCase
         self::assertSame(303, $response->getStatusCode());
         self::assertSame([2], $this->groups->memberships[1]);
         self::assertSame([2], $this->auditLogs->entries[0]['after']['group_ids']);
+    }
+
+    public function testCreateRejectsArrayGroupValue(): void
+    {
+        $this->groups->groups[1] = new Group(1, 'Amis', null, null);
+        $this->groups->groups[2] = new Group(2, 'Joueurs', null, null);
+
+        $response = $this->controller->create(
+            $this->request('POST', [
+                'name' => 'Alice',
+                'phone_number' => '0042',
+                'note' => '',
+                'group_id' => ['1', '2'],
+            ]),
+            new Response(),
+        );
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame('Invalid group_id.', (string) $response->getBody());
     }
 
     /** @param array<string, mixed> $body */

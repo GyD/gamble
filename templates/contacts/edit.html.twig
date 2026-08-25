@@ -26,13 +26,17 @@
             <textarea id="contact-note" name="note" maxlength="2000" rows="5">{{ contact.note }}</textarea>
         </div>
         <fieldset class="group-choices">
-            <legend>Groupes</legend>
+            <legend>Groupe <span>(facultatif)</span></legend>
             <p class="form-help">L’appartenance se gère depuis ce contact.</p>
             {% if groups %}
                 <div class="choice-grid">
+                    <label class="choice-row">
+                        <input type="radio" name="group_id" value=""{% if selected_group_ids is empty %} checked{% endif %}>
+                        <span><strong>Aucun groupe</strong></span>
+                    </label>
                     {% for group in groups %}
                         <label class="choice-row">
-                            <input type="checkbox" name="group_ids[]" value="{{ group.id }}"{% if group.id in selected_group_ids %} checked{% endif %}>
+                            <input type="radio" name="group_id" value="{{ group.id }}"{% if group.id in selected_group_ids %} checked{% endif %}>
                             <span>
                                 <strong>{{ group.name }}</strong>
                                 {% if group.archived %}<small>Groupe archivé — vous pouvez retirer ce contact.</small>{% endif %}

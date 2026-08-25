@@ -75,6 +75,19 @@ final class UserControllerTest extends TestCase
         self::assertStringContainsString('/admin/users/2/access', $html);
     }
 
+    public function testEditAccessDisplaysTwitchDisplayName(): void
+    {
+        $response = $this->controller->editAccess(
+            $this->request('GET'),
+            new Response(),
+            ['id' => '2'],
+        );
+        $html = (string) $response->getBody();
+
+        self::assertStringContainsString('<title>Accès de Viewer', $html);
+        self::assertStringContainsString('<h1>Accès de Viewer</h1>', $html);
+    }
+
     /** @param array<string, mixed> $body */
     #[DataProvider('invalidStatusRequests')]
     public function testInvalidStatusRequestReturnsBadRequest(string $id, array $body): void

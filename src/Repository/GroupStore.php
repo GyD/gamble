@@ -24,9 +24,9 @@ interface GroupStore
     /** @return list<Group> Active groups plus archived groups already containing the contact. */
     public function findAvailableForContact(int $contactId): array;
 
-    /** @return list<int> */
+    /** @return list<int> Zero or one group identifier. */
     public function memberGroupIds(int $contactId): array;
 
-    /** @param list<int> $groupIds */
+    /** @param list<int> $groupIds Zero or one group identifier. */
     public function syncContactGroups(int $contactId, array $groupIds): void;
 }

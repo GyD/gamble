@@ -53,7 +53,7 @@ final readonly class ContactController
                 $this->stringValue($body, 'phone_number'),
                 $this->nullableStringValue($body, 'note'),
                 $this->ipAddress($request),
-                $this->arrayValue($body, 'group_ids'),
+                $this->groupIdsValue($body),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
@@ -104,7 +104,7 @@ final readonly class ContactController
                 $this->stringValue($body, 'phone_number'),
                 $this->nullableStringValue($body, 'note'),
                 $this->ipAddress($request),
-                $this->arrayValue($body, 'group_ids'),
+                $this->groupIdsValue($body),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
@@ -206,17 +206,17 @@ final readonly class ContactController
         return $value;
     }
 
-    /** @param array<string, mixed> $body @return array<mixed>|null */
-    private function arrayValue(array $body, string $key): ?array
+    /** @param array<string, mixed> $body @return list<string> */
+    private function groupIdsValue(array $body): array
     {
-        if (!array_key_exists($key, $body)) {
+        if (!array_key_exists('group_id', $body) || $body['group_id'] === '') {
             return [];
         }
-        if (!is_array($body[$key])) {
-            throw new InvalidArgumentException(sprintf('Invalid %s.', $key));
+        if (!is_string($body['group_id'])) {
+            throw new InvalidArgumentException('Invalid group_id.');
         }
 
-        return $body[$key];
+        return [$body['group_id']];
     }
 
     /** @param array<string, mixed> $context */
