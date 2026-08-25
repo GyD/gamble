@@ -215,6 +215,7 @@ final class ControllerBetStore implements BetStore
     public function findAll(): array { return array_values($this->bets); }
     public function findByOwner(int $ownerUserId): array { return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId)); }
     public function findById(int $id): ?Bet { return $this->bets[$id] ?? null; }
+    public function findByIdForUpdate(int $id): ?Bet { return $this->findById($id); }
     public function create(int $ownerUserId, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
     {
         $id = count($this->bets) + 1;

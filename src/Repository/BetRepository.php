@@ -34,6 +34,19 @@ final readonly class BetRepository implements BetStore
         return $bets[0] ?? null;
     }
 
+    public function findByIdForUpdate(int $id): ?Bet
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id, owner_user_id, question, description, closes_at, status, winning_option_id,
+                    bookmaker_rate_bps, final_pot_cents, final_bookmaker_share_cents, final_redistributed_cents
+             FROM bets WHERE id = :id FOR UPDATE',
+        );
+        $statement->execute(['id' => $id]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $this->hydrate($row);
+    }
+
     public function create(
         int $ownerUserId,
         string $question,
@@ -113,8 +126,9 @@ final readonly class BetRepository implements BetStore
     ): Bet {
         $statement = $this->pdo->prepare(
             "UPDATE bets SET status = 'settled', winning_option_id = :winning_option_id,
-             final_pot_cents = :pot, final_bookmaker_share_cents = :share,
-             final_redistributed_cents = :redistributed WHERE id = :id",
+                    final_pot_cents = :pot, final_bookmaker_share_cents = :bookmaker_share,
+                    final_redistributed_cents = :redistributed
+             WHERE id = :id AND status = 'closed'",
         );
         $statement->execute([
             'id' => $id,
@@ -123,6 +137,9 @@ final readonly class BetRepository implements BetStore
             'share' => $bookmakerShareCents,
             'redistributed' => $redistributedCents,
         ]);
+        if ($statement->rowCount() !== 1) {
+            throw new RuntimeException('Bet is no longer available for settlement.');
+        }
         $updateOdds = $this->pdo->prepare('UPDATE bet_options SET final_odds = :odds WHERE id = :id AND bet_id = :bet_id');
         foreach ($oddsByOptionId as $optionId => $odds) {
             $updateOdds->execute(['id' => $optionId, 'bet_id' => $id, 'odds' => $odds]);

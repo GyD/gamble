@@ -346,6 +346,11 @@ final class StakeTestBetStore implements BetStore
         return $this->bets[$id] ?? null;
     }
 
+    public function findByIdForUpdate(int $id): ?Bet
+    {
+        return $this->findById($id);
+    }
+
     public function create(int $ownerUserId, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
     {
         throw new \LogicException();

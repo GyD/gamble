@@ -183,6 +183,7 @@ final class BetServiceTest extends TestCase
         $settled = $this->service->settle(7, $bet->id, $blueId, null);
 
         self::assertFalse($this->pdo->inTransaction());
+        self::assertSame([$bet->id], $this->bets->lockedBetIds);
         self::assertSame(1000, $settled->finalPotCents);
         self::assertSame(100, $settled->finalBookmakerShareCents);
         self::assertSame(900, $settled->finalRedistributedCents);
@@ -225,11 +226,19 @@ final class BetTestStore implements BetStore
 {
     /** @var array<int, Bet> */
     public array $bets = [];
+    /** @var list<int> */
+    public array $lockedBetIds = [];
     private int $nextOptionId = 1;
 
     public function findAll(): array { return array_values($this->bets); }
     public function findByOwner(int $ownerUserId): array { return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId)); }
     public function findById(int $id): ?Bet { return $this->bets[$id] ?? null; }
+    public function findByIdForUpdate(int $id): ?Bet
+    {
+        $this->lockedBetIds[] = $id;
+
+        return $this->findById($id);
+    }
     public function create(int $ownerUserId, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
     {
         $id = count($this->bets) + 1;

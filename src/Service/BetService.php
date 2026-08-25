@@ -171,7 +171,10 @@ final readonly class BetService
     public function settle(int $actorUserId, int $betId, int $winningOptionId, ?string $ipAddress): Bet
     {
         return $this->transactional(function () use ($actorUserId, $betId, $winningOptionId, $ipAddress): Bet {
-            $before = $this->ownedBet($actorUserId, $betId);
+            $before = $this->bets->findByIdForUpdate($betId) ?? throw new InvalidArgumentException('Unknown bet.');
+            if (!$before->isOwnedBy($actorUserId)) {
+                throw new BetAccessDeniedException('Only the bet owner can change it.');
+            }
             if ($before->status !== BetStatus::Closed) {
                 throw new InvalidArgumentException('Bet must be closed to become settled.');
             }

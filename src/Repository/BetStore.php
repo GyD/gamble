@@ -18,6 +18,9 @@ interface BetStore
 
     public function findById(int $id): ?Bet;
 
+    /** Must be called inside a transaction. */
+    public function findByIdForUpdate(int $id): ?Bet;
+
     /** @param list<string> $options */
     public function create(
         int $ownerUserId,
