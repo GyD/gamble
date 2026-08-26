@@ -1,0 +1,63 @@
+<?php
+
+declare(strict_types=1);
+
+$permissions = [
+    'bets.view',
+    'bets.view_all',
+    'bets.create',
+    'bets.edit',
+    'bets.delete',
+    'bets.close',
+    'bets.settle',
+    'contacts.view',
+    'contacts.create',
+    'contacts.edit',
+    'contacts.delete',
+    'groups.view',
+    'groups.create',
+    'groups.edit',
+    'groups.delete',
+    'stakes.view',
+    'stakes.create',
+    'stakes.edit',
+    'stakes.delete',
+    'payments.view',
+    'payments.manage',
+    'statistics.view',
+    'users.view',
+    'users.manage',
+    'permissions.manage',
+    'settings.manage',
+];
+
+return [
+    'permissions' => $permissions,
+    'roles' => [
+        'admin' => $permissions,
+        'bookmaker' => [
+            'bets.view',
+            'bets.view_all',
+            'bets.create',
+            'bets.edit',
+            'bets.delete',
+            'bets.close',
+            'bets.settle',
+            'contacts.view',
+            'contacts.create',
+            'contacts.edit',
+            'contacts.delete',
+            'groups.view',
+            'groups.create',
+            'groups.edit',
+            'groups.delete',
+            'stakes.view',
+            'stakes.create',
+            'stakes.edit',
+            'stakes.delete',
+            'payments.view',
+            'payments.manage',
+            'statistics.view',
+        ],
+    ],
+];

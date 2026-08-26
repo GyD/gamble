@@ -69,36 +69,24 @@ final class UserAdministrationServiceTest extends TestCase
     public function testAccessReplacementIsNormalizedAndAudited(): void
     {
         $this->users->rolesByUser[2] = ['bookmaker'];
-        $this->users->permissionsByUser[2] = ['bets.delete' => 'deny'];
 
         $this->service->replaceAccess(
             1,
             2,
             ['bookmaker', 'admin'],
-            ['users.manage' => 'allow', 'bets.delete' => 'deny'],
             '::1',
         );
 
         self::assertSame(['admin', 'bookmaker'], $this->users->rolesByUser[2]);
-        self::assertSame([
-            'bets.delete' => 'deny',
-            'users.manage' => 'allow',
-        ], $this->users->permissionsByUser[2]);
         self::assertSame('user.access_changed', $this->auditLogs->entries[0]['action']);
-        self::assertSame([
-            'roles' => ['bookmaker'],
-            'permissions' => ['bets.delete' => 'deny'],
-        ], $this->auditLogs->entries[0]['before']);
-        self::assertSame([
-            'roles' => ['admin', 'bookmaker'],
-            'permissions' => ['bets.delete' => 'deny', 'users.manage' => 'allow'],
-        ], $this->auditLogs->entries[0]['after']);
+        self::assertSame(['roles' => ['bookmaker']], $this->auditLogs->entries[0]['before']);
+        self::assertSame(['roles' => ['admin', 'bookmaker']], $this->auditLogs->entries[0]['after']);
     }
 
     public function testUnknownRoleIsRejectedBeforeMutation(): void
     {
         try {
-            $this->service->replaceAccess(1, 2, ['super-admin'], [], null);
+            $this->service->replaceAccess(1, 2, ['super-admin'], null);
             self::fail('Unknown role should have been rejected.');
         } catch (InvalidArgumentException $exception) {
             self::assertSame('Unknown role.', $exception->getMessage());
@@ -110,7 +98,7 @@ final class UserAdministrationServiceTest extends TestCase
 
     public function testDuplicateRolesAreNormalizedBeforeMutation(): void
     {
-        $this->service->replaceAccess(1, 2, ['admin', 'admin'], [], null);
+        $this->service->replaceAccess(1, 2, ['admin', 'admin'], null);
 
         self::assertSame(['admin'], $this->users->rolesByUser[2]);
         self::assertSame(['admin'], $this->auditLogs->entries[0]['after']['roles']);
@@ -122,21 +110,13 @@ final class UserAdministrationServiceTest extends TestCase
         $this->expectExceptionMessage('Invalid role list.');
 
         /** @phpstan-ignore argument.type */
-        $this->service->replaceAccess(1, 2, ['admin', 42], [], null);
-    }
-
-    public function testUnknownPermissionIsRejectedBeforeMutation(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unknown permission.');
-
-        $this->service->replaceAccess(1, 2, [], ['root.access' => 'allow'], null);
+        $this->service->replaceAccess(1, 2, ['admin', 42], null);
     }
 
     public function testUnknownUserDoesNotLeaveTransactionOpen(): void
     {
         try {
-            $this->service->replaceAccess(1, 999, [], [], null);
+            $this->service->replaceAccess(1, 999, [], null);
             self::fail('Unknown user should have been rejected.');
         } catch (InvalidArgumentException $exception) {
             self::assertSame('Unknown user.', $exception->getMessage());
@@ -187,9 +167,6 @@ class InMemoryUserAdministrationStore implements UserAdministrationStore
     /** @var array<int, list<string>> */
     public array $rolesByUser = [];
 
-    /** @var array<int, array<string, string>> */
-    public array $permissionsByUser = [];
-
     public function findById(int $id): ?User
     {
         return $this->users[$id] ?? null;
@@ -208,22 +185,9 @@ class InMemoryUserAdministrationStore implements UserAdministrationStore
         ];
     }
 
-    public function findAllPermissions(): array
-    {
-        return [
-            ['id' => 1, 'name' => 'bets.delete', 'description' => 'Delete bets'],
-            ['id' => 2, 'name' => 'users.manage', 'description' => 'Manage users'],
-        ];
-    }
-
     public function roleNamesFor(int $userId): array
     {
         return $this->rolesByUser[$userId] ?? [];
-    }
-
-    public function permissionEffectsFor(int $userId): array
-    {
-        return $this->permissionsByUser[$userId] ?? [];
     }
 
     public function updateStatus(int $userId, UserStatus $status): void
@@ -239,10 +203,9 @@ class InMemoryUserAdministrationStore implements UserAdministrationStore
         );
     }
 
-    public function replaceAccess(int $userId, array $roleNames, array $permissionEffects): void
+    public function replaceRoles(int $userId, array $roleNames): void
     {
         $this->rolesByUser[$userId] = $roleNames;
-        $this->permissionsByUser[$userId] = $permissionEffects;
     }
 }
 

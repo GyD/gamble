@@ -34,24 +34,6 @@
                 </div>
             </fieldset>
 
-            <fieldset class="form-section">
-                <legend>Exceptions de permissions</legend>
-                <p class="form-help">Une exception remplace les permissions héritées des rôles.</p>
-                <div class="permission-list">
-                    {% for permission in permissions %}
-                        {% set current_effect = permission_effects[permission.name] ?? 'inherit' %}
-                        <label class="permission-row">
-                            <span><strong>{{ permission.name }}</strong><small>{{ permission.description }}</small></span>
-                            <select name="permissions[{{ permission.name }}]">
-                                <option value="inherit" {% if current_effect == 'inherit' %}selected{% endif %}>Héritée</option>
-                                <option value="allow" {% if current_effect == 'allow' %}selected{% endif %}>Autoriser</option>
-                                <option value="deny" {% if current_effect == 'deny' %}selected{% endif %}>Refuser</option>
-                            </select>
-                        </label>
-                    {% endfor %}
-                </div>
-            </fieldset>
-
             <button class="button button-primary" type="submit">Enregistrer les accès</button>
         </form>
     {% endif %}

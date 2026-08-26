@@ -10,7 +10,7 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 
 ## Concepts métier principaux
 
-- **Utilisateurs et accès** : comptes Twitch autorisés à utiliser l'application, avec un statut, des rôles et des permissions individuelles.
+- **Utilisateurs et accès** : comptes Twitch autorisés à utiliser l'application, avec un statut et des rôles dont les permissions sont définies dans la configuration.
 - **Contacts** : participants aux paris, qu'ils disposent ou non d'un compte utilisateur dans l'application.
 - **Groupes** : ensembles de contacts permettant d'organiser les participants.
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
@@ -30,13 +30,13 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - authentification Twitch sans scope additionnel ;
 - création automatique des utilisateurs inconnus avec le statut `pending` ;
 - activation, suspension et réactivation des utilisateurs ;
-- rôles et permissions, avec autorisations ou interdictions individuelles ;
+- permissions définies dans `config/permissions.php`, attribuées aux rôles, puis rôles attribués aux utilisateurs ;
 - rôle `bookmaker` autorisé à consulter tous les paris et à archiver, réactiver ou supprimer les contacts et les groupes selon leurs règles métier ;
 - administration des utilisateurs et de leurs accès ;
 - protection des routes et masquage des actions selon les permissions ;
 - navigation indiquant la page ou la rubrique active, y compris sur les sous-pages ;
 - protection CSRF des mutations ;
-- audit atomique des changements de statut, de rôles et de permissions ;
+- audit atomique des changements de statut et de rôles ;
 - tests automatisés du socle d'identité, des accès, des contacts, des groupes, des paris, des mises, des statistiques et des gains ;
 - gestion des contacts avec nom et numéro de téléphone obligatoire, note facultative, archivage, réactivation et suppression définitive après archivage ;
 - permissions et audit atomique des opérations sur les contacts ;

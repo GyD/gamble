@@ -80,9 +80,7 @@ final readonly class UserController
             'target' => $target,
             'current_user' => $this->actor($request),
             'roles' => $this->users->findAllRoles(),
-            'permissions' => $this->users->findAllPermissions(),
             'selected_roles' => $this->users->roleNamesFor($userId),
-            'permission_effects' => $this->users->permissionEffectsFor($userId),
             'saved' => isset($request->getQueryParams()['saved']),
         ]);
     }
@@ -97,12 +95,10 @@ final readonly class UserController
             $userId = $this->positiveId($args['id'] ?? '');
             $body = (array) $request->getParsedBody();
             $roleNames = $this->stringList($body['roles'] ?? []);
-            $effects = $this->effects($body['permissions'] ?? []);
             $this->administration->replaceAccess(
                 $this->actor($request)->id,
                 $userId,
                 $roleNames,
-                $effects,
                 $this->ipAddress($request),
             );
         } catch (InvalidArgumentException $exception) {
@@ -147,33 +143,6 @@ final readonly class UserController
         }
 
         return array_values(array_unique($value));
-    }
-
-    /** @return array<string, string> */
-    private function effects(mixed $value): array
-    {
-        if (!is_array($value)) {
-            throw new InvalidArgumentException('Invalid permission list.');
-        }
-
-        $effects = [];
-        foreach ($value as $permission => $effect) {
-            if (!is_string($permission) || !is_string($effect)) {
-                throw new InvalidArgumentException('Invalid permission value.');
-            }
-
-            if ($effect === 'inherit') {
-                continue;
-            }
-
-            if (!in_array($effect, ['allow', 'deny'], true)) {
-                throw new InvalidArgumentException('Invalid permission effect.');
-            }
-
-            $effects[$permission] = $effect;
-        }
-
-        return $effects;
     }
 
     /** @param array<string, mixed> $context */

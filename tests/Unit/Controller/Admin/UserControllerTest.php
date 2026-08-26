@@ -141,24 +141,15 @@ final class UserControllerTest extends TestCase
     /** @return iterable<string, array{array<string, mixed>}> */
     public static function invalidAccessRequests(): iterable
     {
-        yield 'roles are scalar' => [['roles' => 'admin', 'permissions' => []]];
-        yield 'role is not string' => [['roles' => ['admin', 42], 'permissions' => []]];
-        yield 'permissions are scalar' => [['roles' => [], 'permissions' => 'users.manage']];
-        yield 'permission effect is invalid' => [[
-            'roles' => [],
-            'permissions' => ['users.manage' => 'sometimes'],
-        ]];
+        yield 'roles are scalar' => [['roles' => 'admin']];
+        yield 'role is not string' => [['roles' => ['admin', 42]]];
     }
 
-    public function testAccessUpdateDropsInheritedEffectsAndRedirects(): void
+    public function testAccessUpdateNormalizesRolesAndRedirects(): void
     {
         $response = $this->controller->updateAccess(
             $this->request('POST', [
                 'roles' => ['admin', 'admin'],
-                'permissions' => [
-                    'users.manage' => 'inherit',
-                    'permissions.manage' => 'deny',
-                ],
             ]),
             new Response(),
             ['id' => '2'],
@@ -167,7 +158,6 @@ final class UserControllerTest extends TestCase
         self::assertSame(303, $response->getStatusCode());
         self::assertSame('/admin/users/2/access?saved=1', $response->getHeaderLine('Location'));
         self::assertSame(['admin'], $this->users->rolesByUser[2]);
-        self::assertSame(['permissions.manage' => 'deny'], $this->users->permissionsByUser[2]);
     }
 
     public function testMissingAccessTargetReturnsNotFound(): void
@@ -209,9 +199,6 @@ final class ControllerUserStore implements UserAdministrationStore
     /** @var array<int, list<string>> */
     public array $rolesByUser = [];
 
-    /** @var array<int, array<string, string>> */
-    public array $permissionsByUser = [];
-
     /** @param array<int, User> $users */
     public function __construct(public array $users)
     {
@@ -232,22 +219,9 @@ final class ControllerUserStore implements UserAdministrationStore
         return [['id' => 1, 'name' => 'admin', 'label' => 'Administrator']];
     }
 
-    public function findAllPermissions(): array
-    {
-        return [
-            ['id' => 1, 'name' => 'users.manage', 'description' => 'Manage users'],
-            ['id' => 2, 'name' => 'permissions.manage', 'description' => 'Manage permissions'],
-        ];
-    }
-
     public function roleNamesFor(int $userId): array
     {
         return $this->rolesByUser[$userId] ?? [];
-    }
-
-    public function permissionEffectsFor(int $userId): array
-    {
-        return $this->permissionsByUser[$userId] ?? [];
     }
 
     public function updateStatus(int $userId, UserStatus $status): void
@@ -263,10 +237,9 @@ final class ControllerUserStore implements UserAdministrationStore
         );
     }
 
-    public function replaceAccess(int $userId, array $roleNames, array $permissionEffects): void
+    public function replaceRoles(int $userId, array $roleNames): void
     {
         $this->rolesByUser[$userId] = $roleNames;
-        $this->permissionsByUser[$userId] = $permissionEffects;
     }
 }
 
