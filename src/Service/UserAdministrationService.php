@@ -50,15 +50,11 @@ final readonly class UserAdministrationService
         });
     }
 
-    /**
-     * @param list<string> $roleNames
-     * @param array<string, string> $permissionEffects
-     */
+    /** @param list<string> $roleNames */
     public function replaceAccess(
         int $actorUserId,
         int $targetUserId,
         array $roleNames,
-        array $permissionEffects,
         ?string $ipAddress,
     ): void {
         if ($actorUserId === $targetUserId) {
@@ -78,43 +74,27 @@ final readonly class UserAdministrationService
             throw new InvalidArgumentException('Unknown role.');
         }
 
-        $allowedPermissions = array_column($this->users->findAllPermissions(), 'name');
-        if (array_diff(array_keys($permissionEffects), $allowedPermissions) !== []) {
-            throw new InvalidArgumentException('Unknown permission.');
-        }
-
-        foreach ($permissionEffects as $effect) {
-            if (!in_array($effect, ['allow', 'deny'], true)) {
-                throw new InvalidArgumentException('Invalid permission effect.');
-            }
-        }
-
         sort($roleNames);
-        ksort($permissionEffects);
 
         $this->transactional(function () use (
             $actorUserId,
             $targetUserId,
             $roleNames,
-            $permissionEffects,
             $ipAddress,
         ): void {
             if ($this->users->findById($targetUserId) === null) {
                 throw new InvalidArgumentException('Unknown user.');
             }
 
-            $before = [
-                'roles' => $this->users->roleNamesFor($targetUserId),
-                'permissions' => $this->users->permissionEffectsFor($targetUserId),
-            ];
-            $this->users->replaceAccess($targetUserId, $roleNames, $permissionEffects);
+            $before = ['roles' => $this->users->roleNamesFor($targetUserId)];
+            $this->users->replaceRoles($targetUserId, $roleNames);
             $this->auditLogs->record(
                 $actorUserId,
                 'user.access_changed',
                 'user',
                 (string) $targetUserId,
                 $before,
-                ['roles' => $roleNames, 'permissions' => $permissionEffects],
+                ['roles' => $roleNames],
                 $ipAddress,
             );
         });

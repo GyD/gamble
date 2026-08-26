@@ -89,7 +89,10 @@ return [
     StakeStore::class => DI\get(StakeRepository::class),
     StatisticsStore::class => DI\get(StatisticsRepository::class),
     OAuthStateStore::class => DI\get(OAuthStateRepository::class),
-    PermissionResolver::class => DI\get(PdoPermissionRepository::class),
+    PermissionResolver::class => factory(static fn(PDO $pdo): PermissionResolver => new PdoPermissionRepository(
+        $pdo,
+        $settings['permissions'],
+    )),
     TwitchClient::class => factory(static fn(): TwitchClient => new CurlTwitchClient(
         $settings['twitch']['client_id'],
         $settings['twitch']['client_secret'],

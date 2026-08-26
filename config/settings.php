@@ -5,6 +5,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 
 return [
+    'permissions' => require __DIR__ . '/permissions.php',
     'app' => [
         'name' => $_ENV['APP_NAME'] ?? 'Gamble',
         'environment' => $_ENV['APP_ENV'] ?? 'production',
