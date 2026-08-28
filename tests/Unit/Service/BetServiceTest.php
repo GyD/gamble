@@ -85,6 +85,16 @@ final class BetServiceTest extends TestCase
         self::assertSame(BetStatus::Cancelled, $cancelled->status);
     }
 
+    public function testEditAllOverrideKeepsRealActorInAuditLog(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+
+        $this->service->close(8, $bet->id, '127.0.0.1', true);
+
+        self::assertSame(8, $this->audit->entries[1]['actorUserId']);
+        self::assertSame('bet.closed', $this->audit->entries[1]['action']);
+    }
+
     public function testMetadataCanBeUpdatedWithoutReplacingOptionsWhenStakeExists(): void
     {
         $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
