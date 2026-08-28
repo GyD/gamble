@@ -135,6 +135,62 @@ final class BetControllerTest extends TestCase
         self::assertSame('Theirs', $store->bets[1]->question);
     }
 
+    public function testEditAllPermissionShowsActionsAndAllowsEditingAnotherUsersBet(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = $this->bet(1, 2, 'Theirs');
+        $controller = $this->controller($store, true, editAll: true);
+
+        $editResponse = $controller->edit($this->request('GET'), new Response(), ['id' => '1']);
+        $showHtml = (string) $controller->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+        $updateResponse = $controller->update(
+            $this->request('POST', ['question' => 'Changed', 'description' => '', 'closes_at' => '', 'options' => ['A', 'B']]),
+            new Response(),
+            ['id' => '1'],
+        );
+
+        self::assertSame(200, $editResponse->getStatusCode());
+        self::assertStringContainsString('/bets/1/edit', $showHtml);
+        self::assertSame(303, $updateResponse->getStatusCode());
+        self::assertSame('Changed', $store->bets[1]->question);
+    }
+
+    public function testEditAllPermissionAllowsClosingAndSettlingAnotherUsersBet(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 0),
+            new BetOption(11, 'Red', 1),
+        ]);
+        $controller = $this->controller($store, true, editAll: true);
+
+        $closeResponse = $controller->close($this->request('POST'), new Response(), ['id' => '1']);
+        $settleResponse = $controller->settle(
+            $this->request('POST', ['winning_option_id' => '11']),
+            new Response(),
+            ['id' => '1'],
+        );
+
+        self::assertSame(303, $closeResponse->getStatusCode());
+        self::assertSame(303, $settleResponse->getStatusCode());
+        self::assertSame(BetStatus::Settled, $store->bets[1]->status);
+        self::assertSame(11, $store->bets[1]->winningOptionId);
+    }
+
+    public function testEditAllPermissionAllowsCancellingAndDeletingAnotherUsersBet(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = $this->bet(1, 2, 'Theirs');
+        $controller = $this->controller($store, true, editAll: true);
+
+        $cancelResponse = $controller->cancel($this->request('POST'), new Response(), ['id' => '1']);
+        $deleteResponse = $controller->delete($this->request('POST'), new Response(), ['id' => '1']);
+
+        self::assertSame(303, $cancelResponse->getStatusCode());
+        self::assertSame(303, $deleteResponse->getStatusCode());
+        self::assertNull($store->findById(1));
+    }
+
     public function testEditLocksOptionsButKeepsQuestionAndDeadlineEditableWhenStakeExists(): void
     {
         $store = new ControllerBetStore();
@@ -171,14 +227,26 @@ final class BetControllerTest extends TestCase
         self::assertNull($store->findById(1));
     }
 
-    private function controller(ControllerBetStore $store, bool $viewAll, ?ControllerBetStakeStore $stakes = null): BetController
+    private function controller(
+        ControllerBetStore $store,
+        bool $viewAll,
+        ?ControllerBetStakeStore $stakes = null,
+        bool $editAll = false,
+    ): BetController
     {
         $stakes ??= new ControllerBetStakeStore();
-        $permissions = new class($viewAll) implements PermissionResolver {
-            public function __construct(private readonly bool $viewAll) {}
+        $permissions = new class($viewAll, $editAll) implements PermissionResolver {
+            public function __construct(
+                private readonly bool $viewAll,
+                private readonly bool $editAll,
+            ) {}
             public function effectFor(int $userId, string $permission): ?string
             {
-                return $permission === 'bets.view_all' && !$this->viewAll ? null : 'allow';
+                return match ($permission) {
+                    'bets.view_all' => $this->viewAll ? 'allow' : null,
+                    'bets.edit_all' => $this->editAll ? 'allow' : null,
+                    default => 'allow',
+                };
             }
         };
 

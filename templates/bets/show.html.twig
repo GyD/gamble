@@ -16,10 +16,10 @@
         <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — cote {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
         {% if bet.status.value == 'settled' %}<p><strong>Pot :</strong> {{ bet.finalPot|number_format(0, ',', ' ') }} $ · <strong>Commission :</strong> {{ bet.finalBookmakerShare|number_format(0, ',', ' ') }} $ · <strong>Redistribué :</strong> {{ bet.finalRedistributed|number_format(0, ',', ' ') }} $</p>{% endif %}
 
-        {% if can_view_stakes or is_owner %}
+        {% if can_view_stakes or is_owner or can_edit_all %}
             <div class="card-actions">
                 {% if can_view_stakes %}<a class="button button-secondary" href="/bets/{{ bet.id }}/stakes">Voir les mises</a>{% endif %}
-                {% if is_owner %}
+                {% if is_owner or can_edit_all %}
                 {% if bet.status.value == 'open' %}
                     {% if can_edit %}<a class="button button-secondary" href="/bets/{{ bet.id }}/edit">Modifier</a>{% endif %}
                     {% if can_close %}<form method="post" action="/bets/{{ bet.id }}/close"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-primary" type="submit">Fermer</button></form>{% endif %}
