@@ -57,21 +57,15 @@ final readonly class StakeRepository implements StakeStore
 
     public function findByIdForUpdate(int $id): ?Stake
     {
-        $statement = $this->pdo->prepare(
-            sprintf(
-                'SELECT %s
-             FROM stakes
-             INNER JOIN contacts ON contacts.id = stakes.contact_id
-             INNER JOIN bet_options ON bet_options.id = stakes.bet_option_id
-             WHERE stakes.id = :id
-             FOR UPDATE OF stakes',
-                self::COLUMNS,
-            ),
-        );
+        // Locked on its own: MariaDB has no "FOR UPDATE OF", so a joined query
+        // would also lock the contact and option rows.
+        $statement = $this->pdo->prepare('SELECT stakes.id FROM stakes WHERE stakes.id = :id FOR UPDATE');
         $statement->execute(['id' => $id]);
-        $row = $statement->fetch();
+        if ($statement->fetch() === false) {
+            return null;
+        }
 
-        return $row === false ? null : $this->hydrate($row);
+        return $this->findById($id);
     }
 
     public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
