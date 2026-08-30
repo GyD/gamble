@@ -18,6 +18,8 @@ final readonly class Stake
         public bool   $isPaid,
         public bool   $isCancelled = false,
         public ?int   $finalPayout = null,
+        public ?float $quotedOdds = null,
+        public ?float $oddsAtBet = null,
     )
     {
     }

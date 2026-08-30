@@ -29,6 +29,7 @@ use App\Security\TwitchClient;
 use Psr\Log\LoggerInterface;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
+use App\Domain\Bet\MarketConfiguration;
 
 use function DI\factory;
 
@@ -79,6 +80,18 @@ return [
         $environment->addGlobal('current_path', '');
 
         return $environment;
+    }),
+    MarketConfiguration::class => factory(static function () use ($settings): MarketConfiguration {
+        $market = $settings['betting_market'];
+
+        return new MarketConfiguration(
+            $market['liquidity_reference'],
+            $market['unpaid_bet_market_weight'],
+            $market['minimum_probability'],
+            $market['maximum_probability'],
+            $market['max_probability_change_per_recalculation'],
+            $market['max_market_weights'],
+        );
     }),
     UserStore::class => DI\get(UserRepository::class),
     UserAdministrationStore::class => DI\get(UserRepository::class),

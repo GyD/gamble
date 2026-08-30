@@ -22,6 +22,9 @@ final readonly class Bet
         public ?int               $finalPot = null,
         public ?int               $finalBookmakerShare = null,
         public ?int               $finalRedistributed = null,
+        public BetMode            $mode = BetMode::FixedOdds,
+        public OddsEvolutionMode  $oddsEvolutionMode = OddsEvolutionMode::Fixed,
+        public int                $mutuelCommissionRateBps = 1000,
     ) {
     }
 

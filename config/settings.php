@@ -21,6 +21,18 @@ return [
         'password' => $_ENV['DB_PASSWORD'] ?? '',
         'charset' => $_ENV['DB_CHARSET'] ?? 'utf8mb4',
     ],
+    'betting_market' => [
+        'liquidity_reference' => 1000.0,
+        'unpaid_bet_market_weight' => 0.50,
+        'minimum_probability' => 0.02,
+        'maximum_probability' => 0.98,
+        'max_probability_change_per_recalculation' => 0.05,
+        'max_market_weights' => [
+            'dynamic_low' => 0.20,
+            'dynamic_normal' => 0.40,
+            'dynamic_high' => 0.65,
+        ],
+    ],
     'session' => [
         'name' => $_ENV['SESSION_NAME'] ?? 'gamble_session',
         'secure' => filter_var($_ENV['SESSION_SECURE'] ?? true, FILTER_VALIDATE_BOOL),

@@ -11,6 +11,8 @@ final readonly class BetOption
         public string $label,
         public int $position,
         public ?float $odds = null,
+        public float $initialProbability = 0.5,
+        public float $currentProbability = 0.5,
     ) {
     }
 }
