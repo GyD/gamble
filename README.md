@@ -35,6 +35,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - administration des utilisateurs et de leurs accès ;
 - protection des routes et masquage des actions selon les permissions ;
 - navigation indiquant la page ou la rubrique active, y compris sur les sous-pages ;
+- bandeau d'environnement affiché en haut de toutes les pages lorsque `APP_ENV` vaut `development` ou `test`, masqué en `production` ;
 - protection CSRF des mutations ;
 - audit atomique des changements de statut et de rôles ;
 - tests automatisés du socle d'identité, des accès, des contacts, des groupes, des paris, des mises, des statistiques et des gains ;
@@ -142,6 +143,8 @@ cp .env.example .env
 
 Les valeurs de connexion à la base DDEV sont déjà présentes dans `.env.example`. Renseigner les autres variables dans `.env`, notamment `APP_NAME` pour le nom public de l'application, puis appliquer les migrations :
 
+`APP_ENV` accepte uniquement `development`, `test` ou `production`. La valeur est normalisée en minuscules ; toute autre valeur retombe sur `production`. Hors production, un bandeau collé en haut de chaque page rappelle l'environnement courant afin de distinguer les instances de test de l'instance de production.
+
 ```bash
 ddev composer migrate
 ```
@@ -209,6 +212,7 @@ Cloudflare termine HTTPS sur son réseau, puis le tunnel joint `app` en HTTP à 
 Cloner le dépôt sur le Raspberry Pi, créer `.env` à partir de `.env.example`, puis utiliser des valeurs de production :
 
 ```dotenv
+# development, test ou production ; hors production un bandeau d'environnement est affiché
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://gamble.example.com

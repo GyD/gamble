@@ -1,3 +1,24 @@
+.environment-banner {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100%;
+    padding: var(--space-xs) var(--space-lg);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.environment-banner-development {
+    background: var(--color-environment-development-soft);
+    color: var(--color-environment-development-text);
+}
+
+.environment-banner-test {
+    background: var(--color-environment-test-soft);
+    color: var(--color-environment-test-text);
+}
+
 .app-shell {
     width: min(100%, 48rem);
     margin: 0 auto;
