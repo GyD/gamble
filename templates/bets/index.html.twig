@@ -23,20 +23,34 @@
                 <div class="form-field"><label for="bet-closes-at">Date limite <span>(facultative)</span></label><input id="bet-closes-at" name="closes_at" type="datetime-local"></div>
                 <div class="form-field">
                     <label for="bet-betting-mode">Mode de pari</label>
-                    <select id="bet-betting-mode" name="betting_mode" data-betting-mode>
+                    <select id="bet-betting-mode" name="betting_mode" data-betting-mode aria-describedby="bet-mode-help-fixed-odds bet-mode-help-pari-mutuel">
                         <option value="fixed_odds" selected>Cotes fixes</option>
                         <option value="pari_mutuel">Pari mutuel</option>
                     </select>
+                    {% include 'bets/_betting-mode-help.html.twig' %}
+                    <details class="bet-mode-comparison">
+                        <summary>Comment choisir ?</summary>
+                        <table>
+                            <thead><tr><td></td><th scope="col">Cotes fixes</th><th scope="col">Pari mutuel</th></tr></thead>
+                            <tbody>
+                                <tr><th scope="row">Gain connu à l'avance</th><td data-label="Cotes fixes">Oui, dès le paiement</td><td data-label="Pari mutuel">Non, à la clôture</td></tr>
+                                <tr><th scope="row">Votre rémunération</th><td data-label="Cotes fixes">Marge dans les cotes</td><td data-label="Pari mutuel">Commission sur le pot</td></tr>
+                                <tr><th scope="row">Pouvez-vous perdre ?</th><td data-label="Cotes fixes">Oui</td><td data-label="Pari mutuel">Non</td></tr>
+                                <tr><th scope="row">Adapté quand</th><td data-label="Cotes fixes">Vous savez estimer les probabilités</td><td data-label="Pari mutuel">Vous ne voulez prendre aucun risque</td></tr>
+                            </tbody>
+                        </table>
+                    </details>
                     <p class="form-help">Le mode ne pourra plus être modifié dès qu'une mise existera.</p>
                 </div>
                 <div class="form-field" data-fixed-odds-only>
                     <label for="bet-odds-evolution-mode">Évolution des cotes</label>
-                    <select id="bet-odds-evolution-mode" name="odds_evolution_mode">
+                    <select id="bet-odds-evolution-mode" name="odds_evolution_mode" aria-describedby="bet-odds-evolution-help">
                         <option value="fixed">Fixe — les mises ne modifient pas les probabilités</option>
-                        <option value="dynamic_low">Dynamique faible</option>
-                        <option value="dynamic_normal" selected>Dynamique modérée</option>
-                        <option value="dynamic_high">Dynamique forte</option>
+                        <option value="dynamic_low">Dynamique faible — les cotes bougent peu selon les mises</option>
+                        <option value="dynamic_normal" selected>Dynamique modérée — équilibre recommandé</option>
+                        <option value="dynamic_high">Dynamique forte — les cotes suivent nettement les mises</option>
                     </select>
+                    <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
                 </div>
                 <div class="form-field" data-fixed-odds-only data-probability-presets hidden>
                     <label for="bet-probability-preset">Probabilités initiales</label>

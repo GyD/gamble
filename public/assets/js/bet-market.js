@@ -17,6 +17,10 @@ document.querySelectorAll('form').forEach((form) => {
             field.hidden = !isFixedOdds;
         });
 
+        form.querySelectorAll('[data-mutuel-only]').forEach((field) => {
+            field.hidden = isFixedOdds;
+        });
+
         probabilityInputs().forEach((input) => {
             input.disabled = !isFixedOdds;
         });

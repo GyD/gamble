@@ -1,0 +1,37 @@
+{#
+    Explains the two betting modes to newcomers.
+
+    Parameters:
+    - mode: 'fixed_odds', 'pari_mutuel', or null to render both blocks and let
+      bet-market.js reveal the one matching the current selection.
+    - variant: 'full' for the boxed explanation used in forms, 'short' for the
+      single sentence used on read-only pages.
+#}
+{% set help_modes = mode|default(null) is null ? ['fixed_odds', 'pari_mutuel'] : [mode] %}
+{% set help_toggled = help_modes|length > 1 %}
+{% set help_variant = variant|default('full') %}
+
+{% for help_mode in help_modes %}
+    {% set help_toggle_attribute = help_toggled ? (help_mode == 'fixed_odds' ? ' data-fixed-odds-only' : ' data-mutuel-only') : '' %}
+    {% if help_variant == 'short' %}
+        {% if help_mode == 'fixed_odds' %}
+            <p class="form-help"{{ help_toggle_attribute }}>Chaque mise payée a sa cote verrouillée : le gain de son parieur est déjà déterminé.</p>
+        {% else %}
+            <p class="form-help"{{ help_toggle_attribute }}>Les mises forment un pot commun. Les gains ne seront connus qu'à la clôture, après prélèvement de la commission.</p>
+        {% endif %}
+    {% else %}
+        {% if help_mode == 'fixed_odds' %}
+            <div class="bet-mode-explanation" id="bet-mode-help-fixed-odds"{{ help_toggle_attribute }}>
+                <p><strong>Chaque parieur connaît son gain à l'avance.</strong> Quand il paie sa mise, la cote du moment est verrouillée pour lui : elle ne changera plus, même si les autres parient ensuite différemment.</p>
+                <p class="bet-mode-example">Exemple : une mise de 10 $ à la cote 3,00 rapporte 30 $ si le choix gagne, quoi qu'il arrive ensuite.</p>
+                <p>Vous vous rémunérez par une marge intégrée aux cotes. <strong>Vous pouvez y perdre de l'argent</strong> si beaucoup de parieurs gagnent à cote élevée.</p>
+            </div>
+        {% else %}
+            <div class="bet-mode-explanation" id="bet-mode-help-pari-mutuel"{{ help_toggle_attribute }}>
+                <p><strong>Aucun gain n'est garanti à l'avance.</strong> Toutes les mises vont dans un pot commun, partagé entre les gagnants à la clôture, proportionnellement à leur mise.</p>
+                <p class="bet-mode-example">Exemple : un pot de 6 000 $ avec 15 % de commission laisse 5 100 $ à partager. Si un seul parieur a misé sur le bon choix, il touche les 5 100 $.</p>
+                <p>Vous prélevez une commission sur le pot. <strong>Vous ne pouvez jamais perdre d'argent.</strong></p>
+            </div>
+        {% endif %}
+    {% endif %}
+{% endfor %}

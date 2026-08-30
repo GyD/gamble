@@ -43,6 +43,88 @@
     text-align: right;
 }
 
+.bet-mode-explanation {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+    color: var(--color-text-muted);
+}
+
+.bet-mode-explanation p {
+    margin: 0;
+}
+
+.bet-mode-explanation .bet-mode-example {
+    color: var(--color-text-subtle);
+    font-style: italic;
+}
+
+.bet-mode-comparison > summary {
+    width: fit-content;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.bet-mode-comparison table {
+    width: 100%;
+    margin-top: var(--space-md);
+    border-collapse: collapse;
+}
+
+.bet-mode-comparison th,
+.bet-mode-comparison td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.bet-mode-comparison thead th {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.bet-mode-comparison tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+@media (max-width: 34rem) {
+    .bet-mode-comparison thead {
+        display: none;
+    }
+
+    .bet-mode-comparison table,
+    .bet-mode-comparison tbody,
+    .bet-mode-comparison tr,
+    .bet-mode-comparison th,
+    .bet-mode-comparison td {
+        display: block;
+    }
+
+    .bet-mode-comparison tbody tr {
+        padding: var(--space-sm) 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .bet-mode-comparison tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .bet-mode-comparison tbody th,
+    .bet-mode-comparison tbody td {
+        border-bottom: 0;
+    }
+
+    .bet-mode-comparison tbody td::before {
+        content: attr(data-label) " : ";
+        color: var(--color-text-subtle);
+    }
+}
+
 .bet-card-header {
     display: flex;
     align-items: flex-start;

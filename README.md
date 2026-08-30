@@ -64,6 +64,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
 - filtres statistiques sur 7 jours, 30 jours ou tout l'historique, calculés sur l'ensemble des paris ;
 - choix du mode `fixed_odds` ou `pari_mutuel` à la création du pari, verrouillé dès qu'une mise existe ;
+- explications du fonctionnement de chaque mode de pari dans les formulaires de création et de modification, complétées d'un tableau comparatif repliable, et rappel du mode actif sur la page de consultation ;
 - conversion des paris antérieurs en `pari_mutuel`, leur marge bookmaker devenant leur commission mutuelle, afin de préserver leur comportement financier historique ;
 - probabilités initiales et courantes par option, avec assistant de préréglages pour les paris à deux options ;
 - modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds` ;

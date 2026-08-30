@@ -13,13 +13,14 @@
         {% if bet.description %}<p>{{ bet.description }}</p>{% endif %}
         {% if bet.closesAt %}<p class="form-help">Date limite : {{ bet.closesAt|date('d/m/Y H:i') }}</p>{% endif %}
         <p class="form-help">Mode : {{ bet.bettingMode.value == 'fixed_odds' ? 'Cotes fixes' : 'Pari mutuel' }}</p>
+        {% include 'bets/_betting-mode-help.html.twig' with {mode: bet.bettingMode.value, variant: 'short'} %}
         {% if bet.bettingMode.value == 'fixed_odds' %}
             <p class="form-help">Marge bookmaker : {{ (bet.bookmakerRateBps / 100)|number_format(2, ',', ' ') }} % — intégrée aux cotes, aucun prélèvement au règlement.</p>
         {% else %}
             <p class="form-help">Commission bookmaker : {{ (bet.mutuelCommissionRateBps / 100)|number_format(2, ',', ' ') }} % — prélevée sur le pool à la clôture.</p>
         {% endif %}
         <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — {{ bet.status.value == 'settled' ? 'cote' : 'cote indicative' }} {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
-        {% if bet.status.value != 'settled' %}<p class="form-help">Les cotes affichées sont indicatives et non garanties.</p>{% endif %}
+        {% if bet.status.value != 'settled' %}<p class="form-help">Les cotes affichées sont indicatives et non garanties.{% if bet.bettingMode.value == 'pari_mutuel' %} Un tiret signifie qu'aucune mise n'a encore été placée sur ce choix.{% endif %}</p>{% endif %}
         {% if bet.status.value == 'settled' %}
             <p>
                 <strong>Pot :</strong> {{ bet.finalPot|number_format(0, ',', ' ') }} $ ·
@@ -27,6 +28,7 @@
                 <strong>Redistribué :</strong> {{ bet.finalRedistributed|number_format(0, ',', ' ') }} $ ·
                 <strong>Résultat bookmaker :</strong> {{ bet.finalBookmakerResult is null ? '—' : bet.finalBookmakerResult|number_format(0, ',', ' ') ~ ' $' }}
             </p>
+            <p class="form-help">Pot : total des mises payées. Redistribué : montant versé aux gagnants. Résultat bookmaker : ce qu'il vous reste{% if bet.bettingMode.value == 'fixed_odds' %}, qui peut être négatif si les gains versés dépassent les mises encaissées{% endif %}.</p>
         {% endif %}
 
         <div class="card-actions">

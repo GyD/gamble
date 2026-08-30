@@ -14,20 +14,26 @@
         <div class="form-field"><label for="bet-closes-at">Date limite <span>(facultative)</span></label><input id="bet-closes-at" name="closes_at" type="datetime-local" value="{{ bet.closesAt ? bet.closesAt|date('Y-m-d\\TH:i') : '' }}"></div>
         <div class="form-field">
             <label for="bet-betting-mode">Mode de pari</label>
-            <select id="bet-betting-mode" name="betting_mode" data-betting-mode{% if has_stakes %} disabled{% endif %}>
+            <select id="bet-betting-mode" name="betting_mode" data-betting-mode{% if has_stakes %} disabled aria-describedby="bet-mode-help-{{ bet.bettingMode.value == 'fixed_odds' ? 'fixed-odds' : 'pari-mutuel' }}"{% else %} aria-describedby="bet-mode-help-fixed-odds bet-mode-help-pari-mutuel"{% endif %}>
                 <option value="fixed_odds"{% if bet.bettingMode.value == 'fixed_odds' %} selected{% endif %}>Cotes fixes</option>
                 <option value="pari_mutuel"{% if bet.bettingMode.value == 'pari_mutuel' %} selected{% endif %}>Pari mutuel</option>
             </select>
+            {% if has_stakes %}
+                {% include 'bets/_betting-mode-help.html.twig' with {mode: bet.bettingMode.value} %}
+            {% else %}
+                {% include 'bets/_betting-mode-help.html.twig' %}
+            {% endif %}
             <p class="form-help">{{ has_stakes ? 'Des mises existent : le mode ne peut plus être modifié.' : 'Le mode ne pourra plus être modifié dès qu\'une mise existera.' }}</p>
             {% if has_stakes %}<input type="hidden" name="betting_mode" value="{{ bet.bettingMode.value }}">{% endif %}
         </div>
         <div class="form-field" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>
             <label for="bet-odds-evolution-mode">Évolution des cotes</label>
-            <select id="bet-odds-evolution-mode" name="odds_evolution_mode">
-                {% for value, label in {'fixed': 'Fixe — les mises ne modifient pas les probabilités', 'dynamic_low': 'Dynamique faible', 'dynamic_normal': 'Dynamique modérée', 'dynamic_high': 'Dynamique forte'} %}
+            <select id="bet-odds-evolution-mode" name="odds_evolution_mode" aria-describedby="bet-odds-evolution-help">
+                {% for value, label in {'fixed': 'Fixe — les mises ne modifient pas les probabilités', 'dynamic_low': 'Dynamique faible — les cotes bougent peu selon les mises', 'dynamic_normal': 'Dynamique modérée — équilibre recommandé', 'dynamic_high': 'Dynamique forte — les cotes suivent nettement les mises'} %}
                     <option value="{{ value }}"{% if bet.oddsEvolutionMode.value == value %} selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
+            <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
         </div>
         {% if bet.bettingMode.value == 'fixed_odds' %}
             <div class="form-field">
