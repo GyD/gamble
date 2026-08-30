@@ -23,18 +23,18 @@ use Twig\Loader\FilesystemLoader;
 
 final class StatisticsControllerTest extends TestCase
 {
-    public function testLeaderboardIsRestrictedToActorBetsWithoutViewAllPermission(): void
+    public function testLeaderboardCoversEveryBet(): void
     {
         $store = new ControllerStatisticsStore();
-        $response = $this->controller($store, false)->index($this->request('/statistics'), new Response());
+        $response = $this->controller($store)->index($this->request('/statistics'), new Response());
 
-        self::assertSame(42, $store->ownerUserId);
-        self::assertStringContainsString('Vos paris uniquement', (string)$response->getBody());
+        self::assertTrue($store->wasQueried);
+        self::assertStringContainsString('Tous les paris', (string)$response->getBody());
     }
 
     public function testContactStatisticsReturnNotFoundForUnknownContact(): void
     {
-        $response = $this->controller(new ControllerStatisticsStore(), true)->contact(
+        $response = $this->controller(new ControllerStatisticsStore())->contact(
             $this->request('/statistics/contacts/99'),
             new Response(),
             ['id' => '99'],
@@ -43,13 +43,12 @@ final class StatisticsControllerTest extends TestCase
         self::assertSame(404, $response->getStatusCode());
     }
 
-    private function controller(StatisticsStore $store, bool $viewAll): StatisticsController
+    private function controller(StatisticsStore $store): StatisticsController
     {
-        $permissions = new class($viewAll) implements PermissionResolver {
-            public function __construct(private readonly bool $viewAll) {}
+        $permissions = new class implements PermissionResolver {
             public function effectFor(int $userId, string $permission): ?string
             {
-                return $permission === 'bets.view_all' && !$this->viewAll ? null : 'allow';
+                return 'allow';
             }
         };
 
@@ -70,10 +69,10 @@ final class StatisticsControllerTest extends TestCase
 
 final class ControllerStatisticsStore implements StatisticsStore
 {
-    public ?int $ownerUserId = null;
-    public function settledContactBets(?int $ownerUserId, ?DateTimeImmutable $from, ?int $contactId = null): array
+    public bool $wasQueried = false;
+    public function settledContactBets(?DateTimeImmutable $from, ?int $contactId = null): array
     {
-        $this->ownerUserId = $ownerUserId;
+        $this->wasQueried = true;
         return [];
     }
     public function betStakes(int $betId): array { return []; }

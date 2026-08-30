@@ -187,23 +187,10 @@ final class StakeControllerTest extends TestCase
         self::assertTrue($this->stakes->winners[0]['is_winnings_paid']);
     }
 
-    public function testOtherUsersBetCannotBeChanged(): void
+    public function testAnotherOwnersStakesCanBeManaged(): void
     {
         $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [new BetOption(10, 'Blue', 0)]);
-
-        $response = $this->controller()->create(
-            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '1']),
-            new Response(),
-            ['id' => '1'],
-        );
-
-        self::assertSame(403, $response->getStatusCode());
-    }
-
-    public function testGlobalEditorCanManageAnotherOwnersStakes(): void
-    {
-        $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [new BetOption(10, 'Blue', 0)]);
-        $controller = $this->controller(true, true);
+        $controller = $this->controller();
 
         $created = $controller->create(
             $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '15']),
@@ -224,33 +211,14 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('Ajouter une mise', $body);
     }
 
-    public function testBetsEditAllAloneDoesNotAllowManagingAnotherOwnersStakes(): void
-    {
-        $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [new BetOption(10, 'Blue', 0)]);
-        $controller = $this->controller(true, false, betsEditAll: true);
-
-        $created = $controller->create(
-            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '15']),
-            new Response(),
-            ['id' => '1'],
-        );
-        $body = (string)$controller->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
-
-        self::assertSame(403, $created->getStatusCode());
-        self::assertSame([], $this->stakes->stakes);
-        self::assertStringNotContainsString('Ajouter une mise', $body);
-    }
-
-    public function testOtherUsersBetCanOnlyBeReadWithViewAllPermission(): void
+    public function testAnotherOwnersBetCanBeRead(): void
     {
         $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, []);
 
-        $forbidden = $this->controller(false)->index($this->request('GET'), new Response(), ['id' => '1']);
-        $allowed = $this->controller(true)->index($this->request('GET'), new Response(), ['id' => '1']);
+        $response = $this->controller()->index($this->request('GET'), new Response(), ['id' => '1']);
 
-        self::assertSame(403, $forbidden->getStatusCode());
-        self::assertSame(200, $allowed->getStatusCode());
-        self::assertStringContainsString('Theirs', (string)$allowed->getBody());
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('Theirs', (string)$response->getBody());
     }
 
     public function testGroupsAreDisplayedWhenCreatingEditingAndReadingStakes(): void
@@ -289,25 +257,12 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('<strong>2 000 $</strong><span>Pot non payé</span>', $body);
     }
 
-    private function controller(bool $viewAll = false, bool $editAll = false, bool $betsEditAll = false): StakeController
+    private function controller(): StakeController
     {
-        $permissions = new class($viewAll, $editAll, $betsEditAll) implements PermissionResolver {
-            public function __construct(
-                private readonly bool $viewAll,
-                private readonly bool $editAll,
-                private readonly bool $betsEditAll,
-            )
-            {
-            }
-
+        $permissions = new class implements PermissionResolver {
             public function effectFor(int $userId, string $permission): ?string
             {
-                return match ($permission) {
-                    'bets.view_all' => $this->viewAll ? 'allow' : null,
-                    'bets.edit_all' => $this->betsEditAll ? 'allow' : null,
-                    'stakes.edit_all' => $this->editAll ? 'allow' : null,
-                    default => 'allow',
-                };
+                return 'allow';
             }
         };
 
@@ -408,11 +363,6 @@ final class ControllerStakeBetStore implements BetStore
     public function findAll(): array
     {
         return array_values($this->bets);
-    }
-
-    public function findByOwner(int $ownerUserId): array
-    {
-        return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId));
     }
 
     public function findById(int $id): ?Bet

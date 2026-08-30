@@ -22,11 +22,6 @@ final readonly class BetRepository implements BetStore
         return $this->findWith('1 = 1', []);
     }
 
-    public function findByOwner(int $ownerUserId): array
-    {
-        return $this->findWith('owner_user_id = :owner_user_id', ['owner_user_id' => $ownerUserId]);
-    }
-
     public function findById(int $id): ?Bet
     {
         $bets = $this->findWith('id = :id', ['id' => $id]);

@@ -21,11 +21,11 @@ final readonly class StatisticsService
     }
 
     /** @return array{period: string, sort: string, contacts: list<array<string, mixed>>, records: array<string, mixed>} */
-    public function leaderboard(?int $ownerUserId, string $period, string $sort, ?DateTimeImmutable $now = null): array
+    public function leaderboard(string $period, string $sort, ?DateTimeImmutable $now = null): array
     {
         $period = $this->period($period);
         $sort = in_array($sort, self::SORTS, true) ? $sort : 'win_rate';
-        $rows = $this->statistics->settledContactBets($ownerUserId, $this->from($period, $now));
+        $rows = $this->statistics->settledContactBets($this->from($period, $now));
         $grouped = [];
         foreach ($rows as $row) {
             $grouped[$row['contact_id']][] = $row;
@@ -46,10 +46,10 @@ final readonly class StatisticsService
     }
 
     /** @return array<string, mixed> */
-    public function contact(int $contactId, ?int $ownerUserId, string $period, ?DateTimeImmutable $now = null): array
+    public function contact(int $contactId, string $period, ?DateTimeImmutable $now = null): array
     {
         $period = $this->period($period);
-        $rows = $this->statistics->settledContactBets($ownerUserId, $this->from($period, $now), $contactId);
+        $rows = $this->statistics->settledContactBets($this->from($period, $now), $contactId);
         $summary = $rows === [] ? $this->emptySummary() : $this->summarize($rows);
         $summary['period'] = $period;
         $summary['recent_results'] = array_slice(array_reverse(array_map(static fn(array $row): array => [

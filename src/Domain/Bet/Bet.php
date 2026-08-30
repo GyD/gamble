@@ -24,9 +24,4 @@ final readonly class Bet
         public ?int               $finalRedistributed = null,
     ) {
     }
-
-    public function isOwnedBy(int $userId): bool
-    {
-        return $this->ownerUserId === $userId;
-    }
 }

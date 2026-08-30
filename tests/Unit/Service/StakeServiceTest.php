@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use App\Domain\Bet\Bet;
-use App\Domain\Bet\BetAccessDeniedException;
 use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
 use App\Domain\Contact\Contact;
@@ -152,51 +151,43 @@ final class StakeServiceTest extends TestCase
         self::assertTrue($notRefunded->isPaid);
     }
 
-    public function testOnlyOwnerCanManageStakes(): void
+    public function testUnknownBetStakesCannotBeCreated(): void
     {
-        $this->expectException(BetAccessDeniedException::class);
-        $this->service->create(8, 1, 20, 10, '1', null);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown bet.');
+        $this->service->create(8, 404, 20, 10, '1', null);
     }
 
-    public function testGlobalEditorCanManageAnotherOwnersStakes(): void
+    public function testAnotherOwnersStakesCanBeManaged(): void
     {
-        $stake = $this->service->create(8, 1, 20, 10, '1', null, true);
-        $updated = $this->service->update(8, 1, $stake->id, 20, 11, '3', null, true);
-        $this->service->setPaid(8, 1, $stake->id, true, null, true);
-        $this->service->setPaid(8, 1, $stake->id, false, null, true);
-        $this->service->setCancelled(8, 1, $stake->id, true, null, true);
-        $this->service->delete(8, 1, $stake->id, null, true);
+        $stake = $this->service->create(8, 1, 20, 10, '1', null);
+        $updated = $this->service->update(8, 1, $stake->id, 20, 11, '3', null);
+        $this->service->setPaid(8, 1, $stake->id, true, null);
+        $this->service->setPaid(8, 1, $stake->id, false, null);
+        $this->service->setCancelled(8, 1, $stake->id, true, null);
+        $this->service->delete(8, 1, $stake->id, null);
 
         self::assertSame(3, $updated->amount);
         self::assertSame([], $this->stakes->stakes);
         self::assertSame([8, 8, 8, 8, 8, 8], array_column($this->audit->entries, 'actorUserId'));
     }
 
-    public function testGlobalEditorCanRefundAndPayWinningsOfAnotherOwnersBet(): void
+    public function testAnotherOwnersBetWinningsAndRefundsCanBeManaged(): void
     {
         $this->stakes->stakes[1] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true);
         $this->bets->bets[1] = $this->withStatus(BetStatus::Cancelled);
 
-        $refunded = $this->service->setRefunded(8, 1, 1, true, null, true);
+        $refunded = $this->service->setRefunded(8, 1, 1, true, null);
 
         $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
         $this->stakes->winners = [
             ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 100, 'is_winnings_paid' => false],
         ];
-        $this->service->setWinningsPaid(8, 1, 20, true, null, true);
+        $this->service->setWinningsPaid(8, 1, 20, true, null);
 
         self::assertFalse($refunded->isPaid);
         self::assertTrue($this->stakes->winners[0]['is_winnings_paid']);
         self::assertSame([8, 8], array_column($this->audit->entries, 'actorUserId'));
-    }
-
-    public function testStakesOfAnotherOwnerStayProtectedWithoutGlobalEdit(): void
-    {
-        $this->stakes->stakes[1] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true);
-        $this->bets->bets[1] = $this->withStatus(BetStatus::Cancelled);
-
-        $this->expectException(BetAccessDeniedException::class);
-        $this->service->setRefunded(8, 1, 1, true, null);
     }
 
     public function testOptionMustBelongToBet(): void
@@ -384,11 +375,6 @@ final class StakeTestBetStore implements BetStore
     public function findAll(): array
     {
         return array_values($this->bets);
-    }
-
-    public function findByOwner(int $ownerUserId): array
-    {
-        return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId));
     }
 
     public function findById(int $id): ?Bet
