@@ -37,12 +37,13 @@ final readonly class StakeService
         int     $betOptionId,
         string  $amount,
         ?string $ipAddress,
+        bool    $canEditAll = false,
     ): Stake
     {
         $amount = $this->amount($amount);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $contactId, $betOptionId, $amount, $ipAddress): Stake {
-            $bet = $this->mutableBet($actorUserId, $betId);
+        return $this->transactional(function () use ($actorUserId, $betId, $contactId, $betOptionId, $amount, $ipAddress, $canEditAll): Stake {
+            $bet = $this->mutableBet($actorUserId, $betId, $canEditAll);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
             $this->activeContact($contactId);
             $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amount);
@@ -60,12 +61,13 @@ final readonly class StakeService
         int     $betOptionId,
         string  $amount,
         ?string $ipAddress,
+        bool    $canEditAll = false,
     ): Stake
     {
         $amount = $this->amount($amount);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $contactId, $betOptionId, $amount, $ipAddress): Stake {
-            $bet = $this->mutableBet($actorUserId, $betId);
+        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $contactId, $betOptionId, $amount, $ipAddress, $canEditAll): Stake {
+            $bet = $this->mutableBet($actorUserId, $betId, $canEditAll);
             $before = $this->stakeForBet($stakeId, $betId);
             $this->assertActiveStake($before);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
@@ -77,10 +79,10 @@ final readonly class StakeService
         });
     }
 
-    public function delete(int $actorUserId, int $betId, int $stakeId, ?string $ipAddress): void
+    public function delete(int $actorUserId, int $betId, int $stakeId, ?string $ipAddress, bool $canEditAll = false): void
     {
-        $this->transactional(function () use ($actorUserId, $betId, $stakeId, $ipAddress): void {
-            $this->mutableBet($actorUserId, $betId);
+        $this->transactional(function () use ($actorUserId, $betId, $stakeId, $ipAddress, $canEditAll): void {
+            $this->mutableBet($actorUserId, $betId, $canEditAll);
             $stake = $this->stakeForBet($stakeId, $betId);
             if (!$stake->isCancelled) {
                 throw new InvalidArgumentException('Stake must be cancelled before it can be deleted.');
@@ -93,10 +95,10 @@ final readonly class StakeService
         });
     }
 
-    public function setPaid(int $actorUserId, int $betId, int $stakeId, bool $isPaid, ?string $ipAddress): Stake
+    public function setPaid(int $actorUserId, int $betId, int $stakeId, bool $isPaid, ?string $ipAddress, bool $canEditAll = false): Stake
     {
-        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isPaid, $ipAddress): Stake {
-            $this->mutableBet($actorUserId, $betId);
+        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isPaid, $ipAddress, $canEditAll): Stake {
+            $this->mutableBet($actorUserId, $betId, $canEditAll);
             $before = $this->stakeForBet($stakeId, $betId);
             if ($before->isCancelled && $isPaid) {
                 throw new InvalidArgumentException('Cancelled stakes cannot be marked paid.');
@@ -111,10 +113,10 @@ final readonly class StakeService
         });
     }
 
-    public function setCancelled(int $actorUserId, int $betId, int $stakeId, bool $isCancelled, ?string $ipAddress): Stake
+    public function setCancelled(int $actorUserId, int $betId, int $stakeId, bool $isCancelled, ?string $ipAddress, bool $canEditAll = false): Stake
     {
-        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isCancelled, $ipAddress): Stake {
-            $this->mutableBet($actorUserId, $betId);
+        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isCancelled, $ipAddress, $canEditAll): Stake {
+            $this->mutableBet($actorUserId, $betId, $canEditAll);
             $before = $this->stakeForBet($stakeId, $betId);
             $after = $this->stakes->setCancelled($stakeId, $isCancelled);
             $this->auditLogs->record($actorUserId, 'stake.cancellation_status_changed', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
@@ -123,10 +125,10 @@ final readonly class StakeService
         });
     }
 
-    public function setRefunded(int $actorUserId, int $betId, int $stakeId, bool $isRefunded, ?string $ipAddress): Stake
+    public function setRefunded(int $actorUserId, int $betId, int $stakeId, bool $isRefunded, ?string $ipAddress, bool $canEditAll = false): Stake
     {
-        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isRefunded, $ipAddress): Stake {
-            $bet = $this->ownedBet($actorUserId, $betId);
+        return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isRefunded, $ipAddress, $canEditAll): Stake {
+            $bet = $this->ownedBet($actorUserId, $betId, $canEditAll);
             if ($bet->status !== BetStatus::Cancelled) {
                 throw new InvalidArgumentException('Stakes can only be refunded when the bet is cancelled.');
             }
@@ -162,9 +164,10 @@ final readonly class StakeService
         int $contactId,
         bool $isPaid,
         ?string $ipAddress,
+        bool $canEditAll = false,
     ): void {
-        $this->transactional(function () use ($actorUserId, $betId, $contactId, $isPaid, $ipAddress): void {
-            $bet = $this->ownedBet($actorUserId, $betId);
+        $this->transactional(function () use ($actorUserId, $betId, $contactId, $isPaid, $ipAddress, $canEditAll): void {
+            $bet = $this->ownedBet($actorUserId, $betId, $canEditAll);
             if ($bet->status !== BetStatus::Settled || $bet->winningOptionId === null) {
                 throw new InvalidArgumentException('Winnings can only be paid when the bet is settled.');
             }
@@ -192,9 +195,9 @@ final readonly class StakeService
         });
     }
 
-    private function mutableBet(int $actorUserId, int $betId): Bet
+    private function mutableBet(int $actorUserId, int $betId, bool $canEditAll = false): Bet
     {
-        $bet = $this->ownedBet($actorUserId, $betId);
+        $bet = $this->ownedBet($actorUserId, $betId, $canEditAll);
         if ($bet->status !== BetStatus::Open) {
             throw new InvalidArgumentException('Stakes can only be changed while the bet is open.');
         }
@@ -202,10 +205,10 @@ final readonly class StakeService
         return $bet;
     }
 
-    private function ownedBet(int $actorUserId, int $betId): Bet
+    private function ownedBet(int $actorUserId, int $betId, bool $canEditAll = false): Bet
     {
         $bet = $this->bets->findById($betId) ?? throw new InvalidArgumentException('Unknown bet.');
-        if (!$bet->isOwnedBy($actorUserId)) {
+        if (!$bet->isOwnedBy($actorUserId) && !$canEditAll) {
             throw new BetAccessDeniedException('Only the bet owner can manage its stakes.');
         }
 

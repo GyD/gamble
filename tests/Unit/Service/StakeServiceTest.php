@@ -158,6 +158,47 @@ final class StakeServiceTest extends TestCase
         $this->service->create(8, 1, 20, 10, '1', null);
     }
 
+    public function testGlobalEditorCanManageAnotherOwnersStakes(): void
+    {
+        $stake = $this->service->create(8, 1, 20, 10, '1', null, true);
+        $updated = $this->service->update(8, 1, $stake->id, 20, 11, '3', null, true);
+        $this->service->setPaid(8, 1, $stake->id, true, null, true);
+        $this->service->setPaid(8, 1, $stake->id, false, null, true);
+        $this->service->setCancelled(8, 1, $stake->id, true, null, true);
+        $this->service->delete(8, 1, $stake->id, null, true);
+
+        self::assertSame(3, $updated->amount);
+        self::assertSame([], $this->stakes->stakes);
+        self::assertSame([8, 8, 8, 8, 8, 8], array_column($this->audit->entries, 'actorUserId'));
+    }
+
+    public function testGlobalEditorCanRefundAndPayWinningsOfAnotherOwnersBet(): void
+    {
+        $this->stakes->stakes[1] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true);
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Cancelled);
+
+        $refunded = $this->service->setRefunded(8, 1, 1, true, null, true);
+
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Settled, 10);
+        $this->stakes->winners = [
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 100, 'is_winnings_paid' => false],
+        ];
+        $this->service->setWinningsPaid(8, 1, 20, true, null, true);
+
+        self::assertFalse($refunded->isPaid);
+        self::assertTrue($this->stakes->winners[0]['is_winnings_paid']);
+        self::assertSame([8, 8], array_column($this->audit->entries, 'actorUserId'));
+    }
+
+    public function testStakesOfAnotherOwnerStayProtectedWithoutGlobalEdit(): void
+    {
+        $this->stakes->stakes[1] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true);
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Cancelled);
+
+        $this->expectException(BetAccessDeniedException::class);
+        $this->service->setRefunded(8, 1, 1, true, null);
+    }
+
     public function testOptionMustBelongToBet(): void
     {
         $this->expectException(InvalidArgumentException::class);

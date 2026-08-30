@@ -45,7 +45,8 @@ final readonly class StakeController
         }
 
         $actor = $this->actor($request);
-        $isMutableOwner = $bet->status === BetStatus::Open && $bet->isOwnedBy($actor->id);
+        $canManage = $bet->isOwnedBy($actor->id) || $this->canEditAll($request);
+        $isMutableOwner = $bet->status === BetStatus::Open && $canManage;
         $allContacts = $this->contacts->findAll();
         $contacts = array_values(array_filter(
             $allContacts,
@@ -73,7 +74,7 @@ final readonly class StakeController
             'can_edit' => $isMutableOwner && $this->authorization->can($actor, 'stakes.edit'),
             'can_delete' => $isMutableOwner && $this->authorization->can($actor, 'stakes.delete'),
             'can_refund' => $bet->status === BetStatus::Cancelled
-                && $bet->isOwnedBy($actor->id)
+                && $canManage
                 && $this->authorization->can($actor, 'stakes.edit'),
             'saved' => isset($request->getQueryParams()['saved']),
         ]);
@@ -92,6 +93,7 @@ final readonly class StakeController
                 $this->bodyId($body, 'bet_option_id'),
                 $this->stringValue($body, 'amount'),
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -116,6 +118,7 @@ final readonly class StakeController
                 $this->bodyId($body, 'bet_option_id'),
                 $this->stringValue($body, 'amount'),
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -142,6 +145,7 @@ final readonly class StakeController
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $isPaid === '1',
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -168,6 +172,7 @@ final readonly class StakeController
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $isCancelled === '1',
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -194,6 +199,7 @@ final readonly class StakeController
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $isRefunded === '1',
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -220,6 +226,7 @@ final readonly class StakeController
                 $this->positiveId($args['contactId'] ?? '', 'contact'),
                 $isPaid === '1',
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -240,6 +247,7 @@ final readonly class StakeController
                 $betId,
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -259,6 +267,11 @@ final readonly class StakeController
         }
 
         return $bet;
+    }
+
+    private function canEditAll(ServerRequestInterface $request): bool
+    {
+        return $this->authorization->can($this->actor($request), 'stakes.edit_all');
     }
 
     private function actor(ServerRequestInterface $request): User

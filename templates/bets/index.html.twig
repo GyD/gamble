@@ -49,10 +49,10 @@
                     {% endfor %}
                 </ol>
 
-                {% if can_view_stakes or bet.ownerUserId == actor_id %}
+                {% if can_view_stakes or bet.ownerUserId == actor_id or can_edit_all %}
                     <div class="card-actions">
                         {% if can_view_stakes %}<a class="button button-secondary" href="/bets/{{ bet.id }}/stakes">Voir les mises</a>{% endif %}
-                        {% if bet.ownerUserId == actor_id %}
+                        {% if bet.ownerUserId == actor_id or can_edit_all %}
                         {% if bet.status.value == 'open' %}
                             {% if can_edit %}<a class="button button-secondary" href="/bets/{{ bet.id }}/edit">Modifier</a>{% endif %}
                             {% if can_close %}

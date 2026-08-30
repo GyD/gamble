@@ -43,6 +43,7 @@ final readonly class BetController
             'actor_id' => $actor->id,
             'can_create' => $this->authorization->can($actor, 'bets.create'),
             'can_edit' => $this->authorization->can($actor, 'bets.edit'),
+            'can_edit_all' => $this->authorization->can($actor, 'bets.edit_all'),
             'can_cancel' => $this->authorization->can($actor, 'bets.delete'),
             'can_close' => $this->authorization->can($actor, 'bets.close'),
             'can_settle' => $this->authorization->can($actor, 'bets.settle'),
@@ -91,13 +92,14 @@ final readonly class BetController
             'bet' => $bet,
             'is_owner' => $bet->isOwnedBy($actor->id),
             'can_edit' => $this->authorization->can($actor, 'bets.edit'),
+            'can_edit_all' => $this->authorization->can($actor, 'bets.edit_all'),
             'can_cancel' => $this->authorization->can($actor, 'bets.delete'),
             'can_close' => $this->authorization->can($actor, 'bets.close'),
             'can_settle' => $this->authorization->can($actor, 'bets.settle'),
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
             'statistics' => $this->statistics->bet($bet->id),
             'winners' => $this->stakes->winnings($bet),
-            'can_manage_winnings' => $bet->isOwnedBy($actor->id)
+            'can_manage_winnings' => ($bet->isOwnedBy($actor->id) || $this->canEditAllStakes($request))
                 && $this->authorization->can($actor, 'stakes.edit'),
         ]);
     }
@@ -113,7 +115,8 @@ final readonly class BetController
         if ($bet === null) {
             return $response->withStatus(404);
         }
-        if (!$bet->isOwnedBy($this->actor($request)->id)) {
+        $actor = $this->actor($request);
+        if (!$bet->isOwnedBy($actor->id) && !$this->authorization->can($actor, 'bets.edit_all')) {
             return $response->withStatus(403);
         }
 
@@ -138,6 +141,7 @@ final readonly class BetController
                 $this->stringList($body, 'options'),
                 $this->ipAddress($request),
                 $this->nullableStringValue($body, 'bookmaker_percentage'),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -171,6 +175,7 @@ final readonly class BetController
                 $betId,
                 $this->positiveId($this->stringValue($body, 'winning_option_id')),
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -189,6 +194,7 @@ final readonly class BetController
                 $this->actor($request)->id,
                 $this->ownedBetId($request, $args),
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -212,6 +218,7 @@ final readonly class BetController
                 $this->actor($request)->id,
                 $betId,
                 $this->ipAddress($request),
+                $this->canEditAll($request),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -236,11 +243,22 @@ final readonly class BetController
         if ($bet === null) {
             throw new InvalidArgumentException('Bet not found.');
         }
-        if (!$bet->isOwnedBy($this->actor($request)->id)) {
+        $actor = $this->actor($request);
+        if (!$bet->isOwnedBy($actor->id) && !$this->authorization->can($actor, 'bets.edit_all')) {
             throw new BetAccessDeniedException('Only the bet owner can change it.');
         }
 
         return $id;
+    }
+
+    private function canEditAll(ServerRequestInterface $request): bool
+    {
+        return $this->authorization->can($this->actor($request), 'bets.edit_all');
+    }
+
+    private function canEditAllStakes(ServerRequestInterface $request): bool
+    {
+        return $this->authorization->can($this->actor($request), 'stakes.edit_all');
     }
 
     private function actor(ServerRequestInterface $request): User

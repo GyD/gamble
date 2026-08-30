@@ -65,12 +65,6 @@ final readonly class UserRepository implements UserStore, UserAdministrationStor
         return $this->pdo->query('SELECT id, name, label FROM roles ORDER BY label')->fetchAll();
     }
 
-    /** @return list<array{id: int, name: string, description: string}> */
-    public function findAllPermissions(): array
-    {
-        return $this->pdo->query('SELECT id, name, description FROM permissions ORDER BY name')->fetchAll();
-    }
-
     /** @return list<string> */
     public function roleNamesFor(int $userId): array
     {
@@ -86,32 +80,14 @@ final readonly class UserRepository implements UserStore, UserAdministrationStor
         return $statement->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    /** @return array<string, string> */
-    public function permissionEffectsFor(int $userId): array
-    {
-        $statement = $this->pdo->prepare(
-            'SELECT permissions.name, user_permissions.effect
-             FROM user_permissions
-             INNER JOIN permissions ON permissions.id = user_permissions.permission_id
-             WHERE user_permissions.user_id = :user_id
-             ORDER BY permissions.name',
-        );
-        $statement->execute(['user_id' => $userId]);
-
-        return $statement->fetchAll(PDO::FETCH_KEY_PAIR);
-    }
-
     public function updateStatus(int $userId, UserStatus $status): void
     {
         $statement = $this->pdo->prepare('UPDATE users SET status = :status WHERE id = :id');
         $statement->execute(['status' => $status->value, 'id' => $userId]);
     }
 
-    /**
-     * @param list<string> $roleNames
-     * @param array<string, string> $permissionEffects
-     */
-    public function replaceAccess(int $userId, array $roleNames, array $permissionEffects): void
+    /** @param list<string> $roleNames */
+    public function replaceRoles(int $userId, array $roleNames): void
     {
         $deleteRoles = $this->pdo->prepare('DELETE FROM user_roles WHERE user_id = :user_id');
         $deleteRoles->execute(['user_id' => $userId]);
@@ -122,21 +98,6 @@ final readonly class UserRepository implements UserStore, UserAdministrationStor
         );
         foreach ($roleNames as $roleName) {
             $insertRole->execute(['user_id' => $userId, 'role_name' => $roleName]);
-        }
-
-        $deletePermissions = $this->pdo->prepare('DELETE FROM user_permissions WHERE user_id = :user_id');
-        $deletePermissions->execute(['user_id' => $userId]);
-
-        $insertPermission = $this->pdo->prepare(
-            'INSERT INTO user_permissions (user_id, permission_id, effect)
-             SELECT :user_id, id, :effect FROM permissions WHERE name = :permission_name',
-        );
-        foreach ($permissionEffects as $permissionName => $effect) {
-            $insertPermission->execute([
-                'user_id' => $userId,
-                'permission_name' => $permissionName,
-                'effect' => $effect,
-            ]);
         }
     }
 

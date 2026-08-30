@@ -9,35 +9,35 @@ use PDO;
 
 final readonly class PdoPermissionRepository implements PermissionResolver
 {
-    public function __construct(private PDO $pdo)
-    {
+    /**
+     * @param array{permissions: list<string>, roles: array<string, list<string>>} $configuration
+     */
+    public function __construct(
+        private PDO $pdo,
+        private array $configuration,
+    ) {
     }
 
     public function effectFor(int $userId, string $permission): ?string
     {
-        $explicit = $this->pdo->prepare(
-            'SELECT user_permissions.effect
-             FROM user_permissions
-             INNER JOIN permissions ON permissions.id = user_permissions.permission_id
-             WHERE user_permissions.user_id = :user_id AND permissions.name = :permission',
-        );
-        $explicit->execute(['user_id' => $userId, 'permission' => $permission]);
-        $effect = $explicit->fetchColumn();
-
-        if ($effect !== false) {
-            return (string)$effect;
+        if (!in_array($permission, $this->configuration['permissions'], true)) {
+            return null;
         }
 
-        $inherited = $this->pdo->prepare(
-            'SELECT 1
+        $statement = $this->pdo->prepare(
+            'SELECT roles.name
              FROM user_roles
-             INNER JOIN role_permissions ON role_permissions.role_id = user_roles.role_id
-             INNER JOIN permissions ON permissions.id = role_permissions.permission_id
-             WHERE user_roles.user_id = :user_id AND permissions.name = :permission
-             LIMIT 1',
+             INNER JOIN roles ON roles.id = user_roles.role_id
+             WHERE user_roles.user_id = :user_id',
         );
-        $inherited->execute(['user_id' => $userId, 'permission' => $permission]);
+        $statement->execute(['user_id' => $userId]);
 
-        return $inherited->fetchColumn() === false ? null : 'allow';
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $roleName) {
+            if (in_array($permission, $this->configuration['roles'][(string) $roleName] ?? [], true)) {
+                return 'allow';
+            }
+        }
+
+        return null;
     }
 }
