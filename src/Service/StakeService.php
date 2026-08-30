@@ -12,6 +12,7 @@ use App\Repository\AuditLogger;
 use App\Repository\BetStore;
 use App\Repository\ContactStore;
 use App\Repository\StakeStore;
+use App\Service\Market\MarketRecalculator;
 use InvalidArgumentException;
 use PDO;
 use Throwable;
@@ -20,14 +21,18 @@ final readonly class StakeService
 {
     private const MAX_AMOUNT_UNITS = 999_999;
 
+    private MarketRecalculator $market;
+
     public function __construct(
         private PDO          $pdo,
         private StakeStore   $stakes,
         private BetStore     $bets,
         private ContactStore $contacts,
         private AuditLogger  $auditLogs,
+        ?MarketRecalculator  $market = null,
     )
     {
+        $this->market = $market ?? new MarketRecalculator($bets, $stakes);
     }
 
     public function create(
@@ -45,7 +50,10 @@ final readonly class StakeService
             $bet = $this->mutableBet($actorUserId, $betId);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
             $this->activeContact($contactId);
-            $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amount);
+            // Informative only: the contractual odds are captured at payment time.
+            $quotedOdds = $this->market->currentOdds($bet, $betOptionId);
+            $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amount, $quotedOdds);
+            $this->market->recalculate($bet);
             $this->auditLogs->record($actorUserId, 'stake.created', 'stake', (string)$stake->id, null, $this->snapshot($stake), $ipAddress);
 
             return $stake;
@@ -66,11 +74,12 @@ final readonly class StakeService
 
         return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $contactId, $betOptionId, $amount, $ipAddress): Stake {
             $bet = $this->mutableBet($actorUserId, $betId);
-            $before = $this->stakeForBet($stakeId, $betId);
+            $before = $this->lockedStakeForBet($stakeId, $betId);
             $this->assertActiveStake($before);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
             $this->activeContact($contactId);
             $after = $this->stakes->update($stakeId, $betOptionId, $contactId, $amount);
+            $this->market->recalculate($bet);
             $this->auditLogs->record($actorUserId, 'stake.updated', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
@@ -80,8 +89,8 @@ final readonly class StakeService
     public function delete(int $actorUserId, int $betId, int $stakeId, ?string $ipAddress): void
     {
         $this->transactional(function () use ($actorUserId, $betId, $stakeId, $ipAddress): void {
-            $this->mutableBet($actorUserId, $betId);
-            $stake = $this->stakeForBet($stakeId, $betId);
+            $bet = $this->mutableBet($actorUserId, $betId);
+            $stake = $this->lockedStakeForBet($stakeId, $betId);
             if (!$stake->isCancelled) {
                 throw new InvalidArgumentException('Stake must be cancelled before it can be deleted.');
             }
@@ -89,6 +98,7 @@ final readonly class StakeService
                 throw new InvalidArgumentException('Paid stake must be marked unpaid before it can be deleted.');
             }
             $this->stakes->delete($stakeId);
+            $this->market->recalculate($bet);
             $this->auditLogs->record($actorUserId, 'stake.deleted', 'stake', (string)$stakeId, $this->snapshot($stake), null, $ipAddress);
         });
     }
@@ -96,15 +106,19 @@ final readonly class StakeService
     public function setPaid(int $actorUserId, int $betId, int $stakeId, bool $isPaid, ?string $ipAddress): Stake
     {
         return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isPaid, $ipAddress): Stake {
-            $this->mutableBet($actorUserId, $betId);
-            $before = $this->stakeForBet($stakeId, $betId);
+            // 1. lock the market, 2. read the available odds, 3. record
+            // odds_at_bet, 4. mark as paid, 5. recalculate the market.
+            $bet = $this->mutableBet($actorUserId, $betId);
+            $before = $this->lockedStakeForBet($stakeId, $betId);
             if ($before->isCancelled && $isPaid) {
                 throw new InvalidArgumentException('Cancelled stakes cannot be marked paid.');
             }
             if ($before->contactArchived) {
                 throw new InvalidArgumentException('Archived contacts cannot have their stakes changed.');
             }
-            $after = $this->stakes->setPaid($stakeId, $isPaid);
+            $oddsAtBet = $this->oddsAtPayment($bet, $before, $isPaid);
+            $after = $this->stakes->setPaid($stakeId, $isPaid, $oddsAtBet);
+            $this->market->recalculate($bet);
             $this->auditLogs->record($actorUserId, 'stake.payment_status_changed', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
@@ -114,9 +128,10 @@ final readonly class StakeService
     public function setCancelled(int $actorUserId, int $betId, int $stakeId, bool $isCancelled, ?string $ipAddress): Stake
     {
         return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isCancelled, $ipAddress): Stake {
-            $this->mutableBet($actorUserId, $betId);
-            $before = $this->stakeForBet($stakeId, $betId);
+            $bet = $this->mutableBet($actorUserId, $betId);
+            $before = $this->lockedStakeForBet($stakeId, $betId);
             $after = $this->stakes->setCancelled($stakeId, $isCancelled);
+            $this->market->recalculate($bet);
             $this->auditLogs->record($actorUserId, 'stake.cancellation_status_changed', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
@@ -126,11 +141,11 @@ final readonly class StakeService
     public function setRefunded(int $actorUserId, int $betId, int $stakeId, bool $isRefunded, ?string $ipAddress): Stake
     {
         return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isRefunded, $ipAddress): Stake {
-            $bet = $this->ownedBet($actorUserId, $betId);
+            $bet = $this->lockedOwnedBet($actorUserId, $betId);
             if ($bet->status !== BetStatus::Cancelled) {
                 throw new InvalidArgumentException('Stakes can only be refunded when the bet is cancelled.');
             }
-            $before = $this->stakeForBet($stakeId, $betId);
+            $before = $this->lockedStakeForBet($stakeId, $betId);
             if ($before->isCancelled && !$isRefunded) {
                 throw new InvalidArgumentException('Refund cannot be cancelled while the stake is cancelled.');
             }
@@ -164,7 +179,7 @@ final readonly class StakeService
         ?string $ipAddress,
     ): void {
         $this->transactional(function () use ($actorUserId, $betId, $contactId, $isPaid, $ipAddress): void {
-            $bet = $this->ownedBet($actorUserId, $betId);
+            $bet = $this->lockedOwnedBet($actorUserId, $betId);
             if ($bet->status !== BetStatus::Settled || $bet->winningOptionId === null) {
                 throw new InvalidArgumentException('Winnings can only be paid when the bet is settled.');
             }
@@ -194,7 +209,7 @@ final readonly class StakeService
 
     private function mutableBet(int $actorUserId, int $betId): Bet
     {
-        $bet = $this->ownedBet($actorUserId, $betId);
+        $bet = $this->lockedOwnedBet($actorUserId, $betId);
         if ($bet->status !== BetStatus::Open) {
             throw new InvalidArgumentException('Stakes can only be changed while the bet is open.');
         }
@@ -202,14 +217,37 @@ final readonly class StakeService
         return $bet;
     }
 
-    private function ownedBet(int $actorUserId, int $betId): Bet
+    /**
+     * Loads a bet with its market locked for the current transaction.
+     *
+     * The bet row serialises every operation able to change the indicative
+     * market, so a payment and a creation never recalculate the same market
+     * from two different states.
+     */
+    private function lockedOwnedBet(int $actorUserId, int $betId): Bet
     {
-        $bet = $this->bets->findById($betId) ?? throw new InvalidArgumentException('Unknown bet.');
+        $bet = $this->market->lock($betId);
         if (!$bet->isOwnedBy($actorUserId)) {
             throw new BetAccessDeniedException('Only the bet owner can manage its stakes.');
         }
 
         return $bet;
+    }
+
+    /**
+     * Odds to record when a stake becomes paid.
+     *
+     * They are read before the recalculation triggered by the payment, only
+     * for fixed odds bets, and only once: an already captured value is never
+     * overwritten.
+     */
+    private function oddsAtPayment(Bet $bet, Stake $stake, bool $isPaid): ?float
+    {
+        if (!$isPaid || !$bet->isFixedOdds() || $stake->oddsAtBet !== null) {
+            return null;
+        }
+
+        return $this->market->currentOdds($bet, $stake->betOptionId);
     }
 
     private function activeContact(int $contactId): void
@@ -232,9 +270,10 @@ final readonly class StakeService
         throw new InvalidArgumentException('Bet option does not belong to the bet.');
     }
 
-    private function stakeForBet(int $stakeId, int $betId): Stake
+    /** Must be called inside a transaction, after the bet has been locked. */
+    private function lockedStakeForBet(int $stakeId, int $betId): Stake
     {
-        $stake = $this->stakes->findById($stakeId) ?? throw new InvalidArgumentException('Unknown stake.');
+        $stake = $this->stakes->findByIdForUpdate($stakeId) ?? throw new InvalidArgumentException('Unknown stake.');
         if ($stake->betId !== $betId) {
             throw new InvalidArgumentException('Stake does not belong to the bet.');
         }

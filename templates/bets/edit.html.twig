@@ -12,15 +12,45 @@
         <div class="form-field"><label for="bet-question">Question</label><input id="bet-question" name="question" type="text" maxlength="255" value="{{ bet.question }}" required></div>
         <div class="form-field"><label for="bet-description">Description <span>(facultative)</span></label><textarea id="bet-description" name="description" maxlength="2000" rows="5">{{ bet.description }}</textarea></div>
         <div class="form-field"><label for="bet-closes-at">Date limite <span>(facultative)</span></label><input id="bet-closes-at" name="closes_at" type="datetime-local" value="{{ bet.closesAt ? bet.closesAt|date('Y-m-d\\TH:i') : '' }}"></div>
-        <div class="form-field"><label for="bet-bookmaker-rate">Taux bookmaker (%)</label><input id="bet-bookmaker-rate" name="bookmaker_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.bookmakerRateBps / 100)|number_format(2, '.', '') }}" required><p class="form-help">Entre 0 et 25 %. La commission est plafonnée aux pertes.</p></div>
+        <div class="form-field">
+            <label for="bet-betting-mode">Mode de pari</label>
+            <select id="bet-betting-mode" name="betting_mode" data-betting-mode{% if has_stakes %} disabled{% endif %}>
+                <option value="fixed_odds"{% if bet.bettingMode.value == 'fixed_odds' %} selected{% endif %}>Cotes fixes</option>
+                <option value="pari_mutuel"{% if bet.bettingMode.value == 'pari_mutuel' %} selected{% endif %}>Pari mutuel</option>
+            </select>
+            <p class="form-help">{{ has_stakes ? 'Des mises existent : le mode ne peut plus être modifié.' : 'Le mode ne pourra plus être modifié dès qu\'une mise existera.' }}</p>
+            {% if has_stakes %}<input type="hidden" name="betting_mode" value="{{ bet.bettingMode.value }}">{% endif %}
+        </div>
+        <div class="form-field" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>
+            <label for="bet-odds-evolution-mode">Évolution des cotes</label>
+            <select id="bet-odds-evolution-mode" name="odds_evolution_mode">
+                {% for value, label in {'fixed': 'Fixe — les mises ne modifient pas les probabilités', 'dynamic_low': 'Dynamique faible', 'dynamic_normal': 'Dynamique modérée', 'dynamic_high': 'Dynamique forte'} %}
+                    <option value="{{ value }}"{% if bet.oddsEvolutionMode.value == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if bet.bettingMode.value == 'fixed_odds' %}
+            <div class="form-field">
+                <label for="bet-bookmaker-rate">Marge bookmaker (%)</label>
+                <input id="bet-bookmaker-rate" name="bookmaker_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.bookmakerRateBps / 100)|number_format(2, '.', '') }}" required>
+                <p class="form-help">Entre 0 et 25 %. Cette marge est intégrée aux cotes proposées : rien n'est prélevé au règlement.</p>
+            </div>
+        {% else %}
+            <div class="form-field">
+                <label for="bet-bookmaker-rate">Commission bookmaker (%)</label>
+                <input id="bet-bookmaker-rate" name="bookmaker_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.mutuelCommissionRateBps / 100)|number_format(2, '.', '') }}" required>
+                <p class="form-help">Entre 0 et 25 %. Cette commission est prélevée sur le pool à la clôture, avant redistribution.</p>
+            </div>
+        {% endif %}
         <fieldset class="bet-options"><legend>Choix</legend>
             <p class="form-help">{{ has_stakes ? 'Des mises existent : les choix ne peuvent plus être modifiés.' : 'Entre 2 et 20 choix uniques.' }}</p>
             <div class="bet-option-fields" data-option-fields>
-                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}></div>{% endfor %}
+                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" value="{{ option.initialProbability is null ? '' : (option.initialProbability * 100)|number_format(2, '.', '') }}" aria-label="Probabilité du choix {{ loop.index }} en %" data-fixed-odds-only data-probability-input{% if bet.bettingMode.value != 'fixed_odds' %} hidden disabled{% endif %}></div>{% endfor %}
             </div>
             {% if not has_stakes %}<button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>{% endif %}
         </fieldset>
         <button class="button button-primary" type="submit">Enregistrer</button>
     </form>
     <script src="/assets/js/bet-options.js" defer></script>
+    <script src="/assets/js/bet-market.js" defer></script>
 {% endblock %}

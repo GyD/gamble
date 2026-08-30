@@ -26,6 +26,11 @@ use App\Security\CurlTwitchClient;
 use App\Security\OAuthStateStore;
 use App\Security\PermissionResolver;
 use App\Security\TwitchClient;
+use App\Service\Market\FixedOddsMarketService;
+use App\Service\Market\MarketServiceRegistry;
+use App\Service\Market\MarketSettings;
+use App\Service\Market\PariMutuelMarketService;
+use App\Service\Market\ProbabilityNormalizer;
 use Psr\Log\LoggerInterface;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
@@ -93,6 +98,22 @@ return [
         $pdo,
         $settings['permissions'],
     )),
+    MarketSettings::class => factory(static fn(): MarketSettings => MarketSettings::fromArray($settings['market'])),
+    ProbabilityNormalizer::class => factory(
+        static fn(MarketSettings $market): ProbabilityNormalizer => new ProbabilityNormalizer($market),
+    ),
+    FixedOddsMarketService::class => factory(static fn(
+        MarketSettings $market,
+        ProbabilityNormalizer $normalizer,
+    ): FixedOddsMarketService => new FixedOddsMarketService($market, $normalizer)),
+    PariMutuelMarketService::class => factory(
+        static fn(MarketSettings $market): PariMutuelMarketService => new PariMutuelMarketService($market),
+    ),
+    MarketServiceRegistry::class => factory(static fn(
+        MarketSettings $market,
+        FixedOddsMarketService $fixedOdds,
+        PariMutuelMarketService $pariMutuel,
+    ): MarketServiceRegistry => new MarketServiceRegistry($market, $fixedOdds, $pariMutuel)),
     TwitchClient::class => factory(static fn(): TwitchClient => new CurlTwitchClient(
         $settings['twitch']['client_id'],
         $settings['twitch']['client_secret'],

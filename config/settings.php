@@ -36,4 +36,19 @@ return [
         'logs' => $root . '/var/log',
         'migrations' => $root . '/database/migrations',
     ],
+    'market' => [
+        // Market weight of an active but unpaid stake.
+        'unpaid_bet_market_weight' => 0.50,
+        // Volume, in whole units, at which the market reaches half of its maximum weight.
+        'liquidity_reference' => 500,
+        'minimum_probability' => 0.02,
+        'maximum_probability' => 0.98,
+        'max_probability_change_per_recalculation' => 0.05,
+        'max_market_weight' => [
+            'fixed' => 0.0,
+            'dynamic_low' => 0.20,
+            'dynamic_normal' => 0.40,
+            'dynamic_high' => 0.65,
+        ],
+    ],
 ];

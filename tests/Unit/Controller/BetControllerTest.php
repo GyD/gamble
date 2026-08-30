@@ -8,6 +8,8 @@ use App\Controller\BetController;
 use App\Domain\Bet\Bet;
 use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
+use App\Domain\Bet\BettingMode;
+use App\Domain\Bet\OddsEvolutionMode;
 use App\Domain\User\User;
 use App\Domain\User\UserStatus;
 use App\Repository\AuditLogger;
@@ -76,7 +78,7 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('Theirs', $html);
     }
 
-    public function testIndexShowsCalculatedOddsForEachOption(): void
+    public function testIndexShowsIndicativeOddsForEachOption(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = new Bet(1, 1, 'Mine', null, null, BetStatus::Open, null, [
@@ -92,8 +94,8 @@ final class BetControllerTest extends TestCase
         $html = (string) $this->controller($store, false, $stakes)
             ->index($this->request('GET'), new Response())->getBody();
 
-        self::assertStringContainsString('Blue — cote 2,70', $html);
-        self::assertStringContainsString('Red — cote 1,35', $html);
+        self::assertStringContainsString('Blue — cote indicative 2,05', $html);
+        self::assertStringContainsString('Red — cote indicative 1,63', $html);
     }
 
     public function testIndexShowsLinkToBetStakes(): void
@@ -216,23 +218,38 @@ final class ControllerBetStore implements BetStore
     public function findByOwner(int $ownerUserId): array { return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId)); }
     public function findById(int $id): ?Bet { return $this->bets[$id] ?? null; }
     public function findByIdForUpdate(int $id): ?Bet { return $this->findById($id); }
-    public function create(int $ownerUserId, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
-    {
+    public function create(
+        int $ownerUserId,
+        string $question,
+        ?string $description,
+        ?DateTimeImmutable $closesAt,
+        array $options,
+        BettingMode $bettingMode = BettingMode::FixedOdds,
+        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::DynamicNormal,
+        array $initialProbabilities = [],
+    ): Bet {
         $id = count($this->bets) + 1;
-        return $this->bets[$id] = new Bet($id, $ownerUserId, $question, $description, $closesAt, BetStatus::Open, null, []);
+        return $this->bets[$id] = new Bet($id, $ownerUserId, $question, $description, $closesAt, BetStatus::Open, null, [],
+            1000, null, null, null, $bettingMode, $oddsEvolutionMode);
     }
-    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
+    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options, array $initialProbabilities = []): Bet
     {
         $bet = $this->bets[$id];
-        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt, $bet->status, null, []);
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt, $bet->status, null, [],
+            $bet->bookmakerRateBps, null, null, null, $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps);
     }
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet
     {
         $bet = $this->bets[$id];
-        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
+        return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options,
+            $bet->bookmakerRateBps, $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
+            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult);
     }
     public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
-    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet
+    public function setMutuelCommissionRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
+    public function setBettingMode(int $id, BettingMode $bettingMode, OddsEvolutionMode $oddsEvolutionMode): Bet { throw new \LogicException(); }
+    public function updateCurrentProbabilities(int $id, array $probabilitiesByOptionId): void {}
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, int $bookmakerResult, array $oddsByOptionId): Bet
     {
         return $this->changeStatus($id, BetStatus::Settled, $winningOptionId);
     }
@@ -247,9 +264,10 @@ final class ControllerBetStakeStore implements StakeStore
     public array $winners = [];
     public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
+    public function findByIdForUpdate(int $id): ?Stake { return $this->findById($id); }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake { throw new \LogicException(); }
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
-    public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
+    public function setPaid(int $id, bool $isPaid, ?float $oddsAtBet = null): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
     public function findWinnersByBet(int $betId, int $winningOptionId): array { return $this->winners; }

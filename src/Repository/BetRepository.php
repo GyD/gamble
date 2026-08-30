@@ -7,12 +7,18 @@ namespace App\Repository;
 use App\Domain\Bet\Bet;
 use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
+use App\Domain\Bet\BettingMode;
+use App\Domain\Bet\OddsEvolutionMode;
 use DateTimeImmutable;
 use PDO;
 use RuntimeException;
 
 final readonly class BetRepository implements BetStore
 {
+    private const COLUMNS = 'id, owner_user_id, question, description, closes_at, status, betting_mode,
+                    odds_evolution_mode, winning_option_id, bookmaker_rate_bps, mutuel_commission_rate_bps,
+                    final_pot, final_bookmaker_share, final_redistributed, final_bookmaker_result';
+
     public function __construct(private PDO $pdo)
     {
     }
@@ -37,9 +43,7 @@ final readonly class BetRepository implements BetStore
     public function findByIdForUpdate(int $id): ?Bet
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, owner_user_id, question, description, closes_at, status, winning_option_id,
-                    bookmaker_rate_bps, final_pot, final_bookmaker_share, final_redistributed
-             FROM bets WHERE id = :id FOR UPDATE',
+            sprintf('SELECT %s FROM bets WHERE id = :id FOR UPDATE', self::COLUMNS),
         );
         $statement->execute(['id' => $id]);
         $row = $statement->fetch();
@@ -53,19 +57,24 @@ final readonly class BetRepository implements BetStore
         ?string $description,
         ?DateTimeImmutable $closesAt,
         array $options,
+        BettingMode $bettingMode = BettingMode::FixedOdds,
+        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::DynamicNormal,
+        array $initialProbabilities = [],
     ): Bet {
         $statement = $this->pdo->prepare(
-            'INSERT INTO bets (owner_user_id, question, description, closes_at)
-             VALUES (:owner_user_id, :question, :description, :closes_at)',
+            'INSERT INTO bets (owner_user_id, question, description, closes_at, betting_mode, odds_evolution_mode)
+             VALUES (:owner_user_id, :question, :description, :closes_at, :betting_mode, :odds_evolution_mode)',
         );
         $statement->execute([
             'owner_user_id' => $ownerUserId,
             'question' => $question,
             'description' => $description,
             'closes_at' => $closesAt?->format('Y-m-d H:i:s'),
+            'betting_mode' => $bettingMode->value,
+            'odds_evolution_mode' => $oddsEvolutionMode->value,
         ]);
         $id = (int) $this->pdo->lastInsertId();
-        $this->replaceOptions($id, $options);
+        $this->replaceOptions($id, $options, $initialProbabilities);
 
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the created bet.');
     }
@@ -76,6 +85,7 @@ final readonly class BetRepository implements BetStore
         ?string $description,
         ?DateTimeImmutable $closesAt,
         array $options,
+        array $initialProbabilities = [],
     ): Bet {
         $statement = $this->pdo->prepare(
             'UPDATE bets SET question = :question, description = :description, closes_at = :closes_at WHERE id = :id',
@@ -88,7 +98,9 @@ final readonly class BetRepository implements BetStore
         ]);
         $currentOptions = array_map(static fn(BetOption $option): string => $option->label, $this->options($id));
         if ($options !== $currentOptions) {
-            $this->replaceOptions($id, $options);
+            $this->replaceOptions($id, $options, $initialProbabilities);
+        } elseif ($initialProbabilities !== []) {
+            $this->replaceInitialProbabilities($id, $initialProbabilities);
         }
 
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated bet.');
@@ -116,18 +128,51 @@ final readonly class BetRepository implements BetStore
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated bet.');
     }
 
+    public function setMutuelCommissionRate(int $id, int $rateBps): Bet
+    {
+        $statement = $this->pdo->prepare('UPDATE bets SET mutuel_commission_rate_bps = :rate WHERE id = :id');
+        $statement->execute(['id' => $id, 'rate' => $rateBps]);
+
+        return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated bet.');
+    }
+
+    public function setBettingMode(int $id, BettingMode $bettingMode, OddsEvolutionMode $oddsEvolutionMode): Bet
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE bets SET betting_mode = :betting_mode, odds_evolution_mode = :odds_evolution_mode WHERE id = :id',
+        );
+        $statement->execute([
+            'id' => $id,
+            'betting_mode' => $bettingMode->value,
+            'odds_evolution_mode' => $oddsEvolutionMode->value,
+        ]);
+
+        return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated bet.');
+    }
+
+    public function updateCurrentProbabilities(int $id, array $probabilitiesByOptionId): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE bet_options SET current_probability = :probability WHERE id = :id AND bet_id = :bet_id',
+        );
+        foreach ($probabilitiesByOptionId as $optionId => $probability) {
+            $statement->execute(['probability' => $probability, 'id' => $optionId, 'bet_id' => $id]);
+        }
+    }
+
     public function settleFinancials(
         int $id,
         int $winningOptionId,
         int $pot,
         int $bookmakerShare,
         int $redistributed,
+        int $bookmakerResult,
         array $oddsByOptionId,
     ): Bet {
         $statement = $this->pdo->prepare(
             "UPDATE bets SET status = 'settled', winning_option_id = :winning_option_id,
                     final_pot = :pot, final_bookmaker_share = :bookmaker_share,
-                    final_redistributed = :redistributed
+                    final_redistributed = :redistributed, final_bookmaker_result = :bookmaker_result
              WHERE id = :id AND status = 'closed'",
         );
         $statement->execute([
@@ -136,6 +181,7 @@ final readonly class BetRepository implements BetStore
             'pot' => $pot,
             'bookmaker_share' => $bookmakerShare,
             'redistributed' => $redistributed,
+            'bookmaker_result' => $bookmakerResult,
         ]);
         if ($statement->rowCount() !== 1) {
             throw new RuntimeException('Bet is no longer available for settlement.');
@@ -159,9 +205,8 @@ final readonly class BetRepository implements BetStore
     {
         $statement = $this->pdo->prepare(
             sprintf(
-                'SELECT id, owner_user_id, question, description, closes_at, status, winning_option_id,
-                        bookmaker_rate_bps, final_pot, final_bookmaker_share, final_redistributed
-                 FROM bets WHERE %s ORDER BY created_at DESC, id DESC',
+                'SELECT %s FROM bets WHERE %s ORDER BY created_at DESC, id DESC',
+                self::COLUMNS,
                 $condition,
             ),
         );
@@ -170,16 +215,39 @@ final readonly class BetRepository implements BetStore
         return array_map(fn(array $row): Bet => $this->hydrate($row), $statement->fetchAll());
     }
 
-    /** @param list<string> $options */
-    private function replaceOptions(int $betId, array $options): void
+    /**
+     * @param list<string> $options
+     * @param list<float|null> $initialProbabilities
+     */
+    private function replaceOptions(int $betId, array $options, array $initialProbabilities = []): void
     {
         $delete = $this->pdo->prepare('DELETE FROM bet_options WHERE bet_id = :bet_id');
         $delete->execute(['bet_id' => $betId]);
         $insert = $this->pdo->prepare(
-            'INSERT INTO bet_options (bet_id, label, position) VALUES (:bet_id, :label, :position)',
+            'INSERT INTO bet_options (bet_id, label, position, initial_probability, current_probability)
+             VALUES (:bet_id, :label, :position, :initial_probability, :current_probability)',
         );
         foreach ($options as $position => $label) {
-            $insert->execute(['bet_id' => $betId, 'label' => $label, 'position' => $position]);
+            $probability = $initialProbabilities[$position] ?? null;
+            $insert->execute([
+                'bet_id' => $betId,
+                'label' => $label,
+                'position' => $position,
+                'initial_probability' => $probability,
+                'current_probability' => $probability,
+            ]);
+        }
+    }
+
+    /** @param list<float|null> $initialProbabilities */
+    private function replaceInitialProbabilities(int $betId, array $initialProbabilities): void
+    {
+        $update = $this->pdo->prepare(
+            'UPDATE bet_options SET initial_probability = :probability, current_probability = :probability
+             WHERE bet_id = :bet_id AND position = :position',
+        );
+        foreach ($initialProbabilities as $position => $probability) {
+            $update->execute(['bet_id' => $betId, 'position' => $position, 'probability' => $probability]);
         }
     }
 
@@ -201,6 +269,10 @@ final readonly class BetRepository implements BetStore
             $row['final_pot'] === null ? null : (int) $row['final_pot'],
             $row['final_bookmaker_share'] === null ? null : (int) $row['final_bookmaker_share'],
             $row['final_redistributed'] === null ? null : (int) $row['final_redistributed'],
+            BettingMode::from((string) $row['betting_mode']),
+            OddsEvolutionMode::from((string) $row['odds_evolution_mode']),
+            (int) $row['mutuel_commission_rate_bps'],
+            $row['final_bookmaker_result'] === null ? null : (int) $row['final_bookmaker_result'],
         );
     }
 
@@ -208,7 +280,8 @@ final readonly class BetRepository implements BetStore
     private function options(int $betId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, label, position, final_odds FROM bet_options WHERE bet_id = :bet_id ORDER BY position, id',
+            'SELECT id, label, position, final_odds, initial_probability, current_probability
+             FROM bet_options WHERE bet_id = :bet_id ORDER BY position, id',
         );
         $statement->execute(['bet_id' => $betId]);
 
@@ -217,6 +290,8 @@ final readonly class BetRepository implements BetStore
             (string) $option['label'],
             (int) $option['position'],
             $option['final_odds'] === null ? null : (float) $option['final_odds'],
+            $option['initial_probability'] === null ? null : (float) $option['initial_probability'],
+            $option['current_probability'] === null ? null : (float) $option['current_probability'],
         ), $statement->fetchAll());
     }
 }

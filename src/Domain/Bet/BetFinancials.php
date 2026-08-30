@@ -16,6 +16,7 @@ final readonly class BetFinancials
         public int   $redistributed,
         public array $oddsByOptionId,
         public array $payoutsByStakeId = [],
+        public int   $bookmakerResult = 0,
     ) {
     }
 }

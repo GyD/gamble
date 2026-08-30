@@ -58,13 +58,10 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - résumé séparant le nombre et le montant des mises payées et non payées, hors mises annulées ;
 - sur un pari annulé, une mise payée est à rembourser et une mise non payée est considérée comme remboursée ;
 - suppression définitive d'un pari annulé uniquement lorsqu'aucune mise ne reste payée ;
-- calcul des gains après règlement : le pot de toutes les mises payées et non annulées est réparti entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
+- calcul des gains après règlement : le pot de toutes les mises payées et non annulées est réparti entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des unités restantes ;
 - affichage des gagnants, du montant à leur verser et suivi individuel du statut `gain à verser` ou `gain versé` ;
 - statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
-- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris.
-
-### À construire
-
+- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris ;
 - choix du mode `fixed_odds` ou `pari_mutuel` à la création du pari, verrouillé dès qu'une mise existe ;
 - probabilités initiales et courantes par option, avec assistant de préréglages pour les paris à deux options ;
 - modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds` ;
@@ -72,14 +69,18 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - poids de marché réduit des mises impayées via la configuration `unpaid_bet_market_weight` ;
 - affichage des cotes comme indicatives tant qu'elles concernent de futures mises, une mise `fixed_odds` payée conservant sa cote contractuelle ;
 - réutilisation de la marge bookmaker existante du pari en `fixed_odds`, conservée à 10 % par défaut et limitée entre 0 % et 25 %, appliquée aux cotes proposées via l'overround ;
-- ajout d'une commission bookmaker distincte pour `pari_mutuel`, configurable par pari, à 10 % par défaut, prélevée sur le pool lors de la clôture ;
+- commission bookmaker distincte pour `pari_mutuel`, configurable par pari, à 10 % par défaut, prélevée sur le pool lors de la clôture ;
 - affichage du seul paramètre correspondant au mode sélectionné dans le formulaire de pari, l'autre étant masqué ;
 - garde-fous centralisés du recalcul dynamique : probabilité minimale, probabilité maximale, variation maximale par recalcul et référence de liquidité ;
-- en `pari_mutuel`, répartition du pool net entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des centimes restants ;
+- en `pari_mutuel`, répartition du pool net entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des unités restantes ;
 - absence de rémunération du bookmaker lorsqu'un pari est annulé ;
-- suivi et affichage du pot total, de la rémunération du bookmaker et du montant effectivement redistribué ;
+- suivi et affichage du pot total, de la rémunération prélevée par le bookmaker, du montant effectivement redistribué et du résultat net du bookmaker ;
 - en `pari_mutuel`, conservation de la totalité du pot par le bookmaker lorsque le choix gagnant ne comporte aucune mise payée ;
 - enregistrement d'un état financier définitif lors du règlement afin que les cotes retenues, la rémunération du bookmaker et les gains ne varient plus après le règlement ;
+- sérialisation des opérations de marché sur la ligne du pari afin que deux paiements simultanés ne capturent pas des cotes incohérentes.
+
+### À construire
+
 - ajout du résultat net, du montant retourné et du retour sur investissement aux statistiques ;
 - extension de l'audit aux futurs modules métier.
 
@@ -248,7 +249,7 @@ Valeurs de départ de `max_market_weight` :
 - lorsque `total_effective_stake` égale `liquidity_reference`, le `volume_factor` vaut `0.5` et le poids du marché atteint la moitié de `max_market_weight` ;
 - lorsque `total_effective_stake` dépasse largement `liquidity_reference`, le `volume_factor` tend vers `1` et le poids du marché tend vers `max_market_weight`.
 
-Aucune valeur ne doit être codée en dur dans le service de calcul. La valeur par défaut sera centralisée lors de l'implémentation, au même endroit que les autres paramètres de marché.
+Aucune valeur ne doit être codée en dur dans le service de calcul. La valeur par défaut est `500` et est centralisée dans `config/settings.php`, au même endroit que les autres paramètres de marché.
 
 #### Garde-fous du recalcul dynamique
 
@@ -375,6 +376,24 @@ Cette valeur est uniquement indicative et doit être présentée comme non garan
 | Moment du prélèvement         | aucun prélèvement au règlement                   | à la clôture, avant redistribution              |
 
 En `fixed_odds`, une mise payée possède une cote contractuelle et la marge du bookmaker est déjà contenue dans cette cote. En `pari_mutuel`, aucune cote contractuelle n'existe : le payout dépend du pool net final, obtenu après prélèvement de la commission, et de la répartition des mises gagnantes.
+
+#### État financier définitif
+
+Le règlement fige un état financier composé de quatre montants, afin que les cotes retenues, la rémunération du bookmaker et les gains ne varient plus ensuite :
+
+| Champ                    | Contenu                                                        |
+|--------------------------|----------------------------------------------------------------|
+| `final_pot`              | total des mises payées et financièrement éligibles              |
+| `final_bookmaker_share`  | montant prélevé sur le pot avant redistribution                 |
+| `final_redistributed`    | montant effectivement versé aux gagnants                        |
+| `final_bookmaker_result` | résultat net du bookmaker, égal à `final_pot - final_redistributed` |
+
+Le prélèvement et le résultat sont deux notions distinctes :
+
+- en `fixed_odds`, aucun prélèvement n'a lieu au règlement, donc `final_bookmaker_share` vaut toujours `0`. Le résultat provient de l'overround déjà intégré aux cotes contractuelles et peut être négatif si les gagnants ont été payés plus que le pot ;
+- en `pari_mutuel`, `final_bookmaker_share` correspond à la commission prélevée sur le pool. Lorsque le choix gagnant ne comporte aucune mise payée, rien n'est redistribué et le résultat vaut la totalité du pot.
+
+Les cotes finales sont également figées : elles sont enregistrées telles que retenues au règlement et ne sont jamais recalculées à partir de mises ultérieures.
 
 #### Paramètre affiché selon le mode
 

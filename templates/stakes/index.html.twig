@@ -75,6 +75,17 @@
                     {% if stake.isCancelled %}<span class="stake-cancellation-status">Mise annulée</span>{% endif %}
                     {% if stake.contactArchived %}<span class="stake-archived-status">Contact archivé</span>{% endif %}
                 </div>
+                {% if bet.bettingMode.value == 'fixed_odds' %}
+                    <p class="form-help">
+                        {% if stake.oddsAtBet is not null %}
+                            Cote contractuelle : {{ stake.oddsAtBet|number_format(2, ',', ' ') }} (capturée au paiement)
+                        {% elseif stake.quotedOdds is not null %}
+                            Cote annoncée : {{ stake.quotedOdds|number_format(2, ',', ' ') }} — indicative, la cote contractuelle sera capturée au paiement.
+                        {% else %}
+                            Aucune cote contractuelle enregistrée.
+                        {% endif %}
+                    </p>
+                {% endif %}
                 {% if stake.finalPayout is not null %}
                     <p class="stake-payout"><span>Gain final</span><strong>{{ stake.finalPayout|number_format(0, ',', ' ') }} $</strong></p>
                 {% endif %}

@@ -8,6 +8,8 @@ use App\Controller\StakeController;
 use App\Domain\Bet\Bet;
 use App\Domain\Bet\BetOption;
 use App\Domain\Bet\BetStatus;
+use App\Domain\Bet\BettingMode;
+use App\Domain\Bet\OddsEvolutionMode;
 use App\Domain\Contact\Contact;
 use App\Domain\Group\Group;
 use App\Domain\Stake\Stake;
@@ -300,30 +302,35 @@ final class ControllerStakeStore implements StakeStore
         return $this->stakes[$id] ?? null;
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake
+    public function findByIdForUpdate(int $id): ?Stake
+    {
+        return $this->findById($id);
+    }
+
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
     {
         $id = count($this->stakes) + 1;
-        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, false);
+        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, false, false, null, $quotedOdds);
     }
 
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake
     {
         $stake = $this->stakes[$id];
-        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, $stake->isPaid, $stake->isCancelled);
+        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->quotedOdds, $stake->oddsAtBet);
     }
 
-    public function setPaid(int $id, bool $isPaid): Stake
+    public function setPaid(int $id, bool $isPaid, ?float $oddsAtBet = null): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->quotedOdds, $stake->oddsAtBet ?? $oddsAtBet);
     }
 
     public function setCancelled(int $id, bool $isCancelled): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->quotedOdds, $stake->oddsAtBet);
     }
 
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
@@ -375,12 +382,20 @@ final class ControllerStakeBetStore implements BetStore
         return $this->findById($id);
     }
 
-    public function create(int $ownerUserId, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
-    {
+    public function create(
+        int $ownerUserId,
+        string $question,
+        ?string $description,
+        ?DateTimeImmutable $closesAt,
+        array $options,
+        BettingMode $bettingMode = BettingMode::FixedOdds,
+        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::DynamicNormal,
+        array $initialProbabilities = [],
+    ): Bet {
         throw new \LogicException();
     }
 
-    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
+    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options, array $initialProbabilities = []): Bet
     {
         throw new \LogicException();
     }
@@ -390,7 +405,10 @@ final class ControllerStakeBetStore implements BetStore
         throw new \LogicException();
     }
     public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
-    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, array $oddsByOptionId): Bet { throw new \LogicException(); }
+    public function setMutuelCommissionRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
+    public function setBettingMode(int $id, BettingMode $bettingMode, OddsEvolutionMode $oddsEvolutionMode): Bet { throw new \LogicException(); }
+    public function updateCurrentProbabilities(int $id, array $probabilitiesByOptionId): void {}
+    public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, int $bookmakerResult, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }
 

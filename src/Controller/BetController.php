@@ -61,6 +61,9 @@ final readonly class BetController
                 $this->nullableStringValue($body, 'closes_at'),
                 $this->stringList($body, 'options'),
                 $this->ipAddress($request),
+                $this->nullableStringValue($body, 'betting_mode'),
+                $this->nullableStringValue($body, 'odds_evolution_mode'),
+                $this->optionalStringList($body, 'probabilities'),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
@@ -138,6 +141,9 @@ final readonly class BetController
                 $this->stringList($body, 'options'),
                 $this->ipAddress($request),
                 $this->nullableStringValue($body, 'bookmaker_percentage'),
+                $this->nullableStringValue($body, 'betting_mode'),
+                $this->nullableStringValue($body, 'odds_evolution_mode'),
+                $this->optionalStringList($body, 'probabilities'),
             );
         } catch (BetAccessDeniedException $exception) {
             return $this->forbidden($response, $exception->getMessage());
@@ -297,6 +303,17 @@ final readonly class BetController
         }
 
         return array_values($values);
+    }
+
+    /**
+     * Same as stringList, for a field the form may legitimately omit.
+     *
+     * @param array<string, mixed> $body
+     * @return list<string>
+     */
+    private function optionalStringList(array $body, string $key): array
+    {
+        return array_key_exists($key, $body) ? $this->stringList($body, $key) : [];
     }
 
     /** @param array<string, mixed> $context */

@@ -22,8 +22,24 @@ document.querySelectorAll('[data-add-option]').forEach((button) => {
         input.required = true;
 
         field.append(label, input);
+
+        if (fields.querySelector('[data-probability-input]') !== null) {
+            const probability = document.createElement('input');
+            probability.className = 'bet-option-probability';
+            probability.name = 'probabilities[]';
+            probability.type = 'number';
+            probability.min = '0.01';
+            probability.max = '99.99';
+            probability.step = '0.01';
+            probability.setAttribute('aria-label', `Probabilité du choix ${position} en %`);
+            probability.dataset.fixedOddsOnly = '';
+            probability.dataset.probabilityInput = '';
+            field.append(probability);
+        }
+
         fields.append(field);
         input.focus();
+        fields.closest('form')?.dispatchEvent(new CustomEvent('bet-options-changed'));
 
         if (position === 20) {
             button.disabled = true;

@@ -18,7 +18,25 @@ final readonly class Stake
         public bool   $isPaid,
         public bool   $isCancelled = false,
         public ?int   $finalPayout = null,
+        public ?float $quotedOdds = null,
+        public ?float $oddsAtBet = null,
     )
     {
+    }
+
+    /** A stake only takes part in the financial settlement once paid and not cancelled. */
+    public function isFinanciallyEligible(): bool
+    {
+        return $this->isPaid && !$this->isCancelled;
+    }
+
+    /** An active stake influences the indicative market, with a reduced weight when unpaid. */
+    public function marketWeight(float $unpaidWeight): float
+    {
+        if ($this->isCancelled) {
+            return 0.0;
+        }
+
+        return $this->isPaid ? 1.0 : $unpaidWeight;
     }
 }

@@ -10,6 +10,11 @@ use RuntimeException;
 
 final readonly class StakeRepository implements StakeStore
 {
+    private const COLUMNS = 'stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount,
+                    stakes.final_payout, stakes.is_paid, stakes.is_cancelled, stakes.quoted_odds, stakes.odds_at_bet,
+                    contacts.name AS contact_name, contacts.archived_at AS contact_archived_at,
+                    bet_options.label AS option_label';
+
     public function __construct(private PDO $pdo)
     {
     }
@@ -17,14 +22,15 @@ final readonly class StakeRepository implements StakeStore
     public function findByBet(int $betId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount, stakes.final_payout, stakes.is_paid, stakes.is_cancelled,
-                    contacts.name AS contact_name, contacts.archived_at AS contact_archived_at,
-                    bet_options.label AS option_label
+            sprintf(
+                'SELECT %s
              FROM stakes
              INNER JOIN contacts ON contacts.id = stakes.contact_id
              INNER JOIN bet_options ON bet_options.id = stakes.bet_option_id
              WHERE stakes.bet_id = :bet_id
              ORDER BY contacts.name, stakes.created_at, stakes.id',
+                self::COLUMNS,
+            ),
         );
         $statement->execute(['bet_id' => $betId]);
 
@@ -34,13 +40,14 @@ final readonly class StakeRepository implements StakeStore
     public function findById(int $id): ?Stake
     {
         $statement = $this->pdo->prepare(
-            'SELECT stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount, stakes.final_payout, stakes.is_paid, stakes.is_cancelled,
-                    contacts.name AS contact_name, contacts.archived_at AS contact_archived_at,
-                    bet_options.label AS option_label
+            sprintf(
+                'SELECT %s
              FROM stakes
              INNER JOIN contacts ON contacts.id = stakes.contact_id
              INNER JOIN bet_options ON bet_options.id = stakes.bet_option_id
              WHERE stakes.id = :id',
+                self::COLUMNS,
+            ),
         );
         $statement->execute(['id' => $id]);
         $row = $statement->fetch();
@@ -48,17 +55,37 @@ final readonly class StakeRepository implements StakeStore
         return $row === false ? null : $this->hydrate($row);
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount): Stake
+    public function findByIdForUpdate(int $id): ?Stake
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO stakes (bet_id, bet_option_id, contact_id, amount)
-             VALUES (:bet_id, :bet_option_id, :contact_id, :amount)',
+            sprintf(
+                'SELECT %s
+             FROM stakes
+             INNER JOIN contacts ON contacts.id = stakes.contact_id
+             INNER JOIN bet_options ON bet_options.id = stakes.bet_option_id
+             WHERE stakes.id = :id
+             FOR UPDATE OF stakes',
+                self::COLUMNS,
+            ),
+        );
+        $statement->execute(['id' => $id]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $this->hydrate($row);
+    }
+
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
+    {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO stakes (bet_id, bet_option_id, contact_id, amount, quoted_odds)
+             VALUES (:bet_id, :bet_option_id, :contact_id, :amount, :quoted_odds)',
         );
         $statement->execute([
             'bet_id' => $betId,
             'bet_option_id' => $betOptionId,
             'contact_id' => $contactId,
             'amount' => $amount,
+            'quoted_odds' => $quotedOdds,
         ]);
 
         return $this->findById((int)$this->pdo->lastInsertId())
@@ -88,10 +115,19 @@ final readonly class StakeRepository implements StakeStore
         $statement->execute(['id' => $id]);
     }
 
-    public function setPaid(int $id, bool $isPaid): Stake
+    public function setPaid(int $id, bool $isPaid, ?float $oddsAtBet = null): Stake
     {
-        $statement = $this->pdo->prepare('UPDATE stakes SET is_paid = :is_paid WHERE id = :id');
-        $statement->execute(['id' => $id, 'is_paid' => (int)$isPaid]);
+        // Once captured, the contractual odds are immutable.
+        $statement = $oddsAtBet === null
+            ? $this->pdo->prepare('UPDATE stakes SET is_paid = :is_paid WHERE id = :id')
+            : $this->pdo->prepare(
+                'UPDATE stakes SET is_paid = :is_paid, odds_at_bet = COALESCE(odds_at_bet, :odds_at_bet) WHERE id = :id',
+            );
+        $parameters = ['id' => $id, 'is_paid' => (int)$isPaid];
+        if ($oddsAtBet !== null) {
+            $parameters['odds_at_bet'] = $oddsAtBet;
+        }
+        $statement->execute($parameters);
 
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated stake.');
     }
@@ -179,6 +215,8 @@ final readonly class StakeRepository implements StakeStore
             (bool)$row['is_paid'],
             (bool)$row['is_cancelled'],
             $row['final_payout'] === null ? null : (int)$row['final_payout'],
+            $row['quoted_odds'] === null ? null : (float)$row['quoted_odds'],
+            $row['odds_at_bet'] === null ? null : (float)$row['odds_at_bet'],
         );
     }
 }

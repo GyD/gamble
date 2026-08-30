@@ -29,6 +29,20 @@
     border-radius: var(--radius-md);
 }
 
+.bet-option-fields > .form-field:has(.bet-option-probability) {
+    grid-template-columns: 1fr auto;
+}
+
+.bet-option-fields > .form-field > label {
+    grid-column: 1 / -1;
+}
+
+.bet-option-probability {
+    width: 6rem;
+    justify-self: end;
+    text-align: right;
+}
+
 .bet-card-header {
     display: flex;
     align-items: flex-start;
