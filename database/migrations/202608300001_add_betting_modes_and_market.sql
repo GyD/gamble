@@ -1,7 +1,9 @@
 -- Betting modes, market probabilities and per-stake odds.
 --
--- Bets created before this migration predate the betting mode concept and are
--- therefore considered fixed odds bets, as documented in the README.
+-- Bets created before this migration predate the betting mode concept. They are
+-- given the fixed_odds default here only because the column requires one, and
+-- 202608300002 immediately converts them to pari_mutuel, which is the mode
+-- matching their historical settlement.
 
 ALTER TABLE bets
     ADD COLUMN betting_mode VARCHAR(20) NOT NULL DEFAULT 'fixed_odds' AFTER status,
@@ -13,6 +15,7 @@ ALTER TABLE bets
         CHECK (odds_evolution_mode IN ('fixed', 'dynamic_low', 'dynamic_normal', 'dynamic_high')),
     ADD CONSTRAINT bets_mutuel_commission_rate_check CHECK (mutuel_commission_rate_bps <= 2500);
 
+-- Placeholder mode for existing rows, superseded by 202608300002.
 UPDATE bets
 SET betting_mode = 'fixed_odds',
     odds_evolution_mode = 'dynamic_normal';

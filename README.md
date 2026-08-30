@@ -64,6 +64,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
 - filtres statistiques sur 7 jours, 30 jours ou tout l'historique, calculés sur l'ensemble des paris ;
 - choix du mode `fixed_odds` ou `pari_mutuel` à la création du pari, verrouillé dès qu'une mise existe ;
+- conversion des paris antérieurs en `pari_mutuel`, leur marge bookmaker devenant leur commission mutuelle, afin de préserver leur comportement financier historique ;
 - probabilités initiales et courantes par option, avec assistant de préréglages pour les paris à deux options ;
 - modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds` ;
 - cote informative `quoted_odds` à la création d'une mise et cote contractuelle immuable `odds_at_bet` capturée au paiement ;
@@ -120,7 +121,7 @@ Le mode est choisi lors de la création du pari.
 
 Il ne peut plus être modifié dès qu'au moins une mise existe.
 
-Les paris existants sont considérés comme `fixed_odds`.
+Les paris antérieurs à cette fonctionnalité sont convertis en `pari_mutuel`, et leur marge bookmaker devient leur commission mutuelle. C'était en effet leur comportement financier réel : une commission était prélevée sur le pot à la clôture, puis le pool net était réparti entre les mises gagnantes proportionnellement à leur montant. Les conserver en `fixed_odds` aurait remboursé chaque gagnant à la cote `1,00`, faute de cote contractuelle sur les mises déjà payées. Les paris déjà réglés ne sont pas modifiés, leur état financier étant figé.
 
 ### 2. Fixed odds
 
