@@ -13,9 +13,6 @@ interface BetStore
     /** @return list<Bet> */
     public function findAll(): array;
 
-    /** @return list<Bet> */
-    public function findByOwner(int $ownerUserId): array;
-
     public function findById(int $id): ?Bet;
 
     /** Must be called inside a transaction. */

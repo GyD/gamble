@@ -42,7 +42,7 @@ final class BetControllerTest extends TestCase
             ['contact_id' => 21, 'contact_name' => 'Bob', 'winning_stake' => 200, 'payout' => 667, 'is_winnings_paid' => true],
         ];
 
-        $html = (string)$this->controller($store, false, $stakes)
+        $html = (string)$this->controller($store, $stakes)
             ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
 
         self::assertStringContainsString('Gagnants', $html);
@@ -51,7 +51,7 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('Gain versé', $html);
     }
 
-    public function testWinningsActionsOnAnotherOwnersBetRequireStakesEditAllPermission(): void
+    public function testWinningsActionsRequireStakesEditPermission(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Settled, 10, []);
@@ -60,35 +60,22 @@ final class BetControllerTest extends TestCase
             ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 333, 'is_winnings_paid' => false],
         ];
 
-        $withoutStakesEditAll = (string)$this->controller($store, true, $stakes, editAll: true, stakesEditAll: false)
+        $withoutStakesEdit = (string)$this->controller($store, $stakes, stakesEdit: false)
             ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
-        $withStakesEditAll = (string)$this->controller($store, true, $stakes, stakesEditAll: true)
+        $withStakesEdit = (string)$this->controller($store, $stakes)
             ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
 
-        self::assertStringNotContainsString('/bets/1/winners/20/payment-status', $withoutStakesEditAll);
-        self::assertStringContainsString('/bets/1/winners/20/payment-status', $withStakesEditAll);
+        self::assertStringNotContainsString('/bets/1/winners/20/payment-status', $withoutStakesEdit);
+        self::assertStringContainsString('/bets/1/winners/20/payment-status', $withStakesEdit);
     }
 
-    public function testIndexOnlyShowsOwnedBetsWithoutViewAllPermission(): void
+    public function testIndexShowsEveryBetWhateverTheOwner(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = $this->bet(1, 1, 'Mine');
         $store->bets[2] = $this->bet(2, 2, 'Theirs');
 
-        $response = $this->controller($store, false)->index($this->request('GET'), new Response());
-        $html = (string) $response->getBody();
-
-        self::assertStringContainsString('Mine', $html);
-        self::assertStringNotContainsString('Theirs', $html);
-    }
-
-    public function testIndexShowsAllBetsWithViewAllPermission(): void
-    {
-        $store = new ControllerBetStore();
-        $store->bets[1] = $this->bet(1, 1, 'Mine');
-        $store->bets[2] = $this->bet(2, 2, 'Theirs');
-
-        $html = (string) $this->controller($store, true)->index($this->request('GET'), new Response())->getBody();
+        $html = (string) $this->controller($store)->index($this->request('GET'), new Response())->getBody();
 
         self::assertStringContainsString('Mine', $html);
         self::assertStringContainsString('Theirs', $html);
@@ -107,7 +94,7 @@ final class BetControllerTest extends TestCase
             new Stake(2, 1, 11, 21, 2000, 'Bob', 'Red', false, true),
         ];
 
-        $html = (string) $this->controller($store, false, $stakes)
+        $html = (string) $this->controller($store, $stakes)
             ->index($this->request('GET'), new Response())->getBody();
 
         self::assertStringContainsString('Blue — cote 2,70', $html);
@@ -119,7 +106,7 @@ final class BetControllerTest extends TestCase
         $store = new ControllerBetStore();
         $store->bets[1] = $this->bet(1, 1, 'Mine');
 
-        $html = (string) $this->controller($store, false)->index($this->request('GET'), new Response())->getBody();
+        $html = (string) $this->controller($store)->index($this->request('GET'), new Response())->getBody();
 
         self::assertStringContainsString('Voir les mises', $html);
         self::assertStringContainsString('/bets/1/stakes', $html);
@@ -128,7 +115,7 @@ final class BetControllerTest extends TestCase
     public function testCreateRedirectsAndCreatesOpenBet(): void
     {
         $store = new ControllerBetStore();
-        $response = $this->controller($store, false)->create(
+        $response = $this->controller($store)->create(
             $this->request('POST', ['question' => 'Winner?', 'description' => '', 'closes_at' => '', 'options' => ['Blue', 'Red']]),
             new Response(),
         );
@@ -138,26 +125,11 @@ final class BetControllerTest extends TestCase
         self::assertSame(BetStatus::Open, $store->bets[1]->status);
     }
 
-    public function testOtherUsersBetCannotBeUpdated(): void
+    public function testAnotherUsersBetCanBeShownAndEdited(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = $this->bet(1, 2, 'Theirs');
-
-        $response = $this->controller($store, false)->update(
-            $this->request('POST', ['question' => 'Changed', 'description' => '', 'closes_at' => '', 'options' => ['A', 'B']]),
-            new Response(),
-            ['id' => '1'],
-        );
-
-        self::assertSame(403, $response->getStatusCode());
-        self::assertSame('Theirs', $store->bets[1]->question);
-    }
-
-    public function testEditAllPermissionShowsActionsAndAllowsEditingAnotherUsersBet(): void
-    {
-        $store = new ControllerBetStore();
-        $store->bets[1] = $this->bet(1, 2, 'Theirs');
-        $controller = $this->controller($store, true, editAll: true);
+        $controller = $this->controller($store);
 
         $editResponse = $controller->edit($this->request('GET'), new Response(), ['id' => '1']);
         $showHtml = (string) $controller->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
@@ -173,14 +145,14 @@ final class BetControllerTest extends TestCase
         self::assertSame('Changed', $store->bets[1]->question);
     }
 
-    public function testEditAllPermissionAllowsClosingAndSettlingAnotherUsersBet(): void
+    public function testAnotherUsersBetCanBeClosedAndSettled(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [
             new BetOption(10, 'Blue', 0),
             new BetOption(11, 'Red', 1),
         ]);
-        $controller = $this->controller($store, true, editAll: true);
+        $controller = $this->controller($store);
 
         $closeResponse = $controller->close($this->request('POST'), new Response(), ['id' => '1']);
         $settleResponse = $controller->settle(
@@ -195,11 +167,11 @@ final class BetControllerTest extends TestCase
         self::assertSame(11, $store->bets[1]->winningOptionId);
     }
 
-    public function testEditAllPermissionAllowsCancellingAndDeletingAnotherUsersBet(): void
+    public function testAnotherUsersBetCanBeCancelledAndDeleted(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = $this->bet(1, 2, 'Theirs');
-        $controller = $this->controller($store, true, editAll: true);
+        $controller = $this->controller($store);
 
         $cancelResponse = $controller->cancel($this->request('POST'), new Response(), ['id' => '1']);
         $deleteResponse = $controller->delete($this->request('POST'), new Response(), ['id' => '1']);
@@ -219,7 +191,7 @@ final class BetControllerTest extends TestCase
         $stakes = new ControllerBetStakeStore();
         $stakes->stakes[] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, false);
 
-        $html = (string) $this->controller($store, false, $stakes)
+        $html = (string) $this->controller($store, $stakes)
             ->edit($this->request('GET'), new Response(), ['id' => '1'])->getBody();
 
         self::assertStringContainsString('name="question"', $html);
@@ -230,12 +202,12 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('les choix ne peuvent plus être modifiés', $html);
     }
 
-    public function testOwnerCanDeleteCancelledBet(): void
+    public function testCancelledBetCanBeDeleted(): void
     {
         $store = new ControllerBetStore();
         $store->bets[1] = new Bet(1, 1, 'Cancelled', null, null, BetStatus::Cancelled, null, []);
 
-        $response = $this->controller($store, false)->delete(
+        $response = $this->controller($store)->delete(
             $this->request('POST'),
             new Response(),
             ['id' => '1'],
@@ -247,25 +219,17 @@ final class BetControllerTest extends TestCase
 
     private function controller(
         ControllerBetStore $store,
-        bool $viewAll,
         ?ControllerBetStakeStore $stakes = null,
-        bool $editAll = false,
-        bool $stakesEditAll = true,
+        bool $stakesEdit = true,
     ): BetController
     {
         $stakes ??= new ControllerBetStakeStore();
-        $permissions = new class($viewAll, $editAll, $stakesEditAll) implements PermissionResolver {
-            public function __construct(
-                private readonly bool $viewAll,
-                private readonly bool $editAll,
-                private readonly bool $stakesEditAll,
-            ) {}
+        $permissions = new class($stakesEdit) implements PermissionResolver {
+            public function __construct(private readonly bool $stakesEdit) {}
             public function effectFor(int $userId, string $permission): ?string
             {
                 return match ($permission) {
-                    'bets.view_all' => $this->viewAll ? 'allow' : null,
-                    'bets.edit_all' => $this->editAll ? 'allow' : null,
-                    'stakes.edit_all' => $this->stakesEditAll ? 'allow' : null,
+                    'stakes.edit' => $this->stakesEdit ? 'allow' : null,
                     default => 'allow',
                 };
             }
@@ -302,7 +266,6 @@ final class ControllerBetStore implements BetStore
     /** @var array<int, Bet> */
     public array $bets = [];
     public function findAll(): array { return array_values($this->bets); }
-    public function findByOwner(int $ownerUserId): array { return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId)); }
     public function findById(int $id): ?Bet { return $this->bets[$id] ?? null; }
     public function findByIdForUpdate(int $id): ?Bet { return $this->findById($id); }
     public function create(int $ownerUserId, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options): Bet
@@ -363,7 +326,7 @@ final class ControllerBetAuditLogger implements AuditLogger
 
 final class ControllerBetStatisticsStore implements StatisticsStore
 {
-    public function settledContactBets(?int $ownerUserId, ?DateTimeImmutable $from, ?int $contactId = null): array
+    public function settledContactBets(?DateTimeImmutable $from, ?int $contactId = null): array
     {
         return [];
     }

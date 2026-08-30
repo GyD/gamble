@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Domain\Bet\Bet;
-use App\Domain\Bet\BetAccessDeniedException;
 use App\Domain\Bet\BetStatus;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
@@ -58,13 +57,12 @@ final readonly class BetService
         array $options,
         ?string $ipAddress,
         ?string $bookmakerPercentage = null,
-        bool $canEditAll = false,
     ): Bet {
         [$question, $description, $deadline, $options] = $this->normalize($question, $description, $closesAt, $options);
         $rateBps = $bookmakerPercentage === null ? null : $this->parseBookmakerRate($bookmakerPercentage);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress, $rateBps, $canEditAll): Bet {
-            $before = $this->editableBet($actorUserId, $betId, $canEditAll);
+        return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress, $rateBps): Bet {
+            $before = $this->editableBet($betId);
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Only open bets can be edited.');
             }
@@ -110,11 +108,11 @@ final readonly class BetService
             $bet->finalBookmakerShare, $bet->finalRedistributed);
     }
 
-    public function setBookmakerRate(int $actorUserId, int $betId, string $percentage, ?string $ipAddress, bool $canEditAll = false): Bet
+    public function setBookmakerRate(int $actorUserId, int $betId, string $percentage, ?string $ipAddress): Bet
     {
         $rateBps = $this->parseBookmakerRate($percentage);
-        return $this->transactional(function () use ($actorUserId, $betId, $rateBps, $ipAddress, $canEditAll): Bet {
-            $before = $this->editableBet($actorUserId, $betId, $canEditAll);
+        return $this->transactional(function () use ($actorUserId, $betId, $rateBps, $ipAddress): Bet {
+            $before = $this->editableBet($betId);
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Bookmaker rate can only be changed while the bet is open.');
             }
@@ -133,15 +131,15 @@ final readonly class BetService
         return (int) round((float) str_replace(',', '.', $percentage) * 100);
     }
 
-    public function close(int $actorUserId, int $betId, ?string $ipAddress, bool $canEditAll = false): Bet
+    public function close(int $actorUserId, int $betId, ?string $ipAddress): Bet
     {
-        return $this->transition($actorUserId, $betId, BetStatus::Open, BetStatus::Closed, null, 'bet.closed', $ipAddress, $canEditAll);
+        return $this->transition($actorUserId, $betId, BetStatus::Open, BetStatus::Closed, null, 'bet.closed', $ipAddress);
     }
 
-    public function cancel(int $actorUserId, int $betId, ?string $ipAddress, bool $canEditAll = false): Bet
+    public function cancel(int $actorUserId, int $betId, ?string $ipAddress): Bet
     {
-        return $this->transactional(function () use ($actorUserId, $betId, $ipAddress, $canEditAll): Bet {
-            $before = $this->editableBet($actorUserId, $betId, $canEditAll);
+        return $this->transactional(function () use ($actorUserId, $betId, $ipAddress): Bet {
+            $before = $this->editableBet($betId);
             if (!in_array($before->status, [BetStatus::Open, BetStatus::Closed], true)) {
                 throw new InvalidArgumentException('Only open or closed bets can be cancelled.');
             }
@@ -152,10 +150,10 @@ final readonly class BetService
         });
     }
 
-    public function delete(int $actorUserId, int $betId, ?string $ipAddress, bool $canEditAll = false): void
+    public function delete(int $actorUserId, int $betId, ?string $ipAddress): void
     {
-        $this->transactional(function () use ($actorUserId, $betId, $ipAddress, $canEditAll): void {
-            $bet = $this->editableBet($actorUserId, $betId, $canEditAll);
+        $this->transactional(function () use ($actorUserId, $betId, $ipAddress): void {
+            $bet = $this->editableBet($betId);
             if ($bet->status !== BetStatus::Cancelled) {
                 throw new InvalidArgumentException('Only cancelled bets can be deleted.');
             }
@@ -169,13 +167,10 @@ final readonly class BetService
         });
     }
 
-    public function settle(int $actorUserId, int $betId, int $winningOptionId, ?string $ipAddress, bool $canEditAll = false): Bet
+    public function settle(int $actorUserId, int $betId, int $winningOptionId, ?string $ipAddress): Bet
     {
-        return $this->transactional(function () use ($actorUserId, $betId, $winningOptionId, $ipAddress, $canEditAll): Bet {
+        return $this->transactional(function () use ($actorUserId, $betId, $winningOptionId, $ipAddress): Bet {
             $before = $this->bets->findByIdForUpdate($betId) ?? throw new InvalidArgumentException('Unknown bet.');
-            if (!$before->isOwnedBy($actorUserId) && !$canEditAll) {
-                throw new BetAccessDeniedException('Only the bet owner can change it.');
-            }
             if ($before->status !== BetStatus::Closed) {
                 throw new InvalidArgumentException('Bet must be closed to become settled.');
             }
@@ -204,10 +199,9 @@ final readonly class BetService
         ?int $winningOptionId,
         string $action,
         ?string $ipAddress,
-        bool $canEditAll,
     ): Bet {
-        return $this->transactional(function () use ($actorUserId, $betId, $expectedStatus, $newStatus, $winningOptionId, $action, $ipAddress, $canEditAll): Bet {
-            $before = $this->editableBet($actorUserId, $betId, $canEditAll);
+        return $this->transactional(function () use ($actorUserId, $betId, $expectedStatus, $newStatus, $winningOptionId, $action, $ipAddress): Bet {
+            $before = $this->editableBet($betId);
             if ($before->status !== $expectedStatus) {
                 throw new InvalidArgumentException(sprintf(
                     'Bet must be %s to become %s.',
@@ -277,14 +271,9 @@ final readonly class BetService
         return $deadline;
     }
 
-    private function editableBet(int $actorUserId, int $betId, bool $canEditAll): Bet
+    private function editableBet(int $betId): Bet
     {
-        $bet = $this->bets->findById($betId) ?? throw new InvalidArgumentException('Unknown bet.');
-        if (!$bet->isOwnedBy($actorUserId) && !$canEditAll) {
-            throw new BetAccessDeniedException('Only the bet owner can change it.');
-        }
-
-        return $bet;
+        return $this->bets->findById($betId) ?? throw new InvalidArgumentException('Unknown bet.');
     }
 
     /** @return array<string, mixed> */

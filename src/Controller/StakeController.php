@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Domain\Bet\Bet;
-use App\Domain\Bet\BetAccessDeniedException;
 use App\Domain\Bet\BetStatus;
 use App\Domain\User\User;
 use App\Repository\BetStore;
@@ -37,16 +36,13 @@ final readonly class StakeController
     public function index(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         try {
-            $bet = $this->accessibleBet($request, $this->positiveId($args['id'] ?? '', 'bet'));
-        } catch (BetAccessDeniedException) {
-            return $response->withStatus(403);
+            $bet = $this->accessibleBet($this->positiveId($args['id'] ?? '', 'bet'));
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
 
         $actor = $this->actor($request);
-        $canManage = $bet->isOwnedBy($actor->id) || $this->canEditAll($request);
-        $isMutableOwner = $bet->status === BetStatus::Open && $canManage;
+        $isMutable = $bet->status === BetStatus::Open;
         $allContacts = $this->contacts->findAll();
         $contacts = array_values(array_filter(
             $allContacts,
@@ -70,11 +66,10 @@ final readonly class StakeController
             'stakes' => $this->stakes->findByBet($bet->id),
             'contacts' => $contacts,
             'contact_groups' => $contactGroups,
-            'can_create' => $isMutableOwner && $this->authorization->can($actor, 'stakes.create'),
-            'can_edit' => $isMutableOwner && $this->authorization->can($actor, 'stakes.edit'),
-            'can_delete' => $isMutableOwner && $this->authorization->can($actor, 'stakes.delete'),
+            'can_create' => $isMutable && $this->authorization->can($actor, 'stakes.create'),
+            'can_edit' => $isMutable && $this->authorization->can($actor, 'stakes.edit'),
+            'can_delete' => $isMutable && $this->authorization->can($actor, 'stakes.delete'),
             'can_refund' => $bet->status === BetStatus::Cancelled
-                && $canManage
                 && $this->authorization->can($actor, 'stakes.edit'),
             'saved' => isset($request->getQueryParams()['saved']),
         ]);
@@ -93,10 +88,7 @@ final readonly class StakeController
                 $this->bodyId($body, 'bet_option_id'),
                 $this->stringValue($body, 'amount'),
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -118,10 +110,7 @@ final readonly class StakeController
                 $this->bodyId($body, 'bet_option_id'),
                 $this->stringValue($body, 'amount'),
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -145,10 +134,7 @@ final readonly class StakeController
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $isPaid === '1',
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -172,10 +158,7 @@ final readonly class StakeController
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $isCancelled === '1',
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -199,10 +182,7 @@ final readonly class StakeController
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $isRefunded === '1',
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -226,10 +206,7 @@ final readonly class StakeController
                 $this->positiveId($args['contactId'] ?? '', 'contact'),
                 $isPaid === '1',
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -247,10 +224,7 @@ final readonly class StakeController
                 $betId,
                 $this->positiveId($args['stakeId'] ?? '', 'stake'),
                 $this->ipAddress($request),
-                $this->canEditAll($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -258,20 +232,9 @@ final readonly class StakeController
         return $this->redirect($response, $betId);
     }
 
-    private function accessibleBet(ServerRequestInterface $request, int $betId): Bet
+    private function accessibleBet(int $betId): Bet
     {
-        $bet = $this->bets->findById($betId) ?? throw new InvalidArgumentException('Bet not found.');
-        $actor = $this->actor($request);
-        if (!$bet->isOwnedBy($actor->id) && !$this->authorization->can($actor, 'bets.view_all')) {
-            throw new BetAccessDeniedException('Bet access denied.');
-        }
-
-        return $bet;
-    }
-
-    private function canEditAll(ServerRequestInterface $request): bool
-    {
-        return $this->authorization->can($this->actor($request), 'stakes.edit_all');
+        return $this->bets->findById($betId) ?? throw new InvalidArgumentException('Bet not found.');
     }
 
     private function actor(ServerRequestInterface $request): User
@@ -337,13 +300,6 @@ final readonly class StakeController
         $response->getBody()->write($message);
 
         return $response->withStatus(400);
-    }
-
-    private function forbidden(ResponseInterface $response, string $message): ResponseInterface
-    {
-        $response->getBody()->write($message);
-
-        return $response->withStatus(403);
     }
 
     private function ipAddress(ServerRequestInterface $request): ?string

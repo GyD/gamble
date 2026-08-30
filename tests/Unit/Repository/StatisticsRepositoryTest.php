@@ -15,7 +15,7 @@ final class StatisticsRepositoryTest extends TestCase
     {
         $repository = new StatisticsRepository($this->database());
 
-        $rows = $repository->settledContactBets(null, null);
+        $rows = $repository->settledContactBets(null);
 
         self::assertCount(1, $rows);
         self::assertSame(1, $rows[0]['contact_id']);
@@ -26,13 +26,13 @@ final class StatisticsRepositoryTest extends TestCase
         self::assertSame(2000, $rows[0]['largest_stake']);
     }
 
-    public function testSettledRowsApplyOwnerContactAndPeriodFilters(): void
+    public function testSettledRowsApplyContactAndPeriodFilters(): void
     {
         $repository = new StatisticsRepository($this->database());
 
-        self::assertCount(1, $repository->settledContactBets(1, new DateTimeImmutable('2026-08-01'), 1));
-        self::assertSame([], $repository->settledContactBets(2, null, 1));
-        self::assertSame([], $repository->settledContactBets(1, new DateTimeImmutable('2026-09-01'), 1));
+        self::assertCount(1, $repository->settledContactBets(new DateTimeImmutable('2026-08-01'), 1));
+        self::assertSame([], $repository->settledContactBets(null, 2));
+        self::assertSame([], $repository->settledContactBets(new DateTimeImmutable('2026-09-01'), 1));
     }
 
     public function testBetStakesKeepsEmptyOptionsAndExcludesUnpaidAndCancelledStakes(): void

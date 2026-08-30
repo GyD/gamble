@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 $permissions = [
     'bets.view',
-    'bets.view_all',
     'bets.create',
     'bets.edit',
-    'bets.edit_all',
     'bets.delete',
     'bets.close',
     'bets.settle',
@@ -22,7 +20,6 @@ $permissions = [
     'stakes.view',
     'stakes.create',
     'stakes.edit',
-    'stakes.edit_all',
     'stakes.delete',
     'payments.view',
     'payments.manage',
@@ -39,10 +36,8 @@ return [
         'admin' => $permissions,
         'bookmaker' => [
             'bets.view',
-            'bets.view_all',
             'bets.create',
             'bets.edit',
-            'bets.edit_all',
             'bets.delete',
             'bets.close',
             'bets.settle',
@@ -57,7 +52,6 @@ return [
             'stakes.view',
             'stakes.create',
             'stakes.edit',
-            'stakes.edit_all',
             'stakes.delete',
             'payments.view',
             'payments.manage',
