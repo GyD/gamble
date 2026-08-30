@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__);
 
+$supportedEnvironments = ['development', 'test', 'production'];
+$environment = strtolower(trim((string)($_ENV['APP_ENV'] ?? '')));
+
+if (!in_array($environment, $supportedEnvironments, true)) {
+    $environment = 'production';
+}
+
 return [
     'permissions' => require __DIR__ . '/permissions.php',
     'app' => [
         'name' => $_ENV['APP_NAME'] ?? 'Gamble',
-        'environment' => $_ENV['APP_ENV'] ?? 'production',
+        'environment' => $environment,
         'debug' => filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOL),
         'url' => rtrim($_ENV['APP_URL'] ?? 'http://localhost:8080', '/'),
         'secret' => $_ENV['APP_SECRET'] ?? '',

@@ -9,6 +9,11 @@
     <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
+{% if app_environment|default('production') != 'production' %}
+    <div class="environment-banner environment-banner-{{ app_environment }}" role="status">
+        Environnement : {{ app_environment == 'development' ? 'développement' : 'test' }}
+    </div>
+{% endif %}
 <main class="app-shell">
     <div class="navigation-menu">
         <button class="navigation-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">

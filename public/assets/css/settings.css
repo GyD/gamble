@@ -20,6 +20,10 @@
     --color-warning-soft: #fef3c7;
     --color-warning-text: #78350f;
     --color-pending-text: #92400e;
+    --color-environment-development-soft: #e0e7ff;
+    --color-environment-development-text: #3730a3;
+    --color-environment-test-soft: var(--color-warning-soft);
+    --color-environment-test-text: var(--color-warning-text);
 
     --space-xs: 0.4rem;
     --space-sm: 0.5rem;
