@@ -596,6 +596,61 @@ docker compose exec app php bin/migrate
 docker image prune
 ```
 
+### Déployer une seconde instance
+
+Plusieurs instances indépendantes peuvent cohabiter sur le même Raspberry Pi. Chacune s'appuie sur sa propre copie du dépôt, placée sur la branche souhaitée, et sur son propre fichier `.env`.
+
+L'isolation repose sur deux variables :
+
+- `COMPOSE_PROJECT_NAME` : préfixe des conteneurs, des volumes et des réseaux du projet Docker Compose ;
+- `APP_IMAGE` : nom de l'image applicative construite localement.
+
+Ces deux valeurs doivent impérativement être distinctes d'une instance à l'autre. Sans `APP_IMAGE` propre, la construction d'une instance écraserait l'image de l'autre, qui repartirait alors sur un code inattendu au redémarrage suivant.
+
+Dans le `.env` de la seconde copie, différencier au minimum :
+
+```dotenv
+COMPOSE_PROJECT_NAME=gamble-v2
+APP_IMAGE=gamble-app-v2:local
+
+APP_NAME=Gamble v2
+APP_URL=https://gamble-v2.example.com
+APP_SECRET=<autre-valeur-aleatoire>
+
+DB_PASSWORD=<autre-mot-de-passe-fort>
+MARIADB_ROOT_PASSWORD=<autre-mot-de-passe-fort>
+
+TWITCH_REDIRECT_URI=https://gamble-v2.example.com/auth/twitch/callback
+
+SESSION_NAME=gamble_v2_session
+CLOUDFLARE_TUNNEL_TOKEN=<jeton-du-second-tunnel>
+```
+
+`DB_HOST` reste `db` : chaque instance dispose de son propre réseau `backend` interne et de sa propre base MariaDB. Aucun port n'étant publié, les instances n'entrent jamais en conflit sur l'hôte.
+
+Côté services externes :
+
+- créer un second tunnel dans Cloudflare Zero Trust, avec sa route publiée vers `http://app:8080` ;
+- déclarer la nouvelle URL de redirection dans la console développeur Twitch, en complément de la première ou dans une application Twitch dédiée.
+
+Démarrer ensuite l'instance depuis sa propre copie du dépôt :
+
+```bash
+docker compose build --pull
+docker compose up -d
+docker compose exec app php bin/migrate
+```
+
+Points de contrôle :
+
+- `docker compose ls` liste les deux projets ;
+- `docker volume ls` montre deux jeux de volumes distincts, préfixés par le nom de chaque projet ;
+- chaque nom public répond sur `/health`.
+
+Le script `bin/update` s'utilise tel quel dans chaque copie : il se place dans son propre répertoire et met à jour la branche qui y est active.
+
+Faire tourner deux instances double la consommation de mémoire et les écritures disque, chacune exécutant sa propre base MariaDB. Vérifier les ressources disponibles sur le Raspberry Pi et privilégier un stockage plus robuste que la carte SD.
+
 ### Sauvegarder et restaurer MariaDB
 
 Créer un répertoire de sauvegarde hors du dépôt, puis exporter la base :

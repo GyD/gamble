@@ -1,4 +1,4 @@
-name: gamble
+name: ${COMPOSE_PROJECT_NAME:-gamble}
 
 services:
   app:
@@ -6,7 +6,7 @@ services:
       context: .
       args:
         APP_ENV: production
-    image: gamble-app:local
+    image: ${APP_IMAGE:-gamble-app:local}
     restart: unless-stopped
     init: true
     environment:
