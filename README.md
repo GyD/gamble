@@ -31,7 +31,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - création automatique des utilisateurs inconnus avec le statut `pending` ;
 - activation, suspension et réactivation des utilisateurs ;
 - permissions définies dans `config/permissions.php`, attribuées aux rôles, puis rôles attribués aux utilisateurs ;
-- rôle `bookmaker` autorisé à consulter tous les paris et à archiver, réactiver ou supprimer les contacts et les groupes selon leurs règles métier ;
+- rôle `bookmaker` autorisé à gérer les paris et les mises de tous les utilisateurs, ainsi qu'à archiver, réactiver ou supprimer les contacts et les groupes selon leurs règles métier ;
 - administration des utilisateurs et de leurs accès ;
 - protection des routes et masquage des actions selon les permissions ;
 - navigation indiquant la page ou la rubrique active, y compris sur les sous-pages ;
@@ -46,7 +46,8 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - modification des choix d'un pari uniquement tant qu'aucune mise n'existe ;
 - cycle de vie des paris `open` → `closed` → `settled`, avec annulation depuis les états `open` ou `closed` ;
 - désignation obligatoire d'un choix gagnant lors du règlement ;
-- permissions, contrôle de propriété et audit atomique des opérations sur les paris ;
+- accès partagé aux paris : tout utilisateur disposant de la permission requise agit sur l'ensemble des paris et des mises, quel que soit leur créateur ;
+- permissions et audit atomique des opérations sur les paris, l'auteur réel de chaque action restant journalisé ;
 - gestion de plusieurs mises par contact et par pari, sur un ou plusieurs choix ;
 - sélection recherchable des contacts dans les formulaires de mise, avec affichage de leurs groupes ;
 - création et modification des mises tant que le pari est ouvert ;
@@ -61,7 +62,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - calcul des gains après règlement : le pot de toutes les mises payées et non annulées est réparti entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des unités restantes ;
 - affichage des gagnants, du montant à leur verser et suivi individuel du statut `gain à verser` ou `gain versé` ;
 - statistiques par contact, classement des contacts et répartition des mises sur chaque pari ;
-- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, limités aux paris de l'organisateur sauf permission de voir tous les paris ;
+- filtres statistiques sur 7 jours, 30 jours ou tout l'historique, calculés sur l'ensemble des paris ;
 - choix du mode `fixed_odds` ou `pari_mutuel` à la création du pari, verrouillé dès qu'une mise existe ;
 - probabilités initiales et courantes par option, avec assistant de préréglages pour les paris à deux options ;
 - modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds` ;

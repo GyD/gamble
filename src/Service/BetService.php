@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Domain\Bet\Bet;
-use App\Domain\Bet\BetAccessDeniedException;
 use App\Domain\Bet\BetStatus;
 use App\Domain\Bet\BettingMode;
 use App\Domain\Bet\OddsEvolutionMode;
@@ -87,7 +86,7 @@ final readonly class BetService
         $requestedEvolution = $oddsEvolutionMode === null ? null : $this->parseOddsEvolutionMode($oddsEvolutionMode);
 
         return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress, $rateBps, $requestedMode, $requestedEvolution, $probabilities): Bet {
-            $before = $this->lockedOwnedBet($actorUserId, $betId);
+            $before = $this->lockedBet($betId);
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Only open bets can be edited.');
             }
@@ -132,7 +131,7 @@ final readonly class BetService
     {
         $rateBps = $this->parseBookmakerRate($percentage);
         return $this->transactional(function () use ($actorUserId, $betId, $rateBps, $ipAddress): Bet {
-            $before = $this->lockedOwnedBet($actorUserId, $betId);
+            $before = $this->lockedBet($betId);
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Bookmaker rate can only be changed while the bet is open.');
             }
@@ -224,7 +223,7 @@ final readonly class BetService
     public function cancel(int $actorUserId, int $betId, ?string $ipAddress): Bet
     {
         return $this->transactional(function () use ($actorUserId, $betId, $ipAddress): Bet {
-            $before = $this->lockedOwnedBet($actorUserId, $betId);
+            $before = $this->lockedBet($betId);
             if (!in_array($before->status, [BetStatus::Open, BetStatus::Closed], true)) {
                 throw new InvalidArgumentException('Only open or closed bets can be cancelled.');
             }
@@ -238,7 +237,7 @@ final readonly class BetService
     public function delete(int $actorUserId, int $betId, ?string $ipAddress): void
     {
         $this->transactional(function () use ($actorUserId, $betId, $ipAddress): void {
-            $bet = $this->lockedOwnedBet($actorUserId, $betId);
+            $bet = $this->lockedBet($betId);
             if ($bet->status !== BetStatus::Cancelled) {
                 throw new InvalidArgumentException('Only cancelled bets can be deleted.');
             }
@@ -255,7 +254,7 @@ final readonly class BetService
     public function settle(int $actorUserId, int $betId, int $winningOptionId, ?string $ipAddress): Bet
     {
         return $this->transactional(function () use ($actorUserId, $betId, $winningOptionId, $ipAddress): Bet {
-            $before = $this->lockedOwnedBet($actorUserId, $betId);
+            $before = $this->lockedBet($betId);
             if ($before->status !== BetStatus::Closed) {
                 throw new InvalidArgumentException('Bet must be closed to become settled.');
             }
@@ -286,7 +285,7 @@ final readonly class BetService
         ?string $ipAddress,
     ): Bet {
         return $this->transactional(function () use ($actorUserId, $betId, $expectedStatus, $newStatus, $winningOptionId, $action, $ipAddress): Bet {
-            $before = $this->lockedOwnedBet($actorUserId, $betId);
+            $before = $this->lockedBet($betId);
             if ($before->status !== $expectedStatus) {
                 throw new InvalidArgumentException(sprintf(
                     'Bet must be %s to become %s.',
@@ -362,14 +361,9 @@ final readonly class BetService
      * Every operation able to change the indicative market must go through it
      * so concurrent recalculations are serialised on the bet row.
      */
-    private function lockedOwnedBet(int $actorUserId, int $betId): Bet
+    private function lockedBet(int $betId): Bet
     {
-        $bet = $this->recalculator->lock($betId);
-        if (!$bet->isOwnedBy($actorUserId)) {
-            throw new BetAccessDeniedException('Only the bet owner can change it.');
-        }
-
-        return $bet;
+        return $this->recalculator->lock($betId);
     }
 
     /** @return array<string, mixed> */

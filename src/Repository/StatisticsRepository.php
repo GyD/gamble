@@ -14,16 +14,11 @@ final readonly class StatisticsRepository implements StatisticsStore
     }
 
     public function settledContactBets(
-        ?int $ownerUserId,
         ?DateTimeImmutable $from,
         ?int $contactId = null,
     ): array {
         $conditions = ["bets.status = 'settled'", 'stakes.is_paid = 1', 'stakes.is_cancelled = 0'];
         $parameters = [];
-        if ($ownerUserId !== null) {
-            $conditions[] = 'bets.owner_user_id = :owner_user_id';
-            $parameters['owner_user_id'] = $ownerUserId;
-        }
         if ($from !== null) {
             $conditions[] = 'bets.updated_at >= :from_date';
             $parameters['from_date'] = $from->format('Y-m-d H:i:s');

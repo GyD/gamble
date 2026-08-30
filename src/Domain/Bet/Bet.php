@@ -29,11 +29,6 @@ final readonly class Bet
     ) {
     }
 
-    public function isOwnedBy(int $userId): bool
-    {
-        return $this->ownerUserId === $userId;
-    }
-
     public function isFixedOdds(): bool
     {
         return $this->bettingMode === BettingMode::FixedOdds;

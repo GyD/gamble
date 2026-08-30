@@ -25,7 +25,6 @@ interface StatisticsStore
      * }>
      */
     public function settledContactBets(
-        ?int $ownerUserId,
         ?DateTimeImmutable $from,
         ?int $contactId = null,
     ): array;

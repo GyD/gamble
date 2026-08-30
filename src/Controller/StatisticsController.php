@@ -31,14 +31,11 @@ final readonly class StatisticsController
             throw new InvalidArgumentException('Authentication required.');
         }
 
-        $ownerUserId = $this->authorization->can($actor, 'bets.view_all') ? null : $actor->id;
         $response->getBody()->write($this->twig->render('statistics/index.html.twig', [
             'statistics' => $this->statistics->leaderboard(
-                $ownerUserId,
                 $this->query($request, 'period', StatisticsService::PERIOD_30_DAYS),
                 $this->query($request, 'sort', 'win_rate'),
             ),
-            'scope_is_global' => $ownerUserId === null,
             'can_view_bets' => $this->authorization->can($actor, 'bets.view'),
             'can_view_contacts' => $this->authorization->can($actor, 'contacts.view'),
             'can_view_groups' => $this->authorization->can($actor, 'groups.view'),
@@ -64,12 +61,10 @@ final readonly class StatisticsController
         if ($contact === null) {
             return $response->withStatus(404);
         }
-        $ownerUserId = $this->authorization->can($actor, 'bets.view_all') ? null : $actor->id;
         $response->getBody()->write($this->twig->render('statistics/contact.html.twig', [
             'contact' => $contact,
             'statistics' => $this->statistics->contact(
                 $contact->id,
-                $ownerUserId,
                 $this->query($request, 'period', StatisticsService::PERIOD_30_DAYS),
             ),
             'can_view_bets' => $this->authorization->can($actor, 'bets.view'),

@@ -87,6 +87,16 @@ final class BetServiceTest extends TestCase
         self::assertSame(BetStatus::Cancelled, $cancelled->status);
     }
 
+    public function testAnotherUserClosingABetKeepsRealActorInAuditLog(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+
+        $this->service->close(8, $bet->id, '127.0.0.1');
+
+        self::assertSame(8, $this->audit->entries[1]['actorUserId']);
+        self::assertSame('bet.closed', $this->audit->entries[1]['action']);
+    }
+
     public function testMetadataCanBeUpdatedWithoutReplacingOptionsWhenStakeExists(): void
     {
         $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
@@ -175,13 +185,11 @@ final class BetServiceTest extends TestCase
         self::assertSame('bet.deleted', $this->audit->entries[array_key_last($this->audit->entries)]['action']);
     }
 
-    public function testOnlyOwnerCanChangeBet(): void
+    public function testUnknownBetCannotBeChanged(): void
     {
-        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
-
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Only the bet owner can change it.');
-        $this->service->close(8, $bet->id, null);
+        $this->expectExceptionMessage('Unknown bet.');
+        $this->service->close(8, 404, null);
     }
 
     public function testWinningOptionMustBelongToBet(): void
@@ -264,7 +272,6 @@ final class BetTestStore implements BetStore
     private int $nextOptionId = 1;
 
     public function findAll(): array { return array_values($this->bets); }
-    public function findByOwner(int $ownerUserId): array { return array_values(array_filter($this->bets, static fn(Bet $bet): bool => $bet->ownerUserId === $ownerUserId)); }
     public function findById(int $id): ?Bet { return $this->bets[$id] ?? null; }
     public function findByIdForUpdate(int $id): ?Bet
     {

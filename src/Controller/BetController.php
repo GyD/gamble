@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Domain\Bet\Bet;
-use App\Domain\Bet\BetAccessDeniedException;
 use App\Domain\User\User;
 use App\Repository\BetStore;
 use App\Security\AuthorizationService;
@@ -32,15 +31,11 @@ final readonly class BetController
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $actor = $this->actor($request);
-        $bets = $this->authorization->can($actor, 'bets.view_all')
-            ? $this->bets->findAll()
-            : $this->bets->findByOwner($actor->id);
-        $bets = array_map($this->service->withOdds(...), $bets);
+        $bets = array_map($this->service->withOdds(...), $this->bets->findAll());
 
         return $this->render($request, $response, 'bets/index.html.twig', [
             'bets' => $bets,
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
-            'actor_id' => $actor->id,
             'can_create' => $this->authorization->can($actor, 'bets.create'),
             'can_edit' => $this->authorization->can($actor, 'bets.edit'),
             'can_cancel' => $this->authorization->can($actor, 'bets.delete'),
@@ -86,13 +81,9 @@ final readonly class BetController
         $bet = $this->service->withOdds($bet);
 
         $actor = $this->actor($request);
-        if (!$bet->isOwnedBy($actor->id) && !$this->authorization->can($actor, 'bets.view_all')) {
-            return $response->withStatus(403);
-        }
 
         return $this->render($request, $response, 'bets/show.html.twig', [
             'bet' => $bet,
-            'is_owner' => $bet->isOwnedBy($actor->id),
             'can_edit' => $this->authorization->can($actor, 'bets.edit'),
             'can_cancel' => $this->authorization->can($actor, 'bets.delete'),
             'can_close' => $this->authorization->can($actor, 'bets.close'),
@@ -100,8 +91,7 @@ final readonly class BetController
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
             'statistics' => $this->statistics->bet($bet->id),
             'winners' => $this->stakes->winnings($bet),
-            'can_manage_winnings' => $bet->isOwnedBy($actor->id)
-                && $this->authorization->can($actor, 'stakes.edit'),
+            'can_manage_winnings' => $this->authorization->can($actor, 'stakes.edit'),
         ]);
     }
 
@@ -116,9 +106,6 @@ final readonly class BetController
         if ($bet === null) {
             return $response->withStatus(404);
         }
-        if (!$bet->isOwnedBy($this->actor($request)->id)) {
-            return $response->withStatus(403);
-        }
 
         return $this->render($request, $response, 'bets/edit.html.twig', [
             'bet' => $bet,
@@ -130,7 +117,7 @@ final readonly class BetController
     public function update(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         try {
-            $betId = $this->ownedBetId($request, $args);
+            $betId = $this->existingBetId($args);
             $body = (array) $request->getParsedBody();
             $this->service->update(
                 $this->actor($request)->id,
@@ -145,8 +132,6 @@ final readonly class BetController
                 $this->nullableStringValue($body, 'odds_evolution_mode'),
                 $this->optionalStringList($body, 'probabilities'),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -170,7 +155,7 @@ final readonly class BetController
     public function settle(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
         try {
-            $betId = $this->ownedBetId($request, $args);
+            $betId = $this->existingBetId($args);
             $body = (array) $request->getParsedBody();
             $this->service->settle(
                 $this->actor($request)->id,
@@ -178,8 +163,6 @@ final readonly class BetController
                 $this->positiveId($this->stringValue($body, 'winning_option_id')),
                 $this->ipAddress($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -193,11 +176,9 @@ final readonly class BetController
         try {
             $this->service->delete(
                 $this->actor($request)->id,
-                $this->ownedBetId($request, $args),
+                $this->existingBetId($args),
                 $this->ipAddress($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -213,14 +194,12 @@ final readonly class BetController
         string $transition,
     ): ResponseInterface {
         try {
-            $betId = $this->ownedBetId($request, $args);
+            $betId = $this->existingBetId($args);
             $this->service->{$transition}(
                 $this->actor($request)->id,
                 $betId,
                 $this->ipAddress($request),
             );
-        } catch (BetAccessDeniedException $exception) {
-            return $this->forbidden($response, $exception->getMessage());
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
         }
@@ -235,15 +214,11 @@ final readonly class BetController
     }
 
     /** @param array<string, string> $args */
-    private function ownedBetId(ServerRequestInterface $request, array $args): int
+    private function existingBetId(array $args): int
     {
         $id = $this->positiveId($args['id'] ?? '');
-        $bet = $this->bets->findById($id);
-        if ($bet === null) {
+        if ($this->bets->findById($id) === null) {
             throw new InvalidArgumentException('Bet not found.');
-        }
-        if (!$bet->isOwnedBy($this->actor($request)->id)) {
-            throw new BetAccessDeniedException('Only the bet owner can change it.');
         }
 
         return $id;
@@ -344,13 +319,6 @@ final readonly class BetController
         $response->getBody()->write($message);
 
         return $response->withStatus(400);
-    }
-
-    private function forbidden(ResponseInterface $response, string $message): ResponseInterface
-    {
-        $response->getBody()->write($message);
-
-        return $response->withStatus(403);
     }
 
     private function ipAddress(ServerRequestInterface $request): ?string

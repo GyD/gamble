@@ -14,7 +14,7 @@ final class StatisticsServiceTest extends TestCase
 {
     public function testContactWithoutSettledBetHasNullRatesAndFinancialResults(): void
     {
-        $statistics = $this->service([])->contact(1, null, 'all');
+        $statistics = $this->service([])->contact(1, 'all');
 
         self::assertSame(0, $statistics['participations']);
         self::assertNull($statistics['win_rate']);
@@ -30,7 +30,7 @@ final class StatisticsServiceTest extends TestCase
             $this->row(1, '2026-08-20', 3000, 1000, 2000, returned: 6000),
             $this->row(2, '2026-08-21', 5000, 0, 5000),
             $this->row(3, '2026-08-22', 4000, 4000, 4000, returned: 7000),
-        ])->contact(1, null, 'all');
+        ])->contact(1, 'all');
 
         self::assertSame(3, $statistics['participations']);
         self::assertSame(2, $statistics['wins']);
@@ -54,7 +54,7 @@ final class StatisticsServiceTest extends TestCase
             $rows[] = $this->row($index + 1, sprintf('2026-08-%02d', $index + 1), 1000, $outcome === 'W' ? 1000 : 0, 1000);
         }
 
-        $statistics = $this->service($rows)->contact(1, null, 'all');
+        $statistics = $this->service($rows)->contact(1, 'all');
 
         self::assertSame(['type' => $currentType, 'count' => $currentCount], $statistics['current_streak']);
         self::assertSame($bestWins, $statistics['best_win_streak']);
@@ -83,10 +83,10 @@ final class StatisticsServiceTest extends TestCase
         $service = $this->service($rows);
         $now = new DateTimeImmutable('2026-08-24 12:00:00');
 
-        self::assertSame(['Bob', 'Alice'], array_column($service->leaderboard(null, '30d', 'win_rate', $now)['contacts'], 'name'));
-        self::assertSame(['Bob', 'Alice'], array_column($service->leaderboard(null, '30d', 'total_staked', $now)['contacts'], 'name'));
-        self::assertSame(['Alice', 'Bob'], array_column($service->leaderboard(null, '30d', 'participations', $now)['contacts'], 'name'));
-        self::assertCount(3, $service->leaderboard(null, 'all', 'win_rate', $now)['contacts']);
+        self::assertSame(['Bob', 'Alice'], array_column($service->leaderboard('30d', 'win_rate', $now)['contacts'], 'name'));
+        self::assertSame(['Bob', 'Alice'], array_column($service->leaderboard('30d', 'total_staked', $now)['contacts'], 'name'));
+        self::assertSame(['Alice', 'Bob'], array_column($service->leaderboard('30d', 'participations', $now)['contacts'], 'name'));
+        self::assertCount(3, $service->leaderboard('all', 'win_rate', $now)['contacts']);
     }
 
     public function testBetStatisticsCalculatePotParticipantsAverageMedianMaximumAndDistribution(): void
@@ -170,7 +170,7 @@ final class StatisticsServiceStore implements StatisticsStore
     /** @param list<array<string, mixed>> $settledRows @param list<array<string, mixed>> $stakeRows */
     public function __construct(private readonly array $settledRows, private readonly array $stakeRows) {}
 
-    public function settledContactBets(?int $ownerUserId, ?DateTimeImmutable $from, ?int $contactId = null): array
+    public function settledContactBets(?DateTimeImmutable $from, ?int $contactId = null): array
     {
         return array_values(array_filter($this->settledRows, static fn(array $row): bool =>
             ($contactId === null || $row['contact_id'] === $contactId)
