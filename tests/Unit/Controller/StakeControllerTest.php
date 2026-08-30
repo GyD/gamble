@@ -240,6 +240,26 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('Groupes : Amis, Anciens', (string)$readOnlyResponse->getBody());
     }
 
+    public function testNoGroupLabelIsDisplayedWhenContactHasNoGroup(): void
+    {
+        $this->groups->memberships = [];
+        $this->stakes->create(1, 10, 20, 1250);
+
+        $editableBody = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringNotContainsString('Groupes :', $editableBody);
+        self::assertStringNotContainsString('Sans groupe', $editableBody);
+        self::assertStringContainsString('>Alice · 1234</option>', $editableBody);
+
+        $bet = $this->bets->bets[1];
+        $this->bets->bets[1] = new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, BetStatus::Closed, null, $bet->options);
+
+        $readOnlyBody = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringNotContainsString('Groupes :', $readOnlyBody);
+        self::assertStringNotContainsString('Sans groupe', $readOnlyBody);
+    }
+
     public function testSummarySeparatesPaidAndUnpaidStakesAndExcludesCancelledStakes(): void
     {
         $this->stakes->stakes = [
