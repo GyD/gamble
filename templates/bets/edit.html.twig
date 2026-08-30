@@ -53,7 +53,13 @@
             <div class="bet-option-fields" data-option-fields>
                 {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" value="{{ option.initialProbability is null ? '' : (option.initialProbability * 100)|number_format(2, '.', '') }}" aria-label="Probabilité du choix {{ loop.index }} en %" data-fixed-odds-only data-probability-input{% if bet.bettingMode.value != 'fixed_odds' %} hidden disabled{% endif %}></div>{% endfor %}
             </div>
-            {% if not has_stakes %}<button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>{% endif %}
+            {% if not has_stakes %}
+                <div class="bet-options-actions">
+                    <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>
+                    <button class="button button-secondary" type="button" data-distribute-probabilities data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>Répartir les probabilités</button>
+                </div>
+                <p class="form-help" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>Laissez les probabilités vides pour des choix équiprobables, ou renseignez-les toutes. « Répartir » complète les champs vides avec le pourcentage restant.</p>
+            {% endif %}
         </fieldset>
         <button class="button button-primary" type="submit">Enregistrer</button>
     </form>

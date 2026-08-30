@@ -168,20 +168,14 @@ En `fixed_odds`, chaque option possède :
 
 À l'ouverture : `current_probability = initial_probability`.
 
-Pour un pari à deux options, un assistant simple propose :
+Le formulaire laisse les probabilités vides par défaut. Deux saisies sont
+acceptées : aucune probabilité, auquel cas les choix sont équiprobables, ou une
+probabilité par choix. Une saisie partielle est refusée.
 
-| Préréglage   | Option A        | Option B        |
-|--------------|-----------------|-----------------|
-| 50 / 50      | 50 %            | 50 %            |
-| 52.5 / 47.5  | 52.5 %          | 47.5 %          |
-| 55 / 45      | 55 %            | 45 %            |
-| 60 / 40      | 60 %            | 40 %            |
-| 65 / 35      | 65 %            | 35 %            |
-| 70 / 30      | 70 %            | 30 %            |
-| 80 / 20      | 80 %            | 20 %            |
-| personnalisé | saisie manuelle | saisie manuelle |
-
-Pour trois options ou plus, la saisie est manuelle.
+Le bouton « Répartir » complète uniquement les champs vides en leur partageant
+le pourcentage restant, sans toucher aux valeurs déjà saisies. Avec trois choix
+vides il produit 33.34 / 33.33 / 33.33 ; si un choix est déjà à 60 %, les deux
+champs vides reçoivent 20 % chacun.
 
 Les probabilités sont toujours normalisées afin que leur somme fasse 100 %.
 

@@ -1,6 +1,12 @@
 document.querySelectorAll('[data-add-option]').forEach((button) => {
     button.addEventListener('click', () => {
-        const fields = button.parentElement.querySelector('[data-option-fields]');
+        // Looked up from the fieldset so the button can be wrapped for layout.
+        const fields = button.closest('fieldset')?.querySelector('[data-option-fields]');
+
+        if (!fields) {
+            return;
+        }
+
         const position = fields.children.length + 1;
 
         if (position > 20) {

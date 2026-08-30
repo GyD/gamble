@@ -43,6 +43,12 @@
     text-align: right;
 }
 
+.bet-options-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
 .bet-mode-explanation {
     display: grid;
     gap: var(--space-sm);

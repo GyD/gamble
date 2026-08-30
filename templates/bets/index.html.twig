@@ -52,27 +52,17 @@
                     </select>
                     <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
                 </div>
-                <div class="form-field" data-fixed-odds-only data-probability-presets hidden>
-                    <label for="bet-probability-preset">Probabilités initiales</label>
-                    <select id="bet-probability-preset" data-probability-preset>
-                        <option value="50/50" selected>50 / 50</option>
-                        <option value="52.5/47.5">52.5 / 47.5</option>
-                        <option value="55/45">55 / 45</option>
-                        <option value="60/40">60 / 40</option>
-                        <option value="65/35">65 / 35</option>
-                        <option value="70/30">70 / 30</option>
-                        <option value="80/20">80 / 20</option>
-                        <option value="">Personnalisé</option>
-                    </select>
-                    <p class="form-help">Les probabilités sont normalisées pour totaliser 100 %.</p>
-                </div>
                 <fieldset class="bet-options"><legend>Choix</legend>
                     <p class="form-help">Entre 2 et 20 choix uniques.</p>
                     <div class="bet-option-fields" data-option-fields>
-                        <div class="form-field"><label for="bet-option-1">Choix 1</label><input id="bet-option-1" name="options[]" type="text" maxlength="120" required><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" value="50" aria-label="Probabilité du choix 1 en %" data-fixed-odds-only data-probability-input></div>
-                        <div class="form-field"><label for="bet-option-2">Choix 2</label><input id="bet-option-2" name="options[]" type="text" maxlength="120" required><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" value="50" aria-label="Probabilité du choix 2 en %" data-fixed-odds-only data-probability-input></div>
+                        <div class="form-field"><label for="bet-option-1">Choix 1</label><input id="bet-option-1" name="options[]" type="text" maxlength="120" required><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" aria-label="Probabilité du choix 1 en %" data-fixed-odds-only data-probability-input></div>
+                        <div class="form-field"><label for="bet-option-2">Choix 2</label><input id="bet-option-2" name="options[]" type="text" maxlength="120" required><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" aria-label="Probabilité du choix 2 en %" data-fixed-odds-only data-probability-input></div>
                     </div>
-                    <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>
+                    <div class="bet-options-actions">
+                        <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>
+                        <button class="button button-secondary" type="button" data-distribute-probabilities data-fixed-odds-only>Répartir les probabilités</button>
+                    </div>
+                    <p class="form-help" data-fixed-odds-only>Laissez les probabilités vides pour des choix équiprobables, ou renseignez-les toutes. « Répartir » complète les champs vides avec le pourcentage restant.</p>
                 </fieldset>
                 <button class="button button-primary" type="submit">Créer et ouvrir</button>
             </form>
