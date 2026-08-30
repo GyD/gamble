@@ -200,6 +200,47 @@ final class StakeControllerTest extends TestCase
         self::assertSame(403, $response->getStatusCode());
     }
 
+    public function testGlobalEditorCanManageAnotherOwnersStakes(): void
+    {
+        $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [new BetOption(10, 'Blue', 0)]);
+        $controller = $this->controller(true, true);
+
+        $created = $controller->create(
+            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '15']),
+            new Response(),
+            ['id' => '1'],
+        );
+        $paid = $controller->setPaid(
+            $this->request('POST', ['is_paid' => '1']),
+            new Response(),
+            ['id' => '1', 'stakeId' => '1'],
+        );
+        $body = (string)$controller->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertSame(303, $created->getStatusCode());
+        self::assertSame(303, $paid->getStatusCode());
+        self::assertSame(15, $this->stakes->stakes[1]->amount);
+        self::assertTrue($this->stakes->stakes[1]->isPaid);
+        self::assertStringContainsString('Ajouter une mise', $body);
+    }
+
+    public function testBetsEditAllAloneDoesNotAllowManagingAnotherOwnersStakes(): void
+    {
+        $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, [new BetOption(10, 'Blue', 0)]);
+        $controller = $this->controller(true, false, betsEditAll: true);
+
+        $created = $controller->create(
+            $this->request('POST', ['contact_id' => '20', 'bet_option_id' => '10', 'amount' => '15']),
+            new Response(),
+            ['id' => '1'],
+        );
+        $body = (string)$controller->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertSame(403, $created->getStatusCode());
+        self::assertSame([], $this->stakes->stakes);
+        self::assertStringNotContainsString('Ajouter une mise', $body);
+    }
+
     public function testOtherUsersBetCanOnlyBeReadWithViewAllPermission(): void
     {
         $this->bets->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Open, null, []);
@@ -248,16 +289,25 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('<strong>2 000 $</strong><span>Pot non payé</span>', $body);
     }
 
-    private function controller(bool $viewAll = false): StakeController
+    private function controller(bool $viewAll = false, bool $editAll = false, bool $betsEditAll = false): StakeController
     {
-        $permissions = new class($viewAll) implements PermissionResolver {
-            public function __construct(private readonly bool $viewAll)
+        $permissions = new class($viewAll, $editAll, $betsEditAll) implements PermissionResolver {
+            public function __construct(
+                private readonly bool $viewAll,
+                private readonly bool $editAll,
+                private readonly bool $betsEditAll,
+            )
             {
             }
 
             public function effectFor(int $userId, string $permission): ?string
             {
-                return $permission === 'bets.view_all' && !$this->viewAll ? null : 'allow';
+                return match ($permission) {
+                    'bets.view_all' => $this->viewAll ? 'allow' : null,
+                    'bets.edit_all' => $this->betsEditAll ? 'allow' : null,
+                    'stakes.edit_all' => $this->editAll ? 'allow' : null,
+                    default => 'allow',
+                };
             }
         };
 

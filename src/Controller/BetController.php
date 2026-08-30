@@ -99,7 +99,7 @@ final readonly class BetController
             'can_view_stakes' => $this->authorization->can($actor, 'stakes.view'),
             'statistics' => $this->statistics->bet($bet->id),
             'winners' => $this->stakes->winnings($bet),
-            'can_manage_winnings' => $bet->isOwnedBy($actor->id)
+            'can_manage_winnings' => ($bet->isOwnedBy($actor->id) || $this->canEditAllStakes($request))
                 && $this->authorization->can($actor, 'stakes.edit'),
         ]);
     }
@@ -254,6 +254,11 @@ final readonly class BetController
     private function canEditAll(ServerRequestInterface $request): bool
     {
         return $this->authorization->can($this->actor($request), 'bets.edit_all');
+    }
+
+    private function canEditAllStakes(ServerRequestInterface $request): bool
+    {
+        return $this->authorization->can($this->actor($request), 'stakes.edit_all');
     }
 
     private function actor(ServerRequestInterface $request): User

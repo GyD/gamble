@@ -51,6 +51,24 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('Gain versé', $html);
     }
 
+    public function testWinningsActionsOnAnotherOwnersBetRequireStakesEditAllPermission(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 2, 'Theirs', null, null, BetStatus::Settled, 10, []);
+        $stakes = new ControllerBetStakeStore();
+        $stakes->winners = [
+            ['contact_id' => 20, 'contact_name' => 'Alice', 'winning_stake' => 100, 'payout' => 333, 'is_winnings_paid' => false],
+        ];
+
+        $withoutStakesEditAll = (string)$this->controller($store, true, $stakes, editAll: true, stakesEditAll: false)
+            ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+        $withStakesEditAll = (string)$this->controller($store, true, $stakes, stakesEditAll: true)
+            ->show($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringNotContainsString('/bets/1/winners/20/payment-status', $withoutStakesEditAll);
+        self::assertStringContainsString('/bets/1/winners/20/payment-status', $withStakesEditAll);
+    }
+
     public function testIndexOnlyShowsOwnedBetsWithoutViewAllPermission(): void
     {
         $store = new ControllerBetStore();
@@ -232,19 +250,22 @@ final class BetControllerTest extends TestCase
         bool $viewAll,
         ?ControllerBetStakeStore $stakes = null,
         bool $editAll = false,
+        bool $stakesEditAll = true,
     ): BetController
     {
         $stakes ??= new ControllerBetStakeStore();
-        $permissions = new class($viewAll, $editAll) implements PermissionResolver {
+        $permissions = new class($viewAll, $editAll, $stakesEditAll) implements PermissionResolver {
             public function __construct(
                 private readonly bool $viewAll,
                 private readonly bool $editAll,
+                private readonly bool $stakesEditAll,
             ) {}
             public function effectFor(int $userId, string $permission): ?string
             {
                 return match ($permission) {
                     'bets.view_all' => $this->viewAll ? 'allow' : null,
                     'bets.edit_all' => $this->editAll ? 'allow' : null,
+                    'stakes.edit_all' => $this->stakesEditAll ? 'allow' : null,
                     default => 'allow',
                 };
             }
