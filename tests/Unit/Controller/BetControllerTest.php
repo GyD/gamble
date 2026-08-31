@@ -169,6 +169,11 @@ final class BetControllerTest extends TestCase
 
         self::assertStringContainsString('data-odds-assistant', $html);
         self::assertStringContainsString('/assets/js/odds-assistant.js', $html);
+        // The assistant prices any number of choices from typed probabilities:
+        // no favourite, no predefined advantage level.
+        self::assertStringContainsString('data-assistant-probabilities', $html);
+        self::assertStringNotContainsString('data-assistant-favourite', $html);
+        self::assertStringNotContainsString('data-assistant-level', $html);
     }
 
     public function testTheBetFormsOfferThePricingAssistantOnTheirOddsFields(): void

@@ -76,7 +76,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - cote contractuelle immuable `odds_at_bet` capturée au paiement de la mise `fixed_odds`, la cote annoncée à la création étant conservée dans `quoted_odds` à titre purement informatif ;
 - gain estimé à la cote actuellement proposée tant que la mise n'est pas payée, gain garanti à la cote contractuelle une fois payée ;
 - exposition séparée en dette contractuelle, portée par les seules mises payées à leur cote figée, et projection indicative des mises impayées à la cote actuellement proposée ;
-- assistant facultatif de cotation initiale en `fixed_odds`, préremplissant les cotes à partir d'un niveau d'avantage et d'une marge cible, sans jamais persister de probabilité ;
+- assistant facultatif de cotation initiale en `fixed_odds`, préremplissant les cotes de tous les choix à partir des probabilités saisies et d'une marge cible, sans jamais persister de probabilité ;
 - poids de marché réduit des mises impayées via la configuration `unpaid_bet_market_weight` ;
 - affichage de la cote actuellement proposée en `fixed_odds`, cette cote ne devenant contractuelle qu'au paiement, et purement indicative en `pari_mutuel` ;
 - commission bookmaker propre au `pari_mutuel`, configurable par pari, à 10 % par défaut, prélevée sur le pool lors de la clôture ;
@@ -233,27 +233,22 @@ La commission du `pari_mutuel` est une notion **séparée**, documentée au poin
 
 À la création d'un pari `fixed_odds` ou lors de sa première cotation, un assistant **facultatif** aide à générer les cotes de départ. Il ne remplace pas les champs de cote : il ne fait que les **préremplir**.
 
-Pour un pari à deux choix, le bookmaker désigne le favori puis un niveau d'avantage :
-
-| Niveau            | Probabilités  | Cotes à 10 % de marge cible | Marge réelle |
-|-------------------|---------------|-----------------------------|--------------|
-| Équilibré         | `50 / 50`     | `1.82 / 1.82`               | `9,89 %`     |
-| Très léger favori | `52.5 / 47.5` | `1.73 / 1.91`               | `10,16 %`    |
-| Léger favori      | `55 / 45`     | `1.65 / 2.02`               | `10,11 %`    |
-| Favori            | `60 / 40`     | `1.52 / 2.27`               | `9,84 %`     |
-| Favori net        | `65 / 35`     | `1.40 / 2.60`               | `9,89 %`     |
-| Gros favori       | `70 / 30`     | `1.30 / 3.03`               | `9,93 %`     |
-| Très gros favori  | `80 / 20`     | `1.14 / 4.55`               | `9,70 %`     |
-| Personnalisé      | saisies       | calculées                   | calculée     |
-
-La **marge cible** de l'assistant vaut `10 %` par défaut et ne sert qu'à générer les cotes :
+Le bookmaker saisit une probabilité par choix, quel que soit leur nombre, puis une marge cible. La **marge cible** vaut `10 %` par défaut et ne sert qu'à générer les cotes :
 
 ```text
 probabilité_normalisée = probabilité / somme(probabilités)
 cote = 1 / (probabilité_normalisée × (1 + marge_cible))
 ```
 
-Les probabilités sont toujours normalisées à 100 % avant le calcul, y compris en mode personnalisé. Pour trois choix ou plus, la saisie manuelle des probabilités de départ est facultative et suit la même formule : trois choix équilibrés donnent ainsi `2.73 / 2.73 / 2.73`. Aucun assistant statistique plus élaboré n'est prévu.
+Les probabilités sont toujours normalisées à 100 % avant le calcul : leur somme n'a pas besoin d'être exacte. Aucun niveau d'avantage prédéfini n'est proposé, et aucun assistant statistique plus élaboré n'est prévu.
+
+| Choix saisis           | Probabilités   | Cotes à 10 % de marge cible | Marge réelle |
+|------------------------|----------------|-----------------------------|--------------|
+| Deux choix équilibrés  | `50 / 50`      | `1.82 / 1.82`               | `9,89 %`     |
+| Deux choix, un favori  | `60 / 40`      | `1.52 / 2.27`               | `9,84 %`     |
+| Trois choix équilibrés | `50 / 50 / 50` | `2.73 / 2.73 / 2.73`        | `9,89 %`     |
+
+Les champs de probabilité sont vides au départ : tant qu'un choix n'a pas de probabilité strictement positive, l'assistant refuse de générer les cotes et le signale.
 
 Une fois les cotes générées :
 

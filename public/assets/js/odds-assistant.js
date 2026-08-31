@@ -3,22 +3,18 @@
 // a business parameter of the bet: only the generated odds are submitted.
 document.querySelectorAll('[data-odds-assistant]').forEach((assistant) => {
     const form = assistant.closest('form');
-    const favouriteSelect = assistant.querySelector('[data-assistant-favourite]');
-    const levelSelect = assistant.querySelector('[data-assistant-level]');
-    const customField = assistant.querySelector('[data-assistant-custom]');
     const probabilityFields = assistant.querySelector('[data-assistant-probabilities]');
     const marginInput = assistant.querySelector('[data-assistant-margin]');
     const applyButton = assistant.querySelector('[data-assistant-apply]');
     const result = assistant.querySelector('[data-assistant-result]');
 
-    if (!form || !levelSelect || !marginInput || !applyButton) {
+    if (!form || !marginInput || !applyButton) {
         return;
     }
 
     const formatter = new Intl.NumberFormat('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     const oddsInputs = () => Array.from(form.querySelectorAll('[data-odds-input]')).filter((input) => !input.disabled);
-    const isCustom = () => levelSelect.value === 'custom';
 
     // The label of a choice lives next to its odds input: a text field on the bet
     // form, a row header on the pricing page.
@@ -29,79 +25,50 @@ document.querySelectorAll('[data-odds-assistant]').forEach((assistant) => {
         return typed || header || `Choix ${index + 1}`;
     };
 
-    // Both lists follow the choices of the form, which may still be typed.
+    // One probability field per choice, whatever their number: the assistant
+    // follows the choices of the form, which may still be typed.
     const refreshChoices = () => {
+        if (probabilityFields === null) {
+            return;
+        }
+
         const labels = oddsInputs().map(labelOf);
+        const typed = Array.from(probabilityFields.querySelectorAll('[data-assistant-probability]'))
+            .map((input) => input.value);
 
-        if (favouriteSelect !== null) {
-            const selected = favouriteSelect.value;
-            favouriteSelect.replaceChildren(...labels.map((label, index) => {
-                const option = document.createElement('option');
-                option.value = String(index);
-                option.textContent = label;
+        probabilityFields.replaceChildren(...labels.map((label, index) => {
+            const field = document.createElement('label');
+            field.className = 'odds-assistant-probability';
 
-                return option;
-            }));
-            favouriteSelect.value = selected;
-            favouriteSelect.disabled = labels.length !== 2;
-        }
+            const name = document.createElement('span');
+            name.textContent = label;
 
-        if (probabilityFields !== null) {
-            const typed = Array.from(probabilityFields.querySelectorAll('[data-assistant-probability]'))
-                .map((input) => input.value);
-            probabilityFields.replaceChildren(...labels.map((label, index) => {
-                const field = document.createElement('label');
-                field.className = 'odds-assistant-probability';
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0.01';
+            input.max = '100';
+            input.step = '0.01';
+            input.value = typed[index] ?? '';
+            input.dataset.assistantProbability = '';
+            input.setAttribute('aria-label', `Probabilité du choix ${label}`);
 
-                const name = document.createElement('span');
-                name.textContent = label;
+            field.append(name, input);
 
-                const input = document.createElement('input');
-                input.type = 'number';
-                input.min = '0.01';
-                input.max = '100';
-                input.step = '0.01';
-                input.value = typed[index] ?? '';
-                input.dataset.assistantProbability = '';
-                input.setAttribute('aria-label', `Probabilité du choix ${label}`);
-
-                field.append(name, input);
-
-                return field;
-            }));
-        }
+            return field;
+        }));
     };
 
-    // Only a two-choice book can be described by a favourite and an advantage
-    // level. Beyond that, choices are equally likely unless typed by hand.
-    const probabilities = (count) => {
-        if (isCustom()) {
-            return Array.from(assistant.querySelectorAll('[data-assistant-probability]'))
-                .slice(0, count)
-                .map((input) => Number(input.value));
-        }
-
-        if (count !== 2) {
-            return Array.from({length: count}, () => 1);
-        }
-
-        const favourite = Number(levelSelect.value);
-        const favouriteIndex = Number(favouriteSelect?.value || 0);
-
-        return favouriteIndex === 0 ? [favourite, 100 - favourite] : [100 - favourite, favourite];
-    };
+    // The probabilities are typed by the bookmaker, one per choice, and are only
+    // normalised at computation time: no predefined distribution is assumed.
+    const probabilities = (count) => Array.from(assistant.querySelectorAll('[data-assistant-probability]'))
+        .slice(0, count)
+        .map((input) => Number(input.value));
 
     // cote = 1 / (probabilite_normalisee x (1 + marge_cible))
     const oddsFrom = (values, margin) => {
         const total = values.reduce((sum, value) => sum + value, 0);
 
         return values.map((value) => Math.round((1 / ((value / total) * (1 + margin))) * 100) / 100);
-    };
-
-    const toggleCustom = () => {
-        if (customField !== null) {
-            customField.hidden = !isCustom();
-        }
     };
 
     const apply = () => {
@@ -135,7 +102,6 @@ document.querySelectorAll('[data-odds-assistant]').forEach((assistant) => {
         }
     };
 
-    levelSelect.addEventListener('change', toggleCustom);
     applyButton.addEventListener('click', apply);
     assistant.addEventListener('toggle', refreshChoices);
     // The bet form adds and removes choices on the fly: follow them.
@@ -146,6 +112,5 @@ document.querySelectorAll('[data-odds-assistant]').forEach((assistant) => {
         }
     });
 
-    toggleCustom();
     refreshChoices();
 });
