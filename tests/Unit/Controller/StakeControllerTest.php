@@ -309,6 +309,23 @@ final class StakeControllerTest extends TestCase
         self::assertStringNotContainsString('gain estimé si encaissée', $body);
     }
 
+    public function testUnpaidStakeKeepingItsContractualOddsIsNotShownAsAnEstimation(): void
+    {
+        // Unpaid again after a first payment: the contract stays attached to the
+        // stake, so it must not be presented as a price still to be fixed.
+        $this->stakes->stakes = [
+            1 => new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, false, false, null, 3.00, null, 3.00),
+        ];
+
+        $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('Cote contractuelle : 3,00', $body);
+        self::assertStringContainsString('Gain garanti si gagnant : 3 000 $', $body);
+        self::assertStringContainsString('un nouvel encaissement ne la recotera pas', $body);
+        self::assertStringNotContainsString('gain estimé si encaissée', $body);
+        self::assertStringNotContainsString('Rien n\'est encore contractuel', $body);
+    }
+
     private function controller(): StakeController
     {
         $permissions = new class implements PermissionResolver {

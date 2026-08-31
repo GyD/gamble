@@ -79,15 +79,20 @@
                     {% if stake.isCancelled %}<span class="stake-cancellation-status">Mise annulée</span>{% endif %}
                     {% if stake.contactArchived %}<span class="stake-archived-status">Contact archivé</span>{% endif %}
                 </div>
+                {#
+                    The payout shown follows the existence of a contractual odds,
+                    never the payment flag alone: a stake unpaid again, or
+                    refunded, keeps the odds captured at its first payment, and
+                    paying it again never reprices it.
+                #}
                 {% if bet.bettingMode.value == 'fixed_odds' %}
-                    {% if stake.isPaid %}
+                    {% if stake.hasContractualOdds %}
                         <p class="form-help">
-                            {% if stake.hasContractualOdds %}
-                                Cote contractuelle : {{ stake.oddsAtBet|number_format(2, ',', ' ') }} — figée à l'encaissement de la mise. Gain garanti si gagnant : {{ stake.potentialPayout|number_format(0, ',', ' ') }} $.
-                            {% else %}
-                                Aucune cote contractuelle : cette mise sera remboursée à hauteur de son montant si elle gagne.
-                            {% endif %}
+                            Cote contractuelle : {{ stake.oddsAtBet|number_format(2, ',', ' ') }} — figée au premier encaissement de la mise. Gain garanti si gagnant : {{ stake.potentialPayout|number_format(0, ',', ' ') }} $.
+                            {% if not stake.isPaid %}Cette mise n'est plus encaissée, mais sa cote reste acquise : un nouvel encaissement ne la recotera pas.{% endif %}
                         </p>
+                    {% elseif stake.isPaid %}
+                        <p class="form-help">Aucune cote contractuelle : cette mise sera remboursée à hauteur de son montant si elle gagne.</p>
                     {% else %}
                         {#
                             The unpaid stake has no contract yet: it is projected at
