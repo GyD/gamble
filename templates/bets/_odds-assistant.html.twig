@@ -1,0 +1,49 @@
+{#
+    Optional pricing assistant. It never prices anything by itself: it only
+    prefills the odds inputs of the form it belongs to, and the bookmaker stays
+    free to correct them afterwards. No probability is ever persisted: they are a
+    typing tool, and only the resulting odds are submitted.
+
+    The choices are read from the form itself, so the assistant follows the
+    choices being typed as well as the ones already saved.
+
+    `fixed_odds_only` marks the block as belonging to the fixed odds mode, so the
+    bet form hides it when the pari mutuel mode is selected. `hidden` is its
+    initial state on server render.
+#}
+<details class="odds-assistant" data-odds-assistant{% if fixed_odds_only|default(false) %} data-fixed-odds-only{% endif %}{% if hidden|default(false) %} hidden{% endif %}>
+    <summary>Assistant de cotation <span class="form-help">(facultatif)</span></summary>
+    <p class="form-help">Générez des cotes de départ à partir d'un niveau d'avantage et d'une marge cible. Les cotes obtenues sont de simples cotes saisies : corrigez-les librement avant de valider.</p>
+    <div class="form-field">
+        <label for="odds-assistant-favourite">Favori</label>
+        <select id="odds-assistant-favourite" data-assistant-favourite></select>
+    </div>
+    <div class="form-field">
+        <label for="odds-assistant-level">Niveau d'avantage</label>
+        <select id="odds-assistant-level" data-assistant-level>
+            <option value="50" selected>Équilibré — 50 / 50</option>
+            <option value="52.5">Très léger favori — 52,5 / 47,5</option>
+            <option value="55">Léger favori — 55 / 45</option>
+            <option value="60">Favori — 60 / 40</option>
+            <option value="65">Favori net — 65 / 35</option>
+            <option value="70">Gros favori — 70 / 30</option>
+            <option value="80">Très gros favori — 80 / 20</option>
+            <option value="custom">Personnalisé — probabilités saisies</option>
+        </select>
+        <p class="form-help">Les niveaux prédéfinis ne concernent qu'un pari à deux choix. Au-delà, les probabilités sont réparties également, ou saisies en mode personnalisé.</p>
+    </div>
+    <div class="form-field" data-assistant-custom hidden>
+        <span class="form-field-label">Probabilités (%)</span>
+        <div data-assistant-probabilities></div>
+        <p class="form-help">Les probabilités sont normalisées à 100 % avant le calcul : leur somme n'a pas besoin d'être exacte.</p>
+    </div>
+    <div class="form-field">
+        <label for="odds-assistant-margin">Marge cible (%)</label>
+        <input id="odds-assistant-margin" type="number" min="0" max="50" step="0.01" value="10" data-assistant-margin>
+        <p class="form-help">La marge cible ne sert qu'à générer les cotes. Elle n'est pas un paramètre du pari et n'est jamais enregistrée.</p>
+    </div>
+    <div class="bet-options-actions">
+        <button class="button button-secondary" type="button" data-assistant-apply>Préremplir les cotes</button>
+    </div>
+    <p class="form-help" data-assistant-result aria-live="polite">Marge réellement portée par les cotes générées : calculée après le préremplissage.</p>
+</details>

@@ -64,6 +64,7 @@
                     </div>
                     <p class="form-help" data-fixed-odds-only>Saisissez la cote de chaque choix, ou laissez-les toutes vides et cotez plus tard : un choix sans cote n'accepte aucune mise. Votre marge est l'écart entre 100 % et la somme des inverses des cotes.</p>
                 </fieldset>
+                {% include 'bets/_odds-assistant.html.twig' with {fixed_odds_only: true} %}
                 <button class="button button-primary" type="submit">Créer et ouvrir</button>
             </form>
         </details>
@@ -114,4 +115,5 @@
 
     <script src="/assets/js/bet-options.js" defer></script>
     <script src="/assets/js/bet-market.js" defer></script>
+    <script src="/assets/js/odds-assistant.js" defer></script>
 {% endblock %}

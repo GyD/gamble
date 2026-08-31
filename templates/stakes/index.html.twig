@@ -50,7 +50,8 @@
                     <div class="form-field"><label for="stake-option">Choix</label><select id="stake-option" name="bet_option_id" data-stake-option required><option value="">Sélectionner</option>{% for option in bet.options %}<option value="{{ option.id }}"{% if bet.bettingMode.value == 'fixed_odds' %}{% if option.offeredOdds is null %} disabled{% else %} data-odds="{{ option.offeredOdds|number_format(2, '.', '') }}"{% endif %}{% endif %}>{{ option.label }}{% if bet.bettingMode.value == 'fixed_odds' %} — {{ option.offeredOdds is null ? 'non coté' : 'cote ' ~ option.offeredOdds|number_format(2, ',', ' ') }}{% endif %}</option>{% endfor %}</select></div>
                     <div class="form-field"><label for="stake-amount">Montant</label><input id="stake-amount" name="amount" type="number" min="1" max="999999" step="1" inputmode="numeric" data-stake-amount required></div>
                     {% if bet.bettingMode.value == 'fixed_odds' %}
-                        <p class="form-help" data-stake-payout aria-live="polite">Choisissez un choix coté et un montant pour voir le gain garanti.</p>
+                        <p class="form-help" data-stake-payout aria-live="polite">Choisissez un choix coté et un montant pour voir le gain estimé.</p>
+                        <p class="form-help">La cote annoncée est indicative : la cote contractuelle sera figée à l'encaissement de la mise, à celle proposée à ce moment-là.</p>
                     {% endif %}
                     <button class="button button-primary" type="submit">Ajouter</button>
                 </form>
@@ -79,13 +80,27 @@
                     {% if stake.contactArchived %}<span class="stake-archived-status">Contact archivé</span>{% endif %}
                 </div>
                 {% if bet.bettingMode.value == 'fixed_odds' %}
-                    <p class="form-help">
-                        {% if stake.oddsAtBet is not null %}
-                            Cote contractuelle : {{ stake.oddsAtBet|number_format(2, ',', ' ') }} — figée à la création de la mise. Gain si gagnant : {{ stake.potentialPayout|number_format(0, ',', ' ') }} $.
-                        {% else %}
-                            Aucune cote contractuelle : cette mise sera remboursée à hauteur de son montant si elle gagne.
-                        {% endif %}
-                    </p>
+                    {% if stake.isPaid %}
+                        <p class="form-help">
+                            {% if stake.hasContractualOdds %}
+                                Cote contractuelle : {{ stake.oddsAtBet|number_format(2, ',', ' ') }} — figée à l'encaissement de la mise. Gain garanti si gagnant : {{ stake.potentialPayout|number_format(0, ',', ' ') }} $.
+                            {% else %}
+                                Aucune cote contractuelle : cette mise sera remboursée à hauteur de son montant si elle gagne.
+                            {% endif %}
+                        </p>
+                    {% else %}
+                        {#
+                            The unpaid stake has no contract yet: it is projected at
+                            the price currently offered on its own choice.
+                        #}
+                        {% set stake_option = bet.options|filter(option => option.id == stake.betOptionId)|first %}
+                        {% set projected_odds = stake_option ? stake_option.offeredOdds : null %}
+                        <p class="form-help">
+                            {{ stake.quotedOdds is null ? 'Aucune cote annoncée à la prise de la mise.' : 'Cote annoncée à la prise : ' ~ stake.quotedOdds|number_format(2, ',', ' ') ~ '.' }}
+                            {{ projected_odds is null ? 'Ce choix n\'est plus coté : à l\'encaissement, la mise serait simplement remboursée si elle gagne.' : 'Cote actuellement proposée : ' ~ projected_odds|number_format(2, ',', ' ') ~ ' — gain estimé si encaissée maintenant et gagnante : ' ~ stake.payoutAt(projected_odds)|number_format(0, ',', ' ') ~ ' $.' }}
+                        </p>
+                        <p class="form-help">Rien n'est encore contractuel : la cote sera figée au moment de l'encaissement, à celle proposée alors.</p>
+                    {% endif %}
                 {% endif %}
                 {% if stake.finalPayout is not null %}
                     <p class="stake-payout"><span>Gain final</span><strong>{{ stake.finalPayout|number_format(0, ',', ' ') }} $</strong></p>

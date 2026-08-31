@@ -279,6 +279,36 @@ final class StakeControllerTest extends TestCase
         self::assertStringContainsString('<strong>2 000 $</strong><span>Pot non payé</span>', $body);
     }
 
+    public function testUnpaidStakeShowsTheAnnouncedOddsAndAnEstimatedPayout(): void
+    {
+        // Announced at 3.00 but now offered at 2.00: the projection follows the
+        // current price, since nothing is contracted yet.
+        $this->stakes->stakes = [
+            1 => new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, false, false, null, null, null, 3.00),
+        ];
+
+        $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('Cote annoncée à la prise : 3,00', $body);
+        self::assertStringContainsString('Cote actuellement proposée : 2,00', $body);
+        self::assertStringContainsString('gain estimé si encaissée maintenant et gagnante : 2 000 $', $body);
+        self::assertStringNotContainsString('Cote contractuelle', $body);
+    }
+
+    public function testPaidStakeShowsItsContractualOddsAndAGuaranteedPayout(): void
+    {
+        $this->stakes->stakes = [
+            1 => new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true, false, null, 3.00, null, 3.00),
+        ];
+
+        $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('Cote contractuelle : 3,00', $body);
+        self::assertStringContainsString('Gain garanti si gagnant : 3 000 $', $body);
+        // No projection on a paid stake: its debt is contracted.
+        self::assertStringNotContainsString('gain estimé si encaissée', $body);
+    }
+
     private function controller(): StakeController
     {
         $permissions = new class implements PermissionResolver {
@@ -332,30 +362,41 @@ final class ControllerStakeStore implements StakeStore
         return $this->findById($id);
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
     {
         $id = count($this->stakes) + 1;
-        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, false, false, null, $oddsAtBet, new DateTimeImmutable());
+        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, false, false, null, null, new DateTimeImmutable(), $quotedOdds);
     }
 
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake
     {
         $stake = $this->stakes[$id];
-        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
+        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', 'Blue', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt, $stake->quotedOdds);
+    }
+
+    public function captureOddsAtBet(int $id, float $oddsAtBet): Stake
+    {
+        $stake = $this->stakes[$id];
+        // Same guard as the real store: the contract is written only once.
+        if ($stake->hasContractualOdds()) {
+            return $stake;
+        }
+
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $oddsAtBet, $stake->createdAt, $stake->quotedOdds);
     }
 
     public function setPaid(int $id, bool $isPaid): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt, $stake->quotedOdds);
     }
 
     public function setCancelled(int $id, bool $isCancelled): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt, $stake->quotedOdds);
     }
 
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}

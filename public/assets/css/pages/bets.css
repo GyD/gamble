@@ -49,6 +49,42 @@
     gap: var(--space-md);
 }
 
+.odds-assistant {
+    display: grid;
+    gap: var(--space-md);
+    padding: var(--space-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-background);
+}
+
+.odds-assistant > summary {
+    width: fit-content;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.odds-assistant .form-field-label {
+    font-weight: 700;
+}
+
+.odds-assistant-probability {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding: var(--space-xs) 0;
+}
+
+.odds-assistant-probability input {
+    width: 6rem;
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    text-align: right;
+}
+
 .bet-mode-explanation {
     display: grid;
     gap: var(--space-sm);

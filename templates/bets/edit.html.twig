@@ -56,6 +56,7 @@
             {% endif %}
             <p class="form-help" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>Saisissez la cote de chaque choix, ou laissez-les toutes vides : un choix sans cote n'accepte aucune mise. La marge se lit dans les cotes elles-mêmes.</p>
         </fieldset>
+        {% include 'bets/_odds-assistant.html.twig' with {fixed_odds_only: true, hidden: bet.bettingMode.value != 'fixed_odds'} %}
         <button class="button button-primary" type="submit">Enregistrer</button>
     </form>
     {% if bet.bettingMode.value == 'fixed_odds' %}
@@ -63,4 +64,5 @@
     {% endif %}
     <script src="/assets/js/bet-options.js" defer></script>
     <script src="/assets/js/bet-market.js" defer></script>
+    <script src="/assets/js/odds-assistant.js" defer></script>
 {% endblock %}

@@ -30,6 +30,7 @@ final readonly class FixedOddsMarketService implements MarketService
     public function quote(Bet $bet, array $stakes): MarketQuote
     {
         $optionIds = $this->optionIds($bet);
+        $pricedOdds = $this->pricedOdds($bet);
         $effective = $this->aggregator->effectiveByOption($optionIds, $stakes, $this->settings->unpaidBetMarketWeight);
         $volume = $this->aggregator->effectiveVolume(
             $optionIds,
@@ -37,15 +38,18 @@ final readonly class FixedOddsMarketService implements MarketService
             $this->settings->unpaidBetMarketWeight,
             $bet->oddsAnchoredAt,
         );
+        // Stakes waiting for payment carry no contract yet: they are projected
+        // at the priced odds so they still orient the drift.
         $exposure = $this->aggregator->potentialPayoutByOption(
             $optionIds,
             $stakes,
             $this->settings->unpaidBetMarketWeight,
             $bet->oddsAnchoredAt,
+            $pricedOdds,
         );
 
         $odds = $this->drift->apply(
-            $this->pricedOdds($bet),
+            $pricedOdds,
             $exposure,
             $this->settings->oddsDrift($bet->oddsEvolutionMode, $volume),
             $this->settings->minimumOdds,

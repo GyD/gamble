@@ -26,7 +26,7 @@ final class ExposureCalculatorTest extends TestCase
     {
         $exposure = $this->calculator->calculate($this->bet(), [
             $this->stake(1, 10, 100, true, 2.00),
-            $this->stake(2, 10, 200, false, 3.00),
+            $this->unpaidStake(2, 10, 200, 3.00),
         ]);
 
         $option = $exposure->option(10);
@@ -34,9 +34,42 @@ final class ExposureCalculatorTest extends TestCase
         self::assertSame(100, $option?->paidStake);
         self::assertSame(200, $option?->unpaidStake);
         self::assertSame(200, $option?->paidPayout);
-        self::assertSame(600, $option?->unpaidPayout);
+        // Projected at the 2.00 currently offered, not at the 3.00 announced.
+        self::assertSame(400, $option?->unpaidPayout);
         self::assertSame(300, $option?->totalStake());
-        self::assertSame(800, $option?->totalPayout());
+        self::assertSame(600, $option?->totalPayout());
+    }
+
+    public function testContractualDebtOnlyCountsThePaidStakes(): void
+    {
+        $exposure = $this->calculator->calculate($this->bet(), [
+            $this->stake(1, 10, 100, true, 2.00),
+            $this->unpaidStake(2, 11, 300, 2.00),
+        ]);
+
+        // 200 is owed for real; the 600 of the unpaid stake is only a projection.
+        self::assertSame(200, $exposure->contractualPayout());
+        self::assertSame(600, $exposure->indicativePayout());
+    }
+
+    public function testTheIndicativeProjectionFollowsTheOfferedOdds(): void
+    {
+        $stakes = [$this->unpaidStake(1, 10, 100, 4.00)];
+
+        $atFour = $this->calculator->calculate($this->bet(4.00), $stakes);
+        $atOnePointOne = $this->calculator->calculate($this->bet(1.10), $stakes);
+
+        // Nothing is contracted, so the projection moves with the market.
+        self::assertSame(0, $atFour->contractualPayout());
+        self::assertSame(400, $atFour->indicativePayout());
+        self::assertSame(110, $atOnePointOne->indicativePayout());
+    }
+
+    public function testAnUnpaidStakeOnAnUnpricedOptionIsOnlyWorthItsOwnAmount(): void
+    {
+        $exposure = $this->calculator->calculate($this->bet(null), [$this->unpaidStake(1, 10, 250, 2.00)]);
+
+        self::assertSame(250, $exposure->indicativePayout());
     }
 
     public function testPayoutsComeFromTheOddsFrozenOnEachStake(): void
@@ -82,7 +115,7 @@ final class ExposureCalculatorTest extends TestCase
     {
         $exposure = $this->calculator->calculate($this->bet(), [
             $this->stake(1, 10, 300, true, 2.00),
-            $this->stake(2, 11, 700, false, 2.00),
+            $this->unpaidStake(2, 11, 700, 2.00),
         ]);
 
         // Only 300 is collected today, but 1000 will be once everything is paid.
@@ -112,5 +145,11 @@ final class ExposureCalculatorTest extends TestCase
     private function stake(int $id, int $optionId, int $amount, bool $isPaid, ?float $oddsAtBet = null): Stake
     {
         return new Stake($id, 1, $optionId, 20 + $id, $amount, 'Alice', 'Blue', false, $isPaid, false, null, $oddsAtBet);
+    }
+
+    /** An unpaid stake only carries the odds announced to the bettor. */
+    private function unpaidStake(int $id, int $optionId, int $amount, ?float $quotedOdds = null): Stake
+    {
+        return new Stake($id, 1, $optionId, 20 + $id, $amount, 'Alice', 'Blue', false, false, false, null, null, null, $quotedOdds);
     }
 }

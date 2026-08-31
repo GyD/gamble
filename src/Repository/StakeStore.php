@@ -17,12 +17,20 @@ interface StakeStore
     public function findByIdForUpdate(int $id): ?Stake;
 
     /**
-     * @param float|null $oddsAtBet odds frozen on the stake, the contract passed
-     *        with the bettor; they are never recomputed afterwards
+     * @param float|null $quotedOdds odds announced to the bettor at creation;
+     *        purely informative, they never take part in a settlement
      */
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake;
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake;
 
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake;
+
+    /**
+     * Writes the contractual odds of a stake, at payment.
+     *
+     * Must only be called on a stake without contractual odds: they are the
+     * contract passed with the bettor and are never recomputed afterwards.
+     */
+    public function captureOddsAtBet(int $id, float $oddsAtBet): Stake;
 
     public function setPaid(int $id, bool $isPaid): Stake;
 

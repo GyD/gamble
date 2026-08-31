@@ -10,8 +10,10 @@ use App\Domain\Stake\Stake;
 /**
  * Builds the exposure of the bookmaker on a bet.
  *
- * Every payout is computed from the odds frozen on each stake, never from the
- * odds currently offered: what the bookmaker owes is already contractual.
+ * Two natures of engagement are kept strictly apart. A paid stake owes its
+ * frozen `odds_at_bet`: that debt is contractual and never recomputed. An unpaid
+ * stake owes nothing yet, so it is only projected at the odds currently offered:
+ * that figure is an estimation, and it moves with the market.
  */
 final readonly class ExposureCalculator
 {
@@ -34,7 +36,8 @@ final readonly class ExposureCalculator
                     continue;
                 }
                 $unpaidStake += $stake->amount;
-                $unpaidPayout += $stake->potentialPayout();
+                // Projected at today's price: this stake has no contract yet.
+                $unpaidPayout += $stake->payoutAt($option->offeredOdds);
             }
             $options[] = new OptionExposure(
                 $option->id,

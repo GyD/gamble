@@ -1,6 +1,7 @@
-// Shows the guaranteed payout of a fixed odds stake before it is created, using
-// the odds currently offered on the selected choice. The server freezes those
-// same odds on the stake, so the figure shown is the contract about to be made.
+// Shows the payout a fixed odds stake would be worth before it is created, using
+// the odds currently offered on the selected choice. Those odds are only quoted:
+// the contractual ones are captured when the stake is paid, so the figure shown
+// is an estimation, not a debt already contracted.
 document.querySelectorAll('[data-stake-payout]').forEach((output) => {
     const form = output.closest('form');
     const optionSelect = form?.querySelector('[data-stake-option]');
@@ -18,14 +19,14 @@ document.querySelectorAll('[data-stake-payout]').forEach((output) => {
         const amount = Number(amountInput.value);
 
         if (!Number.isFinite(odds) || odds <= 0 || !Number.isFinite(amount) || amount <= 0) {
-            output.textContent = 'Choisissez un choix coté et un montant pour voir le gain garanti.';
+            output.textContent = 'Choisissez un choix coté et un montant pour voir le gain estimé.';
 
             return;
         }
 
         // Same rounding as the server: a won stake never pays less than itself.
         const payout = Math.max(amount, Math.round(amount * odds));
-        output.textContent = `Cote ${formatter.format(odds)} — gain garanti si gagnant : ${formatter.format(payout)} $.`;
+        output.textContent = `Cote annoncée ${formatter.format(odds)} — gain estimé si encaissée à cette cote et gagnante : ${formatter.format(payout)} $.`;
     };
 
     optionSelect.addEventListener('change', refresh);

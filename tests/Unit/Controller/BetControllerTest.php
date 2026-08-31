@@ -136,6 +136,62 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('-300 $', $html);
     }
 
+    public function testTheOddsPageSeparatesTheContractualDebtFromTheProjection(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Mine', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 1, 2.00, 2.00),
+            new BetOption(11, 'Red', 2, 2.00, 2.00),
+        ]);
+        $stakes = new ControllerBetStakeStore();
+        $stakes->stakes = [
+            new Stake(1, 1, 10, 20, 300, 'Alice', 'Blue', false, true, false, null, 2.00),
+            new Stake(2, 1, 11, 21, 500, 'Bob', 'Red', false, false, false, null, null, null, 2.00),
+        ];
+
+        $html = (string) $this->controller($store, $stakes)
+            ->odds($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('Dette contractuelle', $html);
+        self::assertStringContainsString('Projection des impayés', $html);
+        // 600 owed for real, 1 000 only projected on the unpaid stake.
+        self::assertStringContainsString('<strong>600 $</strong><span>Dette contractuelle</span>', $html);
+        self::assertStringContainsString('<strong>1 000 $</strong><span>Projection des impayés</span>', $html);
+    }
+
+    public function testTheOddsPageOffersThePricingAssistant(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = $this->bet(1, 1, 'Mine');
+
+        $html = (string) $this->controller($store)
+            ->odds($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        self::assertStringContainsString('data-odds-assistant', $html);
+        self::assertStringContainsString('/assets/js/odds-assistant.js', $html);
+    }
+
+    public function testTheBetFormsOfferThePricingAssistantOnTheirOddsFields(): void
+    {
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Mine', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 1, 2.00, 2.00),
+            new BetOption(11, 'Red', 2, 2.00, 2.00),
+        ]);
+        $controller = $this->controller($store);
+
+        $createHtml = (string) $controller->index($this->request('GET'), new Response())->getBody();
+        $editHtml = (string) $controller->edit($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        foreach ([$createHtml, $editHtml] as $html) {
+            // The assistant only prefills odds inputs, so it belongs to the
+            // fixed odds mode and is hidden with them.
+            self::assertStringContainsString('data-odds-assistant data-fixed-odds-only', $html);
+            self::assertSame(2, substr_count($html, 'data-odds-input'));
+            self::assertStringContainsString('/assets/js/odds-assistant.js', $html);
+        }
+    }
+
     public function testIndexShowsLinkToBetStakes(): void
     {
         $store = new ControllerBetStore();
@@ -375,8 +431,9 @@ final class ControllerBetStakeStore implements StakeStore
     public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
     public function findByIdForUpdate(int $id): ?Stake { return $this->findById($id); }
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake { throw new \LogicException(); }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake { throw new \LogicException(); }
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
+    public function captureOddsAtBet(int $id, float $oddsAtBet): Stake { throw new \LogicException(); }
     public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}

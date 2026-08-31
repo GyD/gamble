@@ -49,10 +49,10 @@ final readonly class StakeService
             $bet = $this->mutableBet($betId);
             $this->assertOptionBelongsToBet($bet, $betOptionId);
             $this->activeContact($contactId);
-            // The odds currently offered become the contract passed with the
-            // bettor: they are frozen on the stake and never recomputed.
-            $oddsAtBet = $this->contractualOdds($bet, $betOptionId);
-            $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amount, $oddsAtBet);
+            // Only the price announced to the bettor is recorded here. The
+            // contract is signed at payment, so no odds are frozen yet.
+            $quotedOdds = $this->quotedOdds($bet, $betOptionId);
+            $stake = $this->stakes->create($betId, $betOptionId, $contactId, $amount, $quotedOdds);
             $this->auditLogs->record($actorUserId, 'stake.created', 'stake', (string)$stake->id, null, $this->snapshot($stake), $ipAddress);
 
             return $stake;
@@ -103,7 +103,7 @@ final readonly class StakeService
     public function setPaid(int $actorUserId, int $betId, int $stakeId, bool $isPaid, ?string $ipAddress): Stake
     {
         return $this->transactional(function () use ($actorUserId, $betId, $stakeId, $isPaid, $ipAddress): Stake {
-            $this->mutableBet($betId);
+            $bet = $this->mutableBet($betId);
             $before = $this->lockedStakeForBet($stakeId, $betId);
             if ($before->isCancelled && $isPaid) {
                 throw new InvalidArgumentException('Cancelled stakes cannot be marked paid.');
@@ -111,7 +111,10 @@ final readonly class StakeService
             if ($before->contactArchived) {
                 throw new InvalidArgumentException('Archived contacts cannot have their stakes changed.');
             }
-            // Paying a stake only settles the cash: the odds were frozen at creation.
+            // Payment is the moment the contract is signed: the odds currently
+            // offered are captured before the payment moves the market, so a
+            // stake is never paid at a price it moved itself.
+            $this->captureContractualOdds($bet, $before, $isPaid);
             $after = $this->stakes->setPaid($stakeId, $isPaid);
             $this->auditLogs->record($actorUserId, 'stake.payment_status_changed', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
@@ -229,13 +232,13 @@ final readonly class StakeService
     }
 
     /**
-     * Odds to freeze on a stake being created.
+     * Odds announced to the bettor when the stake is created.
      *
-     * Pari mutuel stakes carry no contract: their payout only comes out of the
-     * pool at settlement. A fixed odds option that is still unpriced accepts no
-     * stake, since there would be nothing to contract on.
+     * Pari mutuel stakes carry no price: their payout only comes out of the pool
+     * at settlement. A fixed odds option that is still unpriced accepts no
+     * stake, since there would be nothing to announce.
      */
-    private function contractualOdds(Bet $bet, int $betOptionId): ?float
+    private function quotedOdds(Bet $bet, int $betOptionId): ?float
     {
         if (!$bet->isFixedOdds()) {
             return null;
@@ -246,6 +249,29 @@ final readonly class StakeService
         }
 
         return $odds;
+    }
+
+    /**
+     * Captures the contractual odds of a stake becoming paid, once and for all.
+     *
+     * Only the first move to a truly paid state signs a contract. Unpaying a
+     * stake never clears its odds, and paying it again never reprices it: the
+     * historical commitment stays attached to the stake. Refund handling goes
+     * through the same payment flag, and is a cash correction rather than a new
+     * contract, so it must never capture anything either.
+     */
+    private function captureContractualOdds(Bet $bet, Stake $stake, bool $isPaid): void
+    {
+        if (!$isPaid || !$bet->isFixedOdds() || $stake->hasContractualOdds()) {
+            return;
+        }
+
+        $odds = $this->market->currentOdds($bet, $stake->betOptionId);
+        if ($odds === null) {
+            throw new InvalidArgumentException('This option has no odds yet: price it before paying the stake.');
+        }
+
+        $this->stakes->captureOddsAtBet($stake->id, $odds);
     }
 
     private function activeContact(int $contactId): void
@@ -308,6 +334,7 @@ final readonly class StakeService
             'bet_option_id' => $stake->betOptionId,
             'contact_id' => $stake->contactId,
             'amount' => $stake->amount,
+            'quoted_odds' => $stake->quotedOdds,
             'odds_at_bet' => $stake->oddsAtBet,
             'is_paid' => $stake->isPaid,
             'is_cancelled' => $stake->isCancelled,

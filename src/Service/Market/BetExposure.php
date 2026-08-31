@@ -29,6 +29,18 @@ final readonly class BetExposure
         return $this->sum(static fn(OptionExposure $option): int => $option->unpaidStake);
     }
 
+    /** Debt already contracted across every option, at the odds frozen on the paid stakes. */
+    public function contractualPayout(): int
+    {
+        return $this->sum(static fn(OptionExposure $option): int => $option->paidPayout);
+    }
+
+    /** Projection of the unpaid stakes across every option, at the odds currently offered. */
+    public function indicativePayout(): int
+    {
+        return $this->sum(static fn(OptionExposure $option): int => $option->unpaidPayout);
+    }
+
     public function totalStake(): int
     {
         return $this->paidStake() + $this->unpaidStake();

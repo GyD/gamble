@@ -40,11 +40,15 @@ final readonly class StakeAggregator
      *
      * The drift direction is read from what the bookmaker owes, not from what
      * was staked: two stakes of the same amount taken at different odds do not
-     * expose the book the same way. Only the stakes placed after the odds were
-     * priced count, so correcting the odds restarts the drift.
+     * expose the book the same way. A stake still without contractual odds is
+     * projected at the odds given for its option, so an unpaid stake keeps
+     * orienting the drift instead of counting for its bare amount. Only the
+     * stakes placed after the odds were priced count, so correcting the odds
+     * restarts the drift.
      *
      * @param list<int> $optionIds
      * @param list<Stake> $stakes
+     * @param array<int, float|null> $projectedOdds odds used for the stakes without contract
      * @return array<int, float>
      */
     public function potentialPayoutByOption(
@@ -52,13 +56,17 @@ final readonly class StakeAggregator
         array $stakes,
         float $unpaidWeight,
         ?DateTimeImmutable $since = null,
+        array $projectedOdds = [],
     ): array {
         $totals = array_fill_keys($optionIds, 0.0);
         foreach ($stakes as $stake) {
             if (!array_key_exists($stake->betOptionId, $totals) || !$stake->isPlacedAfter($since)) {
                 continue;
             }
-            $totals[$stake->betOptionId] += (float) $stake->potentialPayout() * $stake->marketWeight($unpaidWeight);
+            $payout = $stake->hasContractualOdds()
+                ? $stake->potentialPayout()
+                : $stake->payoutAt($projectedOdds[$stake->betOptionId] ?? null);
+            $totals[$stake->betOptionId] += (float) $payout * $stake->marketWeight($unpaidWeight);
         }
 
         return $totals;

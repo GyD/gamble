@@ -9,8 +9,10 @@ use DateTimeImmutable;
 final readonly class Stake
 {
     /**
-     * @param float|null $oddsAtBet odds frozen when the stake was created; they
+     * @param float|null $oddsAtBet odds captured when the stake was paid; they
      *        are the contract passed with the bettor and are never recomputed
+     * @param float|null $quotedOdds odds announced to the bettor at creation;
+     *        purely informative, they never take part in a settlement
      */
     public function __construct(
         public int                $id,
@@ -26,6 +28,7 @@ final readonly class Stake
         public ?int               $finalPayout = null,
         public ?float             $oddsAtBet = null,
         public ?DateTimeImmutable $createdAt = null,
+        public ?float             $quotedOdds = null,
     )
     {
     }
@@ -49,17 +52,35 @@ final readonly class Stake
     /**
      * Amount owed to the bettor if the stake wins.
      *
-     * A stake created before the odds were frozen has no contract: it is
-     * refunded rather than silently multiplied. A won stake can never be worth
-     * less than its own amount.
+     * Only a paid stake carries a contract. A stake without contractual odds is
+     * refunded rather than silently multiplied, which keeps the legacy stakes
+     * migrated without odds harmless. A won stake can never be worth less than
+     * its own amount.
      */
     public function potentialPayout(): int
     {
-        if ($this->oddsAtBet === null) {
+        return $this->payoutAt($this->oddsAtBet);
+    }
+
+    /** Whether the stake already signed its contractual odds. */
+    public function hasContractualOdds(): bool
+    {
+        return $this->oddsAtBet !== null;
+    }
+
+    /**
+     * Amount the stake would be worth at the given odds.
+     *
+     * Used to project an unpaid stake at the price currently offered: that
+     * figure is an estimation, never a debt already contracted.
+     */
+    public function payoutAt(?float $odds): int
+    {
+        if ($odds === null) {
             return $this->amount;
         }
 
-        return max($this->amount, (int) round((float) $this->amount * $this->oddsAtBet));
+        return max($this->amount, (int) round((float) $this->amount * $odds));
     }
 
     /**

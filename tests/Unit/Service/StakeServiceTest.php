@@ -56,17 +56,38 @@ final class StakeServiceTest extends TestCase
         self::assertSame(12, $this->audit->entries[0]['after']['amount']);
     }
 
-    public function testTheOddsOfferedAreFrozenOnTheStakeAtCreation(): void
+    public function testTheOddsAnnouncedAreOnlyQuotedAtCreation(): void
     {
         $stake = $this->service->create(7, 1, 20, 10, '100', null);
 
-        self::assertSame(2.00, $stake->oddsAtBet);
-        // The contract is worth stake x odds, whatever the odds become later.
-        self::assertSame(200, $stake->potentialPayout());
-        self::assertSame(2.00, $this->audit->entries[0]['after']['odds_at_bet']);
+        // Nothing is contracted before payment: the price is only announced.
+        self::assertSame(2.00, $stake->quotedOdds);
+        self::assertNull($stake->oddsAtBet);
+        self::assertFalse($stake->hasContractualOdds());
+        // Without contractual odds, a won stake is only worth its own amount.
+        self::assertSame(100, $stake->potentialPayout());
+        self::assertSame(2.00, $this->audit->entries[0]['after']['quoted_odds']);
+        self::assertNull($this->audit->entries[0]['after']['odds_at_bet']);
     }
 
-    public function testFrozenOddsSurvivePaymentAndAmountChanges(): void
+    public function testContractualOddsAreCapturedAtPaymentAtThePriceOfThatDay(): void
+    {
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $this->bets->bets[1] = $this->bets->bets[1]->withOptions([
+            new BetOption(10, 'Blue', 0, 1.50, 1.50),
+            new BetOption(11, 'Red', 1, 3.00, 3.00),
+        ]);
+
+        $paid = $this->service->setPaid(7, 1, $stake->id, true, null);
+
+        // The bettor reserved nothing: they are paid at the current price.
+        self::assertSame(2.00, $paid->quotedOdds);
+        self::assertSame(1.50, $paid->oddsAtBet);
+        self::assertSame(150, $paid->potentialPayout());
+        self::assertSame(1.50, $this->audit->entries[1]['after']['odds_at_bet']);
+    }
+
+    public function testAnUnpaidStakeCanBeRepricedAndChangedWithoutContract(): void
     {
         $stake = $this->service->create(7, 1, 20, 10, '100', null);
         $this->bets->bets[1] = $this->bets->bets[1]->withOptions([
@@ -75,11 +96,43 @@ final class StakeServiceTest extends TestCase
         ]);
 
         $updated = $this->service->update(7, 1, $stake->id, 20, 10, '150', null);
-        $paid = $this->service->setPaid(7, 1, $stake->id, true, null);
 
-        self::assertSame(2.00, $updated->oddsAtBet);
-        self::assertSame(2.00, $paid->oddsAtBet);
-        self::assertSame(300, $paid->potentialPayout());
+        // The announced price stays as a trace of what was presented.
+        self::assertSame(2.00, $updated->quotedOdds);
+        self::assertNull($updated->oddsAtBet);
+    }
+
+    public function testContractualOddsAreCapturedOnlyOnceAndSurviveUnpayment(): void
+    {
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $this->service->setPaid(7, 1, $stake->id, true, null);
+        $this->bets->bets[1] = $this->bets->bets[1]->withOptions([
+            new BetOption(10, 'Blue', 0, 1.10, 1.10),
+            new BetOption(11, 'Red', 1, 5.00, 5.00),
+        ]);
+
+        $unpaid = $this->service->setPaid(7, 1, $stake->id, false, null);
+        $paidAgain = $this->service->setPaid(7, 1, $stake->id, true, null);
+
+        // Unpaying is a cash correction, not the end of the contract.
+        self::assertSame(2.00, $unpaid->oddsAtBet);
+        self::assertSame(2.00, $paidAgain->oddsAtBet);
+        self::assertSame(200, $paidAgain->potentialPayout());
+    }
+
+    public function testRefundCancellationNeverCapturesNewContractualOdds(): void
+    {
+        // A legacy stake paid without contractual odds: the refund flow must not
+        // silently turn it into a priced contract.
+        $this->stakes->stakes[1] = new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, true);
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Cancelled);
+
+        $refunded = $this->service->setRefunded(7, 1, 1, true, null);
+        $notRefunded = $this->service->setRefunded(7, 1, 1, false, null);
+
+        self::assertNull($refunded->oddsAtBet);
+        self::assertNull($notRefunded->oddsAtBet);
+        self::assertTrue($notRefunded->isPaid);
     }
 
     public function testAnUnpricedOptionAcceptsNoStake(): void
@@ -375,30 +428,41 @@ final class StakeTestStore implements StakeStore
         return $this->findById($id);
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
     {
         $id = count($this->stakes) + 1;
-        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, false, false, null, $oddsAtBet, new DateTimeImmutable());
+        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, false, false, null, null, new DateTimeImmutable(), $quotedOdds);
     }
 
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake
     {
         $stake = $this->stakes[$id];
-        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
+        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt, $stake->quotedOdds);
+    }
+
+    public function captureOddsAtBet(int $id, float $oddsAtBet): Stake
+    {
+        $stake = $this->stakes[$id];
+        // Same guard as the real store: the contract is written only once.
+        if ($stake->hasContractualOdds()) {
+            return $stake;
+        }
+
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $oddsAtBet, $stake->createdAt, $stake->quotedOdds);
     }
 
     public function setPaid(int $id, bool $isPaid): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt, $stake->quotedOdds);
     }
 
     public function setCancelled(int $id, bool $isCancelled): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt, $stake->quotedOdds);
     }
 
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
