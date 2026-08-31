@@ -91,8 +91,14 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 
 ### À construire
 
+- self-exclusion à l'encaissement d'une mise `fixed_odds` impayée : sa propre contribution retirée du calcul de la cote à laquelle elle serait elle-même encaissée, alors qu'elle continue de peser sur la cote publique destinée aux nouvelles mises ;
+- capture de cette cote d'encaissement dans `odds_at_bet` lors du premier paiement, à la place de la cote publique actuelle ;
+- gain estimé d'une mise impayée calculé sur sa cote d'encaissement plutôt que sur la cote publique incluant sa propre influence ;
+- projection indicative des impayés, dans l'exposition du bookmaker, valorisée à la cote d'encaissement de chaque mise ;
 - ajout du résultat net, du montant retourné et du retour sur investissement aux statistiques ;
 - extension de l'audit aux futurs modules métier.
+
+Le comportement cible de ces points est décrit dans la section [Betting modes and odds](#betting-modes-and-odds), qui reste la source de vérité fonctionnelle.
 
 ### Règles de cotes et de règlement financier
 
@@ -149,7 +155,7 @@ Une option non cotée reste `null` et **n'accepte aucune mise** : il n'y aurait 
 `odds_at_bet` :
 
 - reste `null` tant que la mise n'est pas payée ;
-- est capturée **au paiement**, à partir de la cote alors proposée ;
+- est capturée **au paiement**, à partir de la cote alors proposée, calculée **sans l'influence indicative de la mise elle-même** ;
 - est immuable ensuite : ni une modification de montant, ni une recotation ne la changent ;
 - reste `null` pour les mises antérieures à cette fonctionnalité et pour les mises `pari_mutuel`.
 
@@ -172,15 +178,84 @@ payout = stake × odds_at_bet
 
 Une mise gagnante ne peut jamais rapporter moins que sa propre mise.
 
+#### Cote publique et cote d'encaissement
+
+Une mise impayée pèse sur le marché avec `unpaid_bet_market_weight`. Sans précaution, elle dégraderait donc la cote qu'elle recevrait elle-même en payant. Deux cotes distinctes sont pour cette raison calculées.
+
+| Notion                    | À qui elle s'adresse                       | Mises prises en compte                                                                       |
+|---------------------------|--------------------------------------------|----------------------------------------------------------------------------------------------|
+| **cote publique**         | une **nouvelle** mise à venir              | payées actives à `100 %`, impayées actives à `unpaid_bet_market_weight`, annulées exclues     |
+| **cote d'encaissement**   | une mise impayée **précise**, si elle paie | les mêmes, **moins la contribution indicative de cette mise-là**                              |
+
+La règle : **une mise ne déplace jamais sa propre cote d'encaissement.** Toutes les autres mises, payées comme impayées, continuent de l'influencer normalement.
+
+Exemple sans autre mouvement :
+
+```text
+cote publique de A avant Alice        = 2.50
+Alice crée 100 $ impayés sur A        → quoted_odds = 2.50
+cote publique de A pour un nouveau    = 2.44   (l'influence d'Alice compte)
+cote d'encaissement d'Alice           = 2.50   (sa propre influence est retirée)
+```
+
+Si Alice paie immédiatement, `odds_at_bet = 2.50`. Son poids passe **ensuite** de `0.50` à `1.00`, et le marché est recalculé pour les mises suivantes.
+
+La self-exclusion ne fige rien : la cote d'encaissement reflète toujours le marché **au moment du paiement**, mouvements des autres parieurs inclus.
+
+```text
+cote publique de A avant Alice        = 2.50
+Alice crée 100 $ impayés sur A        → quoted_odds = 2.50
+cote publique de A pour un nouveau    = 2.44
+
+… beaucoup d'argent arrive ensuite sur B …
+
+cote d'encaissement d'Alice           = 2.80   (hors sa propre influence)
+Alice paie                            → odds_at_bet = 2.80
+son poids passe de 0.50 à 1.00, recalcul
+cote publique de A pour un nouveau    = 2.70
+```
+
+Alice touche contractuellement `2.80` alors que la cote publique suivante vaut `2.70` : c'est correct, puisque l'écart vient du passage de son propre poids à `100 %`.
+
+> **La cote d'encaissement n'est pas `quoted_odds`.** La self-exclusion ne signifie **pas** `odds_at_bet = quoted_odds` : `quoted_odds` reste une trace historique de la création, jamais une cote de paiement. La seule chose retirée du calcul est la contribution indicative de la mise elle-même ; tous les mouvements causés par les autres mises sont conservés.
+
+Chaque mise impayée exclut **uniquement** sa propre contribution : les autres mises impayées continuent de peser sur sa cote d'encaissement avec leur poids indicatif.
+
+#### Ce que « exclure la contribution d'une mise » signifie exactement
+
+L'exclusion porte sur **tout ce par quoi la mise influence la dérive**, et non sur son seul payout indicatif :
+
+- son montant effectif, et donc le `effective_volume` du marché ;
+- son exposition indicative sur son choix ;
+- toute agrégation dérivée de ces valeurs servant à déterminer le **sens** ou l'**intensité** de la dérive.
+
+La règle tient en une ligne :
+
+```text
+payment_odds(mise X) = cotes de marché calculées avec toutes les mises sauf X
+```
+
+Le calcul doit donc être strictement équivalent à coter le marché **comme si cette mise précise n'existait pas**, en conservant absolument toutes les autres.
+
+Retirer uniquement son payout indicatif ne suffirait pas : en continuant d'alimenter `effective_volume`, la mise influencerait encore sa propre cote de façon indirecte, via l'intensité de la dérive :
+
+```text
+volume_factor = effective_volume / (effective_volume + liquidity_reference)
+```
+
+Les autres mises impayées, elles, restent bien présentes avec `unpaid_bet_market_weight`.
+
 #### Gain affiché avant et après paiement
 
 L'affichage du gain dépend strictement de l'existence d'une cote contractuelle.
 
-**Mise `fixed_odds` non payée** — `odds_at_bet` est `null` et la cote peut encore évoluer. L'interface peut afficher la `quoted_odds` historique, la cote actuellement proposée, et le gain estimé si la mise était payée maintenant :
+**Mise `fixed_odds` non payée** — `odds_at_bet` est `null` et la cote peut encore évoluer. L'interface affiche la `quoted_odds` historique, la **cote d'encaissement** et le gain estimé correspondant :
 
 ```text
-estimated_payout = stake × current_offered_odds
+estimated_payout = stake × cote_d_encaissement
 ```
+
+Le gain estimé se calcule donc sur la cote **réellement capturable**, jamais sur la cote publique qui inclut l'influence de la mise elle-même. La cote publique n'est montrée que si elle diffère, à titre de contexte, et jamais comme la cote que cette mise obtiendrait.
 
 Ce gain est purement indicatif et ne doit jamais être présenté comme garanti.
 
@@ -196,20 +271,34 @@ En synthèse :
 création non payée
 → quoted_odds = cote annoncée
 → odds_at_bet = null
-→ gain estimé uniquement
+→ gain estimé uniquement, à la cote d'encaissement
 
 paiement
-→ capture de la cote courante dans odds_at_bet
+→ capture de la cote d'encaissement dans odds_at_bet
 → gain désormais garanti
 ```
+
+#### Séquence atomique du premier paiement
+
+Le premier paiement d'une mise `fixed_odds` dépourvue de `odds_at_bet` suit strictement cet ordre, dans une seule transaction :
+
+1. verrouiller le pari et son marché ;
+2. verrouiller la mise ;
+3. calculer sa cote d'encaissement, **en excluant son influence indicative** ;
+4. inscrire cette cote dans `odds_at_bet` ;
+5. marquer la mise payée ;
+6. son poids passe alors de `unpaid_bet_market_weight` à `1.00` ;
+7. recalculer la cote publique destinée aux mises suivantes.
+
+Le recalcul public n'intervient donc **qu'après** la capture : la mise ne peut en aucun cas se coter elle-même.
 
 #### Modification d'une mise impayée
 
 Modifier une mise avant son paiement ne crée aucun contrat : `odds_at_bet` reste `null` et `quoted_odds` conserve la cote annoncée lors de la création, afin de garder la trace du prix réellement présenté.
 
-#### Mise créée directement payée
+#### Dépaiement et repaiement
 
-La création d'une mise déjà payée lit la cote proposée, crée la mise, y inscrit `odds_at_bet`, la marque payée, puis seulement ensuite recalcule le marché. L'ensemble est atomique.
+La self-exclusion ne concerne que la **première** capture de `odds_at_bet`. Une fois cette cote inscrite, elle est immuable : dépayer puis repayer la mise ne déclenche aucun nouveau calcul, ni self-exclu ni public. Le statut de paiement peut changer, l'engagement contractuel historique reste attaché à la mise.
 
 #### Mise gagnante sans cote contractuelle
 
@@ -269,17 +358,22 @@ Pour coter, le bookmaker consulte son exposition choix par choix, depuis la page
 | Nature                   | Mises concernées       | Cote utilisée              | Statut                              |
 |--------------------------|------------------------|----------------------------|-------------------------------------|
 | exposition contractuelle | payées et non annulées | `odds_at_bet` figée        | dette réelle, déjà engagée          |
-| exposition indicative    | actives non payées     | cote actuellement proposée | estimation, aucune dette contractée |
+| exposition indicative    | actives non payées     | cote d'encaissement        | estimation, aucune dette contractée |
 
 Une mise impayée ne doit **jamais** être présentée comme une dette financière déjà contractualisée : elle n'a pas de `odds_at_bet`, et son exposition n'est qu'une projection au prix du moment. Elle continue par ailleurs de peser sur le marché avec `unpaid_bet_market_weight`.
+
+La self-exclusion ne retire donc **pas** les mises impayées du moteur de marché : elles pèsent normalement sur la cote publique. Elle n'intervient qu'à deux endroits précis :
+
+- la cote d'encaissement affichée pour une mise impayée donnée ;
+- la cote capturée lors du premier paiement de cette mise.
 
 | Colonne                        | Contenu                                                        |
 |--------------------------------|----------------------------------------------------------------|
 | Misé                           | montant encaissé, et montant encore en attente de paiement      |
 | À verser si gagnant            | somme des `stake × odds_at_bet` des mises payées du choix       |
-| Projection des impayés         | somme des `stake × cote proposée` des mises actives non payées   |
+| Projection des impayés         | somme des `stake × cote d'encaissement` des mises actives non payées |
 | Si ce choix gagne (encaissé)   | total encaissé − à verser, sur l'argent réellement collecté     |
-| …une fois tout encaissé        | même calcul en supposant les impayés payés à la cote proposée    |
+| …une fois tout encaissé        | même calcul en supposant les impayés payés à leur cote d'encaissement |
 
 Un résultat très négatif signale un choix trop chargé au prix actuel : sa cote doit être raccourcie, ou celle des autres allongée.
 
@@ -297,6 +391,8 @@ Un pari `fixed_odds` dispose d'un mode d'évolution parmi :
 Le mode par défaut est `fixed` : les cotes saisies à la main sont respectées tant que le bookmaker ne demande pas explicitement une dérive.
 
 La dérive ne touche que les cotes **proposées aux prochaines mises**. Les mises déjà payées conservent la cote figée à leur paiement.
+
+Le moteur de dérive est unique : c'est le même calcul qui produit la cote publique et les cotes d'encaissement. La seule variation est la possibilité de lui demander d'ignorer la contribution d'une mise donnée, ce qui produit la cote d'encaissement de cette mise-là. Aucune logique de cotation n'est dupliquée.
 
 #### Sens de la dérive
 
