@@ -1,0 +1,60 @@
+{#
+    Explains each odds evolution mode to newcomers.
+
+    Parameters:
+    - mode: 'fixed', 'dynamic_low', 'dynamic_normal', 'dynamic_high', or null to
+      render every block and let bet-market.js reveal the one matching the
+      current selection.
+
+    Maintenance: the percentages and the odds quoted below are hardcoded. They
+    come from market.max_market_weight, liquidity_reference and
+    unpaid_bet_market_weight in config/settings.php, and must be recomputed
+    whenever those values change. Every example uses the same reference case:
+    three equiprobable options, a 10 % bookmaker margin, so odds start at 2,73
+    everywhere, and a single paid stake of 500 $ on the first option.
+#}
+{% set evolution_modes = mode|default(null) is null ? ['fixed', 'dynamic_low', 'dynamic_normal', 'dynamic_high'] : [mode] %}
+
+{% for evolution_mode in evolution_modes %}
+    <div class="bet-mode-explanation" data-odds-evolution-help="{{ evolution_mode }}"{% if evolution_modes|length > 1 and evolution_mode != 'dynamic_normal' %} hidden{% endif %}>
+        {% if evolution_mode == 'fixed' %}
+            <p><strong>Les cotes ne bougent jamais.</strong> Elles restent celles calculées à l'ouverture, quelles que soient les mises placées ensuite.</p>
+            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ sur le choix 1, les trois cotes valent toujours 2,73.</p>
+            <p>À réserver aux paris où vous maîtrisez déjà les probabilités et ne voulez aucune surprise.</p>
+        {% elseif evolution_mode == 'dynamic_low' %}
+            <p><strong>Les cotes s'ajustent légèrement</strong> selon les mises reçues. Le marché pèse au maximum <strong>20 %</strong> : vos probabilités initiales gardent la main.</p>
+            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ payés sur le choix 1, sa cote descend à 2,27 et les deux autres montent à 3,03.</p>
+        {% elseif evolution_mode == 'dynamic_normal' %}
+            <p><strong>Équilibre recommandé.</strong> Le marché pèse au maximum <strong>40 %</strong> : les cotes suivent les mises sans s'éloigner brutalement de vos estimations.</p>
+            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ payés sur le choix 1, sa cote descend à 1,95 et les deux autres montent à 3,41.</p>
+        {% else %}
+            <p><strong>Les cotes suivent nettement les mises.</strong> Le marché pèse au maximum <strong>65 %</strong> : le comportement des parieurs prend le dessus sur vos estimations.</p>
+            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ payés sur le choix 1, sa cote tombe à 1,65 et les deux autres montent à 4,04.</p>
+        {% endif %}
+
+        {% if evolution_mode != 'fixed' %}
+            <p>Trois règles s'appliquent à tous les modes dynamiques :</p>
+            <ul>
+                <li><strong>Une mise déjà payée garde sa cote.</strong> Seuls les prochains parieurs voient les cotes ajustées.</li>
+                <li><strong>Les petits paris bougent peu.</strong> L'influence du marché grandit avec les montants misés : à 100 $ elle n'est que de 6,7 % et la cote du choix 1 descend seulement à 2,41, contre 20 % et 1,95 à 500 $.</li>
+                <li><strong>Une mise non payée ne compte qu'à moitié.</strong> Les mêmes 500 $ en attente de paiement donnent 2,15 au lieu de 1,95.</li>
+            </ul>
+        {% endif %}
+    </div>
+{% endfor %}
+
+{% if evolution_modes|length > 1 %}
+    <details class="bet-mode-comparison">
+        <summary>Comparer les quatre modes</summary>
+        <table>
+            <thead><tr><td></td><th scope="col">Influence maximale du marché</th><th scope="col">Cote du choix misé</th><th scope="col">Cote des deux autres</th></tr></thead>
+            <tbody>
+                <tr><th scope="row">Fixe</th><td data-label="Influence maximale du marché">0 %</td><td data-label="Cote du choix misé">2,73</td><td data-label="Cote des deux autres">2,73</td></tr>
+                <tr><th scope="row">Dynamique faible</th><td data-label="Influence maximale du marché">20 %</td><td data-label="Cote du choix misé">2,27</td><td data-label="Cote des deux autres">3,03</td></tr>
+                <tr><th scope="row">Dynamique modérée</th><td data-label="Influence maximale du marché">40 %</td><td data-label="Cote du choix misé">1,95</td><td data-label="Cote des deux autres">3,41</td></tr>
+                <tr><th scope="row">Dynamique forte</th><td data-label="Influence maximale du marché">65 %</td><td data-label="Cote du choix misé">1,65</td><td data-label="Cote des deux autres">4,04</td></tr>
+            </tbody>
+        </table>
+        <p class="form-help">Cotes obtenues sur trois choix équiprobables cotés 2,73, après une mise payée de 500 $ sur le premier choix.</p>
+    </details>
+{% endif %}

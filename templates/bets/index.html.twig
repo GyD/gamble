@@ -44,13 +44,14 @@
                 </div>
                 <div class="form-field" data-fixed-odds-only>
                     <label for="bet-odds-evolution-mode">Évolution des cotes</label>
-                    <select id="bet-odds-evolution-mode" name="odds_evolution_mode" aria-describedby="bet-odds-evolution-help">
+                    <select id="bet-odds-evolution-mode" name="odds_evolution_mode" data-odds-evolution-mode aria-describedby="bet-odds-evolution-help">
                         <option value="fixed">Fixe — les mises ne modifient pas les probabilités</option>
                         <option value="dynamic_low">Dynamique faible — les cotes bougent peu selon les mises</option>
                         <option value="dynamic_normal" selected>Dynamique modérée — équilibre recommandé</option>
                         <option value="dynamic_high">Dynamique forte — les cotes suivent nettement les mises</option>
                     </select>
                     <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
+                    {% include 'bets/_odds-evolution-help.html.twig' %}
                 </div>
                 <fieldset class="bet-options"><legend>Choix</legend>
                     <p class="form-help">Entre 2 et 20 choix uniques.</p>

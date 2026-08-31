@@ -6,9 +6,21 @@ document.querySelectorAll('form').forEach((form) => {
     }
 
     const distributeButton = form.querySelector('[data-distribute-probabilities]');
+    const evolutionSelect = form.querySelector('[data-odds-evolution-mode]');
 
     const probabilityInputs = () => Array.from(form.querySelectorAll('[data-probability-input]'));
     const isFilled = (input) => input.value.trim() !== '';
+
+    // Only the explanation of the selected evolution mode stays visible.
+    const toggleOddsEvolutionHelp = () => {
+        if (evolutionSelect === null) {
+            return;
+        }
+
+        form.querySelectorAll('[data-odds-evolution-help]').forEach((help) => {
+            help.hidden = help.dataset.oddsEvolutionHelp !== evolutionSelect.value;
+        });
+    };
 
     const toggleFixedOddsFields = () => {
         const isFixedOdds = modeSelect.value === 'fixed_odds';
@@ -85,6 +97,10 @@ document.querySelectorAll('form').forEach((form) => {
     form.addEventListener('bet-options-changed', toggleFixedOddsFields);
     form.addEventListener('submit', validateProbabilities);
 
+    if (evolutionSelect !== null) {
+        evolutionSelect.addEventListener('change', toggleOddsEvolutionHelp);
+    }
+
     if (distributeButton !== null) {
         distributeButton.addEventListener('click', distributeProbabilities);
     }
@@ -97,4 +113,5 @@ document.querySelectorAll('form').forEach((form) => {
     });
 
     toggleFixedOddsFields();
+    toggleOddsEvolutionHelp();
 });

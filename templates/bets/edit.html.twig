@@ -28,12 +28,13 @@
         </div>
         <div class="form-field" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>
             <label for="bet-odds-evolution-mode">Évolution des cotes</label>
-            <select id="bet-odds-evolution-mode" name="odds_evolution_mode" aria-describedby="bet-odds-evolution-help">
+            <select id="bet-odds-evolution-mode" name="odds_evolution_mode" data-odds-evolution-mode aria-describedby="bet-odds-evolution-help">
                 {% for value, label in {'fixed': 'Fixe — les mises ne modifient pas les probabilités', 'dynamic_low': 'Dynamique faible — les cotes bougent peu selon les mises', 'dynamic_normal': 'Dynamique modérée — équilibre recommandé', 'dynamic_high': 'Dynamique forte — les cotes suivent nettement les mises'} %}
                     <option value="{{ value }}"{% if bet.oddsEvolutionMode.value == value %} selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
             <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
+            {% include 'bets/_odds-evolution-help.html.twig' %}
         </div>
         {% if bet.bettingMode.value == 'fixed_odds' %}
             <div class="form-field">

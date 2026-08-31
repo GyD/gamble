@@ -67,8 +67,8 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - choix du mode `fixed_odds` ou `pari_mutuel` à la création du pari, verrouillé dès qu'une mise existe ;
 - explications du fonctionnement de chaque mode de pari dans les formulaires de création et de modification, complétées d'un tableau comparatif repliable, et rappel du mode actif sur la page de consultation ;
 - conversion des paris antérieurs en `pari_mutuel`, leur marge bookmaker devenant leur commission mutuelle, afin de préserver leur comportement financier historique ;
-- probabilités initiales et courantes par option, avec assistant de préréglages pour les paris à deux options ;
-- modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds` ;
+- probabilités initiales et courantes par option, avec bouton de répartition automatique du pourcentage restant ;
+- modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds`, expliqués dans les formulaires par un bloc chiffré propre au mode sélectionné, complété d'un tableau comparatif repliable ;
 - cote informative `quoted_odds` à la création d'une mise et cote contractuelle immuable `odds_at_bet` capturée au paiement ;
 - poids de marché réduit des mises impayées via la configuration `unpaid_bet_market_weight` ;
 - affichage des cotes comme indicatives tant qu'elles concernent de futures mises, une mise `fixed_odds` payée conservant sa cote contractuelle ;
