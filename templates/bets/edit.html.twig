@@ -29,41 +29,38 @@
         <div class="form-field" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>
             <label for="bet-odds-evolution-mode">Évolution des cotes</label>
             <select id="bet-odds-evolution-mode" name="odds_evolution_mode" data-odds-evolution-mode aria-describedby="bet-odds-evolution-help">
-                {% for value, label in {'fixed': 'Fixe — les mises ne modifient pas les probabilités', 'dynamic_low': 'Dynamique faible — les cotes bougent peu selon les mises', 'dynamic_normal': 'Dynamique modérée — équilibre recommandé', 'dynamic_high': 'Dynamique forte — les cotes suivent nettement les mises'} %}
+                {% for value, label in {'fixed': 'Fixe — les cotes restent celles que vous avez saisies', 'dynamic_low': 'Dynamique faible — les cotes bougent peu selon les mises', 'dynamic_normal': 'Dynamique modérée — équilibre recommandé', 'dynamic_high': 'Dynamique forte — les cotes suivent nettement les mises'} %}
                     <option value="{{ value }}"{% if bet.oddsEvolutionMode.value == value %} selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
+            <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'écartent de celles que vous avez saisies, en fonction des mises déjà prises. Une mise déjà placée garde sa cote.</p>
             {% include 'bets/_odds-evolution-help.html.twig' %}
         </div>
+        <div class="form-field" data-mutuel-only{% if bet.bettingMode.value == 'fixed_odds' %} hidden{% endif %}>
+            <label for="bet-mutuel-rate">Commission bookmaker (%)</label>
+            <input id="bet-mutuel-rate" name="mutuel_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.mutuelCommissionRateBps / 100)|number_format(2, '.', '') }}"{% if bet.bettingMode.value == 'fixed_odds' %} disabled{% endif %}>
+            <p class="form-help">Entre 0 et 25 %. Cette commission est prélevée sur le pool à la clôture, avant redistribution.</p>
+        </div>
         {% if bet.bettingMode.value == 'fixed_odds' %}
-            <div class="form-field">
-                <label for="bet-bookmaker-rate">Marge bookmaker (%)</label>
-                <input id="bet-bookmaker-rate" name="bookmaker_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.bookmakerRateBps / 100)|number_format(2, '.', '') }}" required>
-                <p class="form-help">Entre 0 et 25 %. Cette marge est intégrée aux cotes proposées : rien n'est prélevé au règlement.</p>
-            </div>
-        {% else %}
-            <div class="form-field">
-                <label for="bet-bookmaker-rate">Commission bookmaker (%)</label>
-                <input id="bet-bookmaker-rate" name="bookmaker_percentage" type="number" min="0" max="25" step="0.01" value="{{ (bet.mutuelCommissionRateBps / 100)|number_format(2, '.', '') }}" required>
-                <p class="form-help">Entre 0 et 25 %. Cette commission est prélevée sur le pool à la clôture, avant redistribution.</p>
-            </div>
+            <p class="form-help">Marge bookmaker : {{ bet.oddsMargin is null ? 'non calculable tant que tous les choix ne sont pas cotés' : (bet.oddsMargin * 100)|number_format(2, ',', ' ') ~ ' %' }} — elle découle des cotes elles-mêmes, rien n'est prélevé au règlement.</p>
         {% endif %}
         <fieldset class="bet-options"><legend>Choix</legend>
             <p class="form-help">{{ has_stakes ? 'Des mises existent : les choix ne peuvent plus être modifiés.' : 'Entre 2 et 20 choix uniques.' }}</p>
             <div class="bet-option-fields" data-option-fields>
-                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" value="{{ option.initialProbability is null ? '' : (option.initialProbability * 100)|number_format(2, '.', '') }}" aria-label="Probabilité du choix {{ loop.index }} en %" data-fixed-odds-only data-probability-input{% if bet.bettingMode.value != 'fixed_odds' %} hidden disabled{% endif %}></div>{% endfor %}
+                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}><input class="bet-option-odds" name="odds[]" type="number" min="1.01" max="1000" step="0.01" value="{{ option.odds is null ? '' : option.odds|number_format(2, '.', '') }}" aria-label="Cote du choix {{ loop.index }}" data-fixed-odds-only data-odds-input{% if bet.bettingMode.value != 'fixed_odds' %} hidden disabled{% endif %}></div>{% endfor %}
             </div>
             {% if not has_stakes %}
                 <div class="bet-options-actions">
                     <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>
-                    <button class="button button-secondary" type="button" data-distribute-probabilities data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>Répartir les probabilités</button>
                 </div>
-                <p class="form-help" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>Laissez les probabilités vides pour des choix équiprobables, ou renseignez-les toutes. « Répartir » complète les champs vides avec le pourcentage restant.</p>
             {% endif %}
+            <p class="form-help" data-fixed-odds-only{% if bet.bettingMode.value != 'fixed_odds' %} hidden{% endif %}>Saisissez la cote de chaque choix, ou laissez-les toutes vides : un choix sans cote n'accepte aucune mise. La marge se lit dans les cotes elles-mêmes.</p>
         </fieldset>
         <button class="button button-primary" type="submit">Enregistrer</button>
     </form>
+    {% if bet.bettingMode.value == 'fixed_odds' %}
+        <p class="form-help"><a class="button button-secondary" href="/bets/{{ bet.id }}/odds">Ajuster les cotes</a> Consultez votre exposition choix par choix avant de recoter.</p>
+    {% endif %}
     <script src="/assets/js/bet-options.js" defer></script>
     <script src="/assets/js/bet-market.js" defer></script>
 {% endblock %}

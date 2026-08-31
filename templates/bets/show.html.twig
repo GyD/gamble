@@ -15,12 +15,12 @@
         <p class="form-help">Mode : {{ bet.bettingMode.value == 'fixed_odds' ? 'Cotes fixes' : 'Pari mutuel' }}</p>
         {% include 'bets/_betting-mode-help.html.twig' with {mode: bet.bettingMode.value, variant: 'short'} %}
         {% if bet.bettingMode.value == 'fixed_odds' %}
-            <p class="form-help">Marge bookmaker : {{ (bet.bookmakerRateBps / 100)|number_format(2, ',', ' ') }} % — intégrée aux cotes, aucun prélèvement au règlement.</p>
+            <p class="form-help">Marge bookmaker : {{ bet.oddsMargin is null ? '—' : (bet.oddsMargin * 100)|number_format(2, ',', ' ') ~ ' %' }} — elle découle des cotes que vous avez saisies, aucun prélèvement au règlement.</p>
         {% else %}
             <p class="form-help">Commission bookmaker : {{ (bet.mutuelCommissionRateBps / 100)|number_format(2, ',', ' ') }} % — prélevée sur le pool à la clôture.</p>
         {% endif %}
-        <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — {{ bet.status.value == 'settled' ? 'cote' : 'cote indicative' }} {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
-        {% if bet.status.value != 'settled' %}<p class="form-help">Les cotes affichées sont indicatives et non garanties.{% if bet.bettingMode.value == 'pari_mutuel' %} Un tiret signifie qu'aucune mise n'a encore été placée sur ce choix.{% endif %}</p>{% endif %}
+        <ol class="bet-option-list">{% for option in bet.options %}<li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — {% if bet.status.value == 'settled' %}cote {{ option.finalOdds is null ? '—' : option.finalOdds|number_format(2, ',', ' ') }}{% else %}cote proposée {{ option.offeredOdds is null ? '—' : option.offeredOdds|number_format(2, ',', ' ') }}{% endif %}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>{% endfor %}</ol>
+        {% if bet.status.value != 'settled' %}<p class="form-help">{% if bet.bettingMode.value == 'fixed_odds' %}La cote proposée est celle qui sera figée sur la prochaine mise. Un tiret signifie que ce choix n'est pas encore coté et n'accepte donc aucune mise.{% else %}Les cotes affichées sont indicatives et non garanties. Un tiret signifie qu'aucune mise n'a encore été placée sur ce choix.{% endif %}</p>{% endif %}
         {% if bet.status.value == 'settled' %}
             <p>
                 <strong>Pot :</strong> {{ bet.finalPot|number_format(0, ',', ' ') }} $ ·
@@ -35,6 +35,7 @@
             {% if can_view_stakes %}<a class="button button-secondary" href="/bets/{{ bet.id }}/stakes">Voir les mises</a>{% endif %}
             {% if bet.status.value == 'open' %}
                 {% if can_edit %}<a class="button button-secondary" href="/bets/{{ bet.id }}/edit">Modifier</a>{% endif %}
+                {% if can_edit and bet.bettingMode.value == 'fixed_odds' %}<a class="button button-secondary" href="/bets/{{ bet.id }}/odds">Ajuster les cotes</a>{% endif %}
                 {% if can_close %}<form method="post" action="/bets/{{ bet.id }}/close"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-primary" type="submit">Fermer</button></form>{% endif %}
                 {% if can_cancel %}<form method="post" action="/bets/{{ bet.id }}/cancel"><input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}"><button class="button button-danger" type="submit" onclick="return confirm('Annuler ce pari ? Les mises payées devront ensuite être remboursées.')">Annuler</button></form>{% endif %}
             {% elseif bet.status.value == 'closed' %}

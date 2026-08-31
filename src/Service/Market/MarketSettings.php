@@ -15,18 +15,19 @@ use InvalidArgumentException;
  */
 final readonly class MarketSettings
 {
-    /** @param array<string, float> $maxMarketWeights */
+    /** No evolution mode may ever move the priced odds by more than a quarter. */
+    public const ABSOLUTE_MAX_ODDS_DRIFT_BPS = 2500;
+
+    /** @param array<string, int> $maxOddsDriftBps */
     public function __construct(
         public float $unpaidBetMarketWeight = 0.50,
         public int $liquidityReference = 500,
-        public float $minimumProbability = 0.02,
-        public float $maximumProbability = 0.98,
-        public float $maxProbabilityChangePerRecalculation = 0.05,
-        private array $maxMarketWeights = [
-            'fixed' => 0.0,
-            'dynamic_low' => 0.20,
-            'dynamic_normal' => 0.40,
-            'dynamic_high' => 0.65,
+        public float $minimumOdds = 1.01,
+        private array $maxOddsDriftBps = [
+            'fixed' => 0,
+            'dynamic_low' => 500,
+            'dynamic_normal' => 1200,
+            'dynamic_high' => 2500,
         ],
     ) {
         if ($this->unpaidBetMarketWeight < 0.0 || $this->unpaidBetMarketWeight > 1.0) {
@@ -35,14 +36,13 @@ final readonly class MarketSettings
         if ($this->liquidityReference < 1) {
             throw new InvalidArgumentException('Liquidity reference must be a positive amount.');
         }
-        if ($this->minimumProbability <= 0.0 || $this->minimumProbability >= $this->maximumProbability) {
-            throw new InvalidArgumentException('Minimum probability must be greater than 0 and below the maximum.');
+        if ($this->minimumOdds < 1.0) {
+            throw new InvalidArgumentException('Minimum odds must be at least 1.');
         }
-        if ($this->maximumProbability >= 1.0) {
-            throw new InvalidArgumentException('Maximum probability must be below 1.');
-        }
-        if ($this->maxProbabilityChangePerRecalculation <= 0.0) {
-            throw new InvalidArgumentException('Maximum probability change must be positive.');
+        foreach ($this->maxOddsDriftBps as $driftBps) {
+            if ($driftBps < 0 || $driftBps > self::ABSOLUTE_MAX_ODDS_DRIFT_BPS) {
+                throw new InvalidArgumentException('Maximum odds drift must be between 0 and 25%.');
+            }
         }
     }
 
@@ -50,40 +50,43 @@ final readonly class MarketSettings
     public static function fromArray(array $settings): self
     {
         $defaults = new self();
-        /** @var array<string, float> $weights */
-        $weights = isset($settings['max_market_weight']) && is_array($settings['max_market_weight'])
-            ? array_map(static fn(mixed $weight): float => (float) $weight, $settings['max_market_weight'])
-            : $defaults->maxMarketWeights;
+        /** @var array<string, int> $drifts */
+        $drifts = isset($settings['max_odds_drift_bps']) && is_array($settings['max_odds_drift_bps'])
+            ? array_map(static fn(mixed $drift): int => (int) $drift, $settings['max_odds_drift_bps'])
+            : $defaults->maxOddsDriftBps;
 
         return new self(
             (float) ($settings['unpaid_bet_market_weight'] ?? $defaults->unpaidBetMarketWeight),
             (int) ($settings['liquidity_reference'] ?? $defaults->liquidityReference),
-            (float) ($settings['minimum_probability'] ?? $defaults->minimumProbability),
-            (float) ($settings['maximum_probability'] ?? $defaults->maximumProbability),
-            (float) ($settings['max_probability_change_per_recalculation'] ?? $defaults->maxProbabilityChangePerRecalculation),
-            $weights,
+            (float) ($settings['minimum_odds'] ?? $defaults->minimumOdds),
+            $drifts,
         );
     }
 
-    public function maxMarketWeight(OddsEvolutionMode $mode): float
+    /** Widest drift the evolution mode allows, as a ratio of the priced odds. */
+    public function maxOddsDrift(OddsEvolutionMode $mode): float
     {
-        return (float) ($this->maxMarketWeights[$mode->value] ?? 0.0);
+        return (float) ($this->maxOddsDriftBps[$mode->value] ?? 0) / 10_000;
     }
 
     /**
-     * Share of the market probability blended into the current probability.
+     * Share of the maximum drift unlocked by the traded volume.
      *
-     * The weight grows with the traded volume so a thin market stays close to
-     * the initial probabilities.
+     * It reaches half at the liquidity reference and approaches one on a deep
+     * market, so a thin market barely moves the priced odds.
      */
-    public function marketWeight(OddsEvolutionMode $mode, float $totalEffectiveStake): float
+    public function volumeFactor(float $effectiveVolume): float
     {
-        $maximum = $this->maxMarketWeight($mode);
-        if ($maximum <= 0.0 || $totalEffectiveStake <= 0.0) {
+        if ($effectiveVolume <= 0.0) {
             return 0.0;
         }
-        $volumeFactor = $totalEffectiveStake / ($totalEffectiveStake + (float) $this->liquidityReference);
 
-        return $maximum * $volumeFactor;
+        return $effectiveVolume / ($effectiveVolume + (float) $this->liquidityReference);
+    }
+
+    /** Drift actually applicable to the priced odds, as a ratio. */
+    public function oddsDrift(OddsEvolutionMode $mode, float $effectiveVolume): float
+    {
+        return $this->maxOddsDrift($mode) * $this->volumeFactor($effectiveVolume);
     }
 }

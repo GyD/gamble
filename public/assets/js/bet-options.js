@@ -29,18 +29,18 @@ document.querySelectorAll('[data-add-option]').forEach((button) => {
 
         field.append(label, input);
 
-        if (fields.querySelector('[data-probability-input]') !== null) {
-            const probability = document.createElement('input');
-            probability.className = 'bet-option-probability';
-            probability.name = 'probabilities[]';
-            probability.type = 'number';
-            probability.min = '0.01';
-            probability.max = '99.99';
-            probability.step = '0.01';
-            probability.setAttribute('aria-label', `Probabilité du choix ${position} en %`);
-            probability.dataset.fixedOddsOnly = '';
-            probability.dataset.probabilityInput = '';
-            field.append(probability);
+        if (fields.querySelector('[data-odds-input]') !== null) {
+            const odds = document.createElement('input');
+            odds.className = 'bet-option-odds';
+            odds.name = 'odds[]';
+            odds.type = 'number';
+            odds.min = '1.01';
+            odds.max = '1000';
+            odds.step = '0.01';
+            odds.setAttribute('aria-label', `Cote du choix ${position}`);
+            odds.dataset.fixedOddsOnly = '';
+            odds.dataset.oddsInput = '';
+            field.append(odds);
         }
 
         fields.append(field);

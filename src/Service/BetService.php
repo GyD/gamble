@@ -11,6 +11,7 @@ use App\Domain\Bet\OddsEvolutionMode;
 use App\Repository\AuditLogger;
 use App\Repository\BetStore;
 use App\Repository\StakeStore;
+use App\Service\Market\BetExposure;
 use App\Service\Market\MarketRecalculator;
 use App\Service\Market\MarketServiceRegistry;
 use DateTimeImmutable;
@@ -37,7 +38,7 @@ final readonly class BetService
 
     /**
      * @param list<string> $options
-     * @param list<string> $probabilities percentage of each option, aligned with $options
+     * @param list<string> $odds odds typed by the bookmaker, aligned with $options
      */
     public function create(
         int $actorUserId,
@@ -48,15 +49,15 @@ final readonly class BetService
         ?string $ipAddress,
         ?string $bettingMode = null,
         ?string $oddsEvolutionMode = null,
-        array $probabilities = [],
+        array $odds = [],
     ): Bet {
         [$question, $description, $deadline, $options] = $this->normalize($question, $description, $closesAt, $options);
         $mode = $this->parseBettingMode($bettingMode);
         $evolution = $this->parseOddsEvolutionMode($oddsEvolutionMode);
-        $initialProbabilities = $this->parseProbabilities($probabilities, count($options), $mode);
+        $pricedOdds = $this->parseOdds($odds, count($options), $mode);
 
-        return $this->transactional(function () use ($actorUserId, $question, $description, $deadline, $options, $ipAddress, $mode, $evolution, $initialProbabilities): Bet {
-            $bet = $this->bets->create($actorUserId, $question, $description, $deadline, $options, $mode, $evolution, $initialProbabilities);
+        return $this->transactional(function () use ($actorUserId, $question, $description, $deadline, $options, $ipAddress, $mode, $evolution, $pricedOdds): Bet {
+            $bet = $this->bets->create($actorUserId, $question, $description, $deadline, $options, $mode, $evolution, $pricedOdds);
             $this->auditLogs->record($actorUserId, 'bet.created', 'bet', (string) $bet->id, null, $this->snapshot($bet), $ipAddress);
 
             return $bet;
@@ -65,7 +66,7 @@ final readonly class BetService
 
     /**
      * @param list<string> $options
-     * @param list<string> $probabilities percentage of each option, aligned with $options
+     * @param list<string> $odds odds typed by the bookmaker, aligned with $options
      */
     public function update(
         int $actorUserId,
@@ -75,17 +76,17 @@ final readonly class BetService
         ?string $closesAt,
         array $options,
         ?string $ipAddress,
-        ?string $bookmakerPercentage = null,
+        ?string $mutuelPercentage = null,
         ?string $bettingMode = null,
         ?string $oddsEvolutionMode = null,
-        array $probabilities = [],
+        array $odds = [],
     ): Bet {
         [$question, $description, $deadline, $options] = $this->normalize($question, $description, $closesAt, $options);
-        $rateBps = $bookmakerPercentage === null ? null : $this->parseBookmakerRate($bookmakerPercentage);
+        $rateBps = $mutuelPercentage === null ? null : $this->parseMutuelCommissionRate($mutuelPercentage);
         $requestedMode = $bettingMode === null ? null : $this->parseBettingMode($bettingMode);
         $requestedEvolution = $oddsEvolutionMode === null ? null : $this->parseOddsEvolutionMode($oddsEvolutionMode);
 
-        return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress, $rateBps, $requestedMode, $requestedEvolution, $probabilities): Bet {
+        return $this->transactional(function () use ($actorUserId, $betId, $question, $description, $deadline, $options, $ipAddress, $rateBps, $requestedMode, $requestedEvolution, $odds): Bet {
             $before = $this->lockedBet($betId);
             if ($before->status !== BetStatus::Open) {
                 throw new InvalidArgumentException('Only open bets can be edited.');
@@ -99,18 +100,15 @@ final readonly class BetService
             if ($mode !== $before->bettingMode && $hasStakes) {
                 throw new InvalidArgumentException('The betting mode cannot be changed once stakes have been placed.');
             }
-            $initialProbabilities = $this->parseProbabilities($probabilities, count($options), $mode);
-            $after = $this->bets->update($betId, $question, $description, $deadline, $options, $initialProbabilities);
+            $pricedOdds = $this->parseOdds($odds, count($options), $mode);
+            $after = $this->bets->update($betId, $question, $description, $deadline, $options, $pricedOdds);
             $evolution = $requestedEvolution ?? $before->oddsEvolutionMode;
             if ($mode !== $before->bettingMode || $evolution !== $before->oddsEvolutionMode) {
                 $after = $this->bets->setBettingMode($betId, $mode, $evolution);
             }
-            if ($rateBps !== null && $rateBps !== $before->bookmakerRateBps) {
-                $after = $mode === BettingMode::FixedOdds
-                    ? $this->bets->setBookmakerRate($betId, $rateBps)
-                    : $this->bets->setMutuelCommissionRate($betId, $rateBps);
+            if ($rateBps !== null && $rateBps !== $before->mutuelCommissionRateBps) {
+                $after = $this->bets->setMutuelCommissionRate($betId, $rateBps);
             }
-            $this->recalculator->recalculate($after);
             $this->auditLogs->record($actorUserId, 'bet.updated', 'bet', (string) $betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
 
             return $after;
@@ -127,27 +125,60 @@ final readonly class BetService
         return $this->recalculator->withOdds($bet);
     }
 
-    public function setBookmakerRate(int $actorUserId, int $betId, string $percentage, ?string $ipAddress): Bet
+    /** Exposure the bookmaker carries on each option, to price the next odds. */
+    public function exposure(Bet $bet): BetExposure
     {
-        $rateBps = $this->parseBookmakerRate($percentage);
-        return $this->transactional(function () use ($actorUserId, $betId, $rateBps, $ipAddress): Bet {
+        return $this->recalculator->exposure($bet);
+    }
+
+    /**
+     * Republishes the odds typed by the bookmaker.
+     *
+     * Pricing the book restarts the drift, and the stakes already taken keep the
+     * odds frozen when they were created.
+     *
+     * @param array<int|string, string> $oddsByOptionId odds typed per option id
+     */
+    public function anchorOptionOdds(int $actorUserId, int $betId, array $oddsByOptionId, ?string $ipAddress): Bet
+    {
+        return $this->transactional(function () use ($actorUserId, $betId, $oddsByOptionId, $ipAddress): Bet {
             $before = $this->lockedBet($betId);
             if ($before->status !== BetStatus::Open) {
-                throw new InvalidArgumentException('Bookmaker rate can only be changed while the bet is open.');
+                throw new InvalidArgumentException('Odds can only be priced while the bet is open.');
             }
-            $after = $before->isFixedOdds()
-                ? $this->bets->setBookmakerRate($betId, $rateBps)
-                : $this->bets->setMutuelCommissionRate($betId, $rateBps);
-            $this->recalculator->recalculate($after);
-            $this->auditLogs->record($actorUserId, 'bet.bookmaker_rate_changed', 'bet', (string)$betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
+            if (!$before->isFixedOdds()) {
+                throw new InvalidArgumentException('Only fixed odds bets carry priced odds.');
+            }
+            $after = $this->bets->setOptionOdds($betId, $this->parseOddsByOptionId($before, $oddsByOptionId));
+            $this->auditLogs->record($actorUserId, 'bet.odds_priced', 'bet', (string)$betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
+
             return $after;
         });
     }
 
-    private function parseBookmakerRate(string $percentage): int
+    public function setMutuelCommissionRate(int $actorUserId, int $betId, string $percentage, ?string $ipAddress): Bet
+    {
+        $rateBps = $this->parseMutuelCommissionRate($percentage);
+
+        return $this->transactional(function () use ($actorUserId, $betId, $rateBps, $ipAddress): Bet {
+            $before = $this->lockedBet($betId);
+            if ($before->status !== BetStatus::Open) {
+                throw new InvalidArgumentException('Commission can only be changed while the bet is open.');
+            }
+            if ($before->isFixedOdds()) {
+                throw new InvalidArgumentException('Fixed odds bets carry their margin in the odds themselves.');
+            }
+            $after = $this->bets->setMutuelCommissionRate($betId, $rateBps);
+            $this->auditLogs->record($actorUserId, 'bet.commission_changed', 'bet', (string)$betId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
+
+            return $after;
+        });
+    }
+
+    private function parseMutuelCommissionRate(string $percentage): int
     {
         if (!preg_match('/^(?:\d|1\d|2[0-5])(?:[.,]\d{1,2})?$/', trim($percentage))) {
-            throw new InvalidArgumentException('Bookmaker rate must be between 0% and 25%.');
+            throw new InvalidArgumentException('Commission must be between 0% and 25%.');
         }
 
         return (int) round((float) str_replace(',', '.', $percentage) * 100);
@@ -167,52 +198,77 @@ final readonly class BetService
     {
         $mode = $mode === null ? '' : trim($mode);
         if ($mode === '') {
-            return OddsEvolutionMode::DynamicNormal;
+            // Odds typed by hand stay as typed unless the bookmaker asks for a drift.
+            return OddsEvolutionMode::Fixed;
         }
 
         return OddsEvolutionMode::tryFrom($mode) ?? throw new InvalidArgumentException('Unknown odds evolution mode.');
     }
 
     /**
-     * Converts the submitted percentages into normalised probabilities.
+     * Odds typed by the bookmaker, aligned with the submitted options.
      *
-     * Probabilities only exist in fixed odds mode; an empty submission keeps
-     * the options equiprobable.
+     * Odds only exist in fixed odds mode. An empty submission leaves the book
+     * unpriced, and an unpriced option simply accepts no stake yet.
      *
-     * @param list<string> $probabilities
+     * @param list<string> $odds
      * @return list<float|null>
      */
-    private function parseProbabilities(array $probabilities, int $optionCount, BettingMode $mode): array
+    private function parseOdds(array $odds, int $optionCount, BettingMode $mode): array
     {
         $values = array_values(array_filter(
-            array_map(static fn(mixed $value): string => trim((string) $value), $probabilities),
+            array_map(static fn(mixed $value): string => trim((string) $value), $odds),
             static fn(string $value): bool => $value !== '',
         ));
         if ($values === []) {
             return [];
         }
         if ($mode !== BettingMode::FixedOdds) {
-            throw new InvalidArgumentException('Probabilities can only be set on fixed odds bets.');
+            throw new InvalidArgumentException('Odds can only be set on fixed odds bets.');
         }
         if (count($values) !== $optionCount) {
-            throw new InvalidArgumentException('A probability is required for each option.');
+            throw new InvalidArgumentException('Odds are required for each option.');
         }
 
+        return array_map($this->parseSingleOdds(...), $values);
+    }
+
+    /**
+     * Odds typed per option id, restricted to the options of the bet.
+     *
+     * A blank field unprices its option instead of keeping a stale price.
+     *
+     * @param array<int|string, string> $oddsByOptionId
+     * @return array<int, float|null>
+     */
+    private function parseOddsByOptionId(Bet $bet, array $oddsByOptionId): array
+    {
         $parsed = [];
-        foreach ($values as $value) {
-            if (preg_match('/^\d{1,3}(?:[.,]\d{1,4})?$/', $value) !== 1) {
-                throw new InvalidArgumentException('Probabilities must be percentages between 0 and 100.');
+        foreach ($bet->options as $option) {
+            if (!array_key_exists($option->id, $oddsByOptionId)) {
+                continue;
             }
-            $percentage = (float) str_replace(',', '.', $value);
-            if ($percentage <= 0.0 || $percentage >= 100.0) {
-                throw new InvalidArgumentException('Probabilities must be percentages between 0 and 100.');
-            }
-            $parsed[] = $percentage;
+            $value = trim((string) $oddsByOptionId[$option->id]);
+            $parsed[$option->id] = $value === '' ? null : $this->parseSingleOdds($value);
+        }
+        if ($parsed === []) {
+            throw new InvalidArgumentException('Odds are required for each option.');
         }
 
-        $total = array_sum($parsed);
+        return $parsed;
+    }
 
-        return array_map(static fn(float $percentage): float => $percentage / $total, $parsed);
+    private function parseSingleOdds(string $value): float
+    {
+        if (preg_match('/^\d{1,4}(?:[.,]\d{1,2})?$/', $value) !== 1) {
+            throw new InvalidArgumentException('Odds must be a number between 1.01 and 1000.');
+        }
+        $odds = round((float) str_replace(',', '.', $value), 2);
+        if ($odds < 1.01 || $odds > 1000.0) {
+            throw new InvalidArgumentException('Odds must be a number between 1.01 and 1000.');
+        }
+
+        return $odds;
     }
 
     public function close(int $actorUserId, int $betId, ?string $ipAddress): Bet
@@ -378,13 +434,17 @@ final readonly class BetService
             'winning_option_id' => $bet->winningOptionId,
             'betting_mode' => $bet->bettingMode->value,
             'odds_evolution_mode' => $bet->oddsEvolutionMode->value,
-            'bookmaker_rate_bps' => $bet->bookmakerRateBps,
+            'odds_anchored_at' => $bet->oddsAnchoredAt?->format(DATE_ATOM),
             'mutuel_commission_rate_bps' => $bet->mutuelCommissionRateBps,
             'final_pot' => $bet->finalPot,
             'final_bookmaker_share' => $bet->finalBookmakerShare,
             'final_redistributed' => $bet->finalRedistributed,
             'final_bookmaker_result' => $bet->finalBookmakerResult,
-            'options' => array_map(static fn($option): array => ['id' => $option->id, 'label' => $option->label], $bet->options),
+            'options' => array_map(static fn($option): array => [
+                'id' => $option->id,
+                'label' => $option->label,
+                'odds' => $option->odds,
+            ], $bet->options),
         ];
     }
 

@@ -18,7 +18,7 @@ final readonly class MarketServiceRegistry
         ?FixedOddsMarketService $fixedOdds = null,
         ?PariMutuelMarketService $pariMutuel = null,
     ) {
-        $this->fixedOdds = $fixedOdds ?? new FixedOddsMarketService($settings, new ProbabilityNormalizer($settings));
+        $this->fixedOdds = $fixedOdds ?? new FixedOddsMarketService($settings);
         $this->pariMutuel = $pariMutuel ?? new PariMutuelMarketService($settings);
     }
 

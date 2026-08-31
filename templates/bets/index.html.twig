@@ -36,7 +36,7 @@
                                 <tr><th scope="row">Gain connu à l'avance</th><td data-label="Cotes fixes">Oui, dès le paiement</td><td data-label="Pari mutuel">Non, à la clôture</td></tr>
                                 <tr><th scope="row">Votre rémunération</th><td data-label="Cotes fixes">Marge dans les cotes</td><td data-label="Pari mutuel">Commission sur le pot</td></tr>
                                 <tr><th scope="row">Pouvez-vous perdre ?</th><td data-label="Cotes fixes">Oui</td><td data-label="Pari mutuel">Non</td></tr>
-                                <tr><th scope="row">Adapté quand</th><td data-label="Cotes fixes">Vous savez estimer les probabilités</td><td data-label="Pari mutuel">Vous ne voulez prendre aucun risque</td></tr>
+                                <tr><th scope="row">Adapté quand</th><td data-label="Cotes fixes">Vous savez fixer vous-même les cotes</td><td data-label="Pari mutuel">Vous ne voulez prendre aucun risque</td></tr>
                             </tbody>
                         </table>
                     </details>
@@ -45,25 +45,24 @@
                 <div class="form-field" data-fixed-odds-only>
                     <label for="bet-odds-evolution-mode">Évolution des cotes</label>
                     <select id="bet-odds-evolution-mode" name="odds_evolution_mode" data-odds-evolution-mode aria-describedby="bet-odds-evolution-help">
-                        <option value="fixed">Fixe — les mises ne modifient pas les probabilités</option>
+                        <option value="fixed" selected>Fixe — les cotes restent celles que vous avez saisies</option>
                         <option value="dynamic_low">Dynamique faible — les cotes bougent peu selon les mises</option>
-                        <option value="dynamic_normal" selected>Dynamique modérée — équilibre recommandé</option>
+                        <option value="dynamic_normal">Dynamique modérée — équilibre recommandé</option>
                         <option value="dynamic_high">Dynamique forte — les cotes suivent nettement les mises</option>
                     </select>
-                    <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'ajustent en fonction des mises déjà placées. Les mises déjà payées ne sont jamais affectées.</p>
+                    <p class="form-help" id="bet-odds-evolution-help">Détermine à quel point les cotes proposées aux prochains parieurs s'écartent de celles que vous avez saisies, en fonction des mises déjà prises. Une mise déjà placée garde sa cote.</p>
                     {% include 'bets/_odds-evolution-help.html.twig' %}
                 </div>
                 <fieldset class="bet-options"><legend>Choix</legend>
                     <p class="form-help">Entre 2 et 20 choix uniques.</p>
                     <div class="bet-option-fields" data-option-fields>
-                        <div class="form-field"><label for="bet-option-1">Choix 1</label><input id="bet-option-1" name="options[]" type="text" maxlength="120" required><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" aria-label="Probabilité du choix 1 en %" data-fixed-odds-only data-probability-input></div>
-                        <div class="form-field"><label for="bet-option-2">Choix 2</label><input id="bet-option-2" name="options[]" type="text" maxlength="120" required><input class="bet-option-probability" name="probabilities[]" type="number" min="0.01" max="99.99" step="0.01" aria-label="Probabilité du choix 2 en %" data-fixed-odds-only data-probability-input></div>
+                        <div class="form-field"><label for="bet-option-1">Choix 1</label><input id="bet-option-1" name="options[]" type="text" maxlength="120" required><input class="bet-option-odds" name="odds[]" type="number" min="1.01" max="1000" step="0.01" aria-label="Cote du choix 1" data-fixed-odds-only data-odds-input></div>
+                        <div class="form-field"><label for="bet-option-2">Choix 2</label><input id="bet-option-2" name="options[]" type="text" maxlength="120" required><input class="bet-option-odds" name="odds[]" type="number" min="1.01" max="1000" step="0.01" aria-label="Cote du choix 2" data-fixed-odds-only data-odds-input></div>
                     </div>
                     <div class="bet-options-actions">
                         <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>
-                        <button class="button button-secondary" type="button" data-distribute-probabilities data-fixed-odds-only>Répartir les probabilités</button>
                     </div>
-                    <p class="form-help" data-fixed-odds-only>Laissez les probabilités vides pour des choix équiprobables, ou renseignez-les toutes. « Répartir » complète les champs vides avec le pourcentage restant.</p>
+                    <p class="form-help" data-fixed-odds-only>Saisissez la cote de chaque choix, ou laissez-les toutes vides et cotez plus tard : un choix sans cote n'accepte aucune mise. Votre marge est l'écart entre 100 % et la somme des inverses des cotes.</p>
                 </fieldset>
                 <button class="button button-primary" type="submit">Créer et ouvrir</button>
             </form>
@@ -81,7 +80,7 @@
                 {% if bet.closesAt %}<p class="form-help">Date limite : {{ bet.closesAt|date('d/m/Y H:i') }}</p>{% endif %}
                 <ol class="bet-option-list">
                     {% for option in bet.options %}
-                        <li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — {{ bet.status.value == 'settled' ? 'cote' : 'cote indicative' }} {{ option.odds is null ? '—' : option.odds|number_format(2, ',', ' ') }}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>
+                        <li{% if option.id == bet.winningOptionId %} class="winning-option"{% endif %}>{{ option.label }} — {% if bet.status.value == 'settled' %}cote {{ option.finalOdds is null ? '—' : option.finalOdds|number_format(2, ',', ' ') }}{% else %}cote proposée {{ option.offeredOdds is null ? '—' : option.offeredOdds|number_format(2, ',', ' ') }}{% endif %}{% if option.id == bet.winningOptionId %} — gagnant{% endif %}</li>
                     {% endfor %}
                 </ol>
 

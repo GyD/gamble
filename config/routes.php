@@ -77,6 +77,14 @@ return static function (App $app): void {
         ->add(RequireBetsEditPermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)
         ->setName('bets.update');
+    $app->get('/bets/{id}/odds', [BetController::class, 'odds'])
+        ->add(RequireBetsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.odds');
+    $app->post('/bets/{id}/odds', [BetController::class, 'priceOdds'])
+        ->add(RequireBetsEditPermissionMiddleware::class)
+        ->add(RequireActiveUserMiddleware::class)
+        ->setName('bets.odds.price');
     $app->post('/bets/{id}/close', [BetController::class, 'close'])
         ->add(RequireBetsClosePermissionMiddleware::class)
         ->add(RequireActiveUserMiddleware::class)

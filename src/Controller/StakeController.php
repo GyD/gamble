@@ -62,7 +62,7 @@ final readonly class StakeController
         }
 
         return $this->render($request, $response, 'stakes/index.html.twig', [
-            'bet' => $bet,
+            'bet' => $this->service->withOdds($bet),
             'stakes' => $this->stakes->findByBet($bet->id),
             'contacts' => $contacts,
             'contact_groups' => $contactGroups,

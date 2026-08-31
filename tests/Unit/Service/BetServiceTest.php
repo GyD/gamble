@@ -122,43 +122,65 @@ final class BetServiceTest extends TestCase
         $this->service->update(7, $bet->id, 'New question?', null, null, ['Blue', 'Green'], null);
     }
 
-    public function testUnpaidStakesMoveTheIndicativeMarketLessThanPaidOnes(): void
+    public function testTheDriftMovesTheOddsOfferedToTheNextStakes(): void
     {
-        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, null, 'dynamic_normal', ['2.00', '2.00']);
         $blueId = $bet->options[0]->id;
         $redId = $bet->options[1]->id;
         $this->stakes->stakes = [
-            new Stake(1, $bet->id, $blueId, 20, 1000, 'Alice', 'Blue', false, true),
-            new Stake(2, $bet->id, $redId, 21, 1000, 'Bob', 'Red', false, true),
+            new Stake(1, $bet->id, $blueId, 20, 1000, 'Alice', 'Blue', false, true, false, null, 2.00, new DateTimeImmutable()),
+            new Stake(2, $bet->id, $redId, 21, 1000, 'Bob', 'Red', false, true, false, null, 2.00, new DateTimeImmutable()),
         ];
 
         $balanced = $this->service->withOdds($bet);
-        self::assertSame($balanced->options[0]->odds, $balanced->options[1]->odds);
+        self::assertSame($balanced->options[0]->offeredOdds, $balanced->options[1]->offeredOdds);
 
-        $this->stakes->stakes[] = new Stake(3, $bet->id, $redId, 22, 2000, 'Carol', 'Red', false, false);
+        $this->stakes->stakes[] = new Stake(3, $bet->id, $redId, 22, 2000, 'Carol', 'Red', false, false, false, null, 2.00, new DateTimeImmutable());
         $withUnpaid = $this->service->withOdds($bet);
 
-        self::assertGreaterThan((float) $balanced->options[0]->odds, (float) $withUnpaid->options[0]->odds);
-        self::assertLessThan((float) $balanced->options[1]->odds, (float) $withUnpaid->options[1]->odds);
+        self::assertGreaterThan((float) $balanced->options[0]->offeredOdds, (float) $withUnpaid->options[0]->offeredOdds);
+        self::assertLessThan((float) $balanced->options[1]->offeredOdds, (float) $withUnpaid->options[1]->offeredOdds);
 
-        $this->stakes->stakes[2] = new Stake(3, $bet->id, $redId, 22, 2000, 'Carol', 'Red', false, true);
+        $this->stakes->stakes[2] = new Stake(3, $bet->id, $redId, 22, 2000, 'Carol', 'Red', false, true, false, null, 2.00, new DateTimeImmutable());
         $withPaid = $this->service->withOdds($bet);
 
-        self::assertGreaterThan((float) $withUnpaid->options[0]->odds, (float) $withPaid->options[0]->odds);
-        self::assertLessThan((float) $withUnpaid->options[1]->odds, (float) $withPaid->options[1]->odds);
+        // An unpaid stake only counts for half, so paying it pushes the odds further.
+        self::assertGreaterThan((float) $withUnpaid->options[0]->offeredOdds, (float) $withPaid->options[0]->offeredOdds);
+        self::assertLessThan((float) $withUnpaid->options[1]->offeredOdds, (float) $withPaid->options[1]->offeredOdds);
+    }
+
+    public function testPricingTheOddsAgainRestartsTheDrift(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, null, 'dynamic_normal', ['2.00', '2.00']);
+        $blueId = $bet->options[0]->id;
+        // The book was priced two hours ago, the stake taken since then.
+        $this->bets->anchorAt($bet->id, new DateTimeImmutable('-2 hours'));
+        $this->stakes->stakes = [
+            new Stake(1, $bet->id, $blueId, 20, 5000, 'Alice', 'Blue', false, true, false, null, 2.00, new DateTimeImmutable('-1 hour')),
+        ];
+
+        $drifted = $this->service->withOdds($this->bets->findById($bet->id) ?? $bet);
+        self::assertLessThan(2.00, (float) $drifted->options[0]->offeredOdds);
+
+        $repriced = $this->service->anchorOptionOdds(7, $bet->id, [$blueId => '1.90', $bet->options[1]->id => '2.10'], null);
+
+        // The stake predates the new pricing: it no longer feeds the drift.
+        self::assertSame(1.90, $this->service->withOdds($repriced)->options[0]->offeredOdds);
+        self::assertSame('bet.odds_priced', $this->audit->entries[array_key_last($this->audit->entries)]['action']);
     }
 
     public function testSettledOddsAreKeptAsRecordedAtSettlement(): void
     {
-        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, null, 'dynamic_normal', ['2.00', '2.00']);
         $this->service->close(7, $bet->id, null);
         $settled = $this->service->settle(7, $bet->id, $bet->options[0]->id, null);
 
-        $this->stakes->stakes[] = new Stake(1, $bet->id, $bet->options[1]->id, 20, 5000, 'Alice', 'Red', false, true);
+        $this->stakes->stakes[] = new Stake(1, $bet->id, $bet->options[1]->id, 20, 5000, 'Alice', 'Red', false, true, false, null, 2.00, new DateTimeImmutable());
 
+        self::assertSame([2.00, 2.00], array_column($settled->options, 'finalOdds'));
         self::assertSame(
-            array_column($settled->options, 'odds'),
-            array_column($this->service->withOdds($settled)->options, 'odds'),
+            array_column($settled->options, 'finalOdds'),
+            array_column($this->service->withOdds($settled)->options, 'finalOdds'),
         );
     }
 
@@ -208,9 +230,9 @@ final class BetServiceTest extends TestCase
         $blueId = $bet->options[0]->id;
         $redId = $bet->options[1]->id;
         $this->stakes->stakes = [
-            new Stake(1, $bet->id, $blueId, 20, 100, 'Alice', 'Blue', false, true, false, null, 2.0, 2.0),
-            new Stake(2, $bet->id, $blueId, 21, 200, 'Bob', 'Blue', false, true, false, null, 1.8, 1.8),
-            new Stake(3, $bet->id, $redId, 22, 700, 'Carol', 'Red', false, true, false, null, 1.6, 1.6),
+            new Stake(1, $bet->id, $blueId, 20, 100, 'Alice', 'Blue', false, true, false, null, 2.0),
+            new Stake(2, $bet->id, $blueId, 21, 200, 'Bob', 'Blue', false, true, false, null, 1.8),
+            new Stake(3, $bet->id, $redId, 22, 700, 'Carol', 'Red', false, true, false, null, 1.6),
             new Stake(4, $bet->id, $blueId, 23, 500, 'Dave', 'Blue', false, false, false, null, 2.1),
         ];
         $this->service->close(7, $bet->id, null);
@@ -243,12 +265,12 @@ final class BetServiceTest extends TestCase
         self::assertSame([200, 360, 0, 0], array_map(static fn(Stake $stake): ?int => $stake->finalPayout, $this->stakes->stakes));
     }
 
-    public function testBookmakerRateCanOnlyBeChangedWhileBetIsOpen(): void
+    public function testTheMutuelCommissionCanOnlyBeChangedWhileTheBetIsOpen(): void
     {
-        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, 'pari_mutuel');
         $updated = $this->service->update(7, $bet->id, 'Winner?', null, null, ['Blue', 'Red'], null, '12.5');
 
-        self::assertSame(1250, $updated->bookmakerRateBps);
+        self::assertSame(1250, $updated->mutuelCommissionRateBps);
         $this->service->close(7, $bet->id, null);
 
         try {
@@ -259,7 +281,40 @@ final class BetServiceTest extends TestCase
         }
 
         self::assertFalse($this->pdo->inTransaction());
-        self::assertSame(1250, $this->bets->findById($bet->id)?->bookmakerRateBps);
+        self::assertSame(1250, $this->bets->findById($bet->id)?->mutuelCommissionRateBps);
+    }
+
+    public function testOddsCanOnlyBeSetOnFixedOddsBets(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Odds can only be set on fixed odds bets.');
+
+        $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, 'pari_mutuel', null, ['2.00', '2.00']);
+    }
+
+    public function testEveryOptionNeedsItsOwnOdds(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Odds are required for each option.');
+
+        $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, null, null, ['2.00']);
+    }
+
+    public function testOddsBelowTheMinimumAreRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Odds must be a number between 1.01 and 1000.');
+
+        $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null, null, null, ['1.00', '2.00']);
+    }
+
+    public function testAnUnpricedBookIsAccepted(): void
+    {
+        $bet = $this->service->create(7, 'Winner?', null, null, ['Blue', 'Red'], null);
+
+        // The bookmaker may open the bet first and price it afterwards.
+        self::assertSame([null, null], array_column($bet->options, 'odds'));
+        self::assertNull($bet->oddsAnchoredAt);
     }
 }
 
@@ -286,67 +341,67 @@ final class BetTestStore implements BetStore
         ?DateTimeImmutable $closesAt,
         array $options,
         BettingMode $bettingMode = BettingMode::FixedOdds,
-        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::DynamicNormal,
-        array $initialProbabilities = [],
+        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::Fixed,
+        array $odds = [],
     ): Bet {
         $id = count($this->bets) + 1;
         return $this->bets[$id] = new Bet($id, $ownerUserId, $question, $description, $closesAt, BetStatus::Open, null,
-            $this->options($options, $initialProbabilities), 1000, null, null, null, $bettingMode, $oddsEvolutionMode);
+            $this->options($options, $odds), null, null, null, $bettingMode, $oddsEvolutionMode, 1000, null,
+            $this->anchor($odds));
     }
-    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options, array $initialProbabilities = []): Bet
+    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options, array $odds = []): Bet
     {
         $bet = $this->bets[$id];
         $currentOptions = array_map(static fn(BetOption $option): string => $option->label, $bet->options);
-        $updatedOptions = $options === $currentOptions ? $bet->options : $this->options($options, $initialProbabilities);
+        $updatedOptions = $options === $currentOptions
+            ? $this->reprice($bet->options, $odds)
+            : $this->options($options, $odds);
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $question, $description, $closesAt,
-            $bet->status, $bet->winningOptionId, $updatedOptions, $bet->bookmakerRateBps,
+            $bet->status, $bet->winningOptionId, $updatedOptions,
             $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
-            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult);
+            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult,
+            $odds === [] ? $bet->oddsAnchoredAt : $this->anchor($odds));
     }
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet
     {
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
-            $bet->closesAt, $status, $winningOptionId, $bet->options, $bet->bookmakerRateBps,
+            $bet->closesAt, $status, $winningOptionId, $bet->options,
             $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
-            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult);
+            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult,
+            $bet->oddsAnchoredAt);
     }
-    public function setBookmakerRate(int $id, int $rateBps): Bet
+    public function setOptionOdds(int $id, array $oddsByOptionId): Bet
     {
         $bet = $this->bets[$id];
+        $options = array_map(static function (BetOption $option) use ($oddsByOptionId): BetOption {
+            $odds = array_key_exists($option->id, $oddsByOptionId) ? $oddsByOptionId[$option->id] : $option->odds;
+
+            return new BetOption($option->id, $option->label, $option->position, $odds, $odds, $option->finalOdds);
+        }, $bet->options);
+
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
-            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options, $rateBps,
+            $bet->closesAt, $bet->status, $bet->winningOptionId, $options,
             $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
-            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult);
+            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult,
+            new DateTimeImmutable());
     }
     public function setMutuelCommissionRate(int $id, int $rateBps): Bet
     {
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
-            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options, $bet->bookmakerRateBps,
+            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options,
             $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
-            $bet->bettingMode, $bet->oddsEvolutionMode, $rateBps, $bet->finalBookmakerResult);
+            $bet->bettingMode, $bet->oddsEvolutionMode, $rateBps, $bet->finalBookmakerResult, $bet->oddsAnchoredAt);
     }
     public function setBettingMode(int $id, BettingMode $bettingMode, OddsEvolutionMode $oddsEvolutionMode): Bet
     {
         $bet = $this->bets[$id];
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
-            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options, $bet->bookmakerRateBps,
+            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options,
             $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
-            $bettingMode, $oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult);
-    }
-    public function updateCurrentProbabilities(int $id, array $probabilitiesByOptionId): void
-    {
-        $bet = $this->bets[$id];
-        $options = array_map(static fn(BetOption $option): BetOption => new BetOption(
-            $option->id,
-            $option->label,
-            $option->position,
-            $option->odds,
-            $option->initialProbability,
-            $probabilitiesByOptionId[$option->id] ?? $option->currentProbability,
-        ), $bet->options);
-        $this->bets[$id] = $bet->withOptions($options);
+            $bettingMode, $oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult,
+            $bet->oddsAnchoredAt);
     }
     public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, int $bookmakerResult, array $oddsByOptionId): Bet
     {
@@ -355,32 +410,65 @@ final class BetTestStore implements BetStore
             $option->id,
             $option->label,
             $option->position,
-            $oddsByOptionId[$option->id],
-            $option->initialProbability,
-            $option->currentProbability,
+            $option->odds,
+            $option->offeredOdds,
+            $oddsByOptionId[$option->id] ?? null,
         ), $bet->options);
 
         return $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
-            $bet->closesAt, BetStatus::Settled, $winningOptionId, $options, $bet->bookmakerRateBps,
+            $bet->closesAt, BetStatus::Settled, $winningOptionId, $options,
             $pot, $bookmakerShare, $redistributed,
-            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bookmakerResult);
+            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bookmakerResult,
+            $bet->oddsAnchoredAt);
     }
     public function delete(int $id): void { unset($this->bets[$id]); }
-    /** @param list<string> $labels @param list<float|null> $probabilities @return list<BetOption> */
-    private function options(array $labels, array $probabilities = []): array
+    /** Test helper: back-dates the pricing so a stake can be taken after it. */
+    public function anchorAt(int $id, DateTimeImmutable $anchoredAt): void
+    {
+        $bet = $this->bets[$id];
+        $this->bets[$id] = new Bet($id, $bet->ownerUserId, $bet->question, $bet->description,
+            $bet->closesAt, $bet->status, $bet->winningOptionId, $bet->options,
+            $bet->finalPot, $bet->finalBookmakerShare, $bet->finalRedistributed,
+            $bet->bettingMode, $bet->oddsEvolutionMode, $bet->mutuelCommissionRateBps, $bet->finalBookmakerResult,
+            $anchoredAt);
+    }
+    /** @param list<string> $labels @param list<float|null> $odds @return list<BetOption> */
+    private function options(array $labels, array $odds = []): array
     {
         return array_map(
             fn(string $label, int $position): BetOption => new BetOption(
                 $this->nextOptionId++,
                 $label,
                 $position,
-                null,
-                $probabilities[$position] ?? null,
-                $probabilities[$position] ?? null,
+                $odds[$position] ?? null,
+                $odds[$position] ?? null,
             ),
             $labels,
             array_keys($labels),
         );
+    }
+    /** @param list<BetOption> $options @param list<float|null> $odds @return list<BetOption> */
+    private function reprice(array $options, array $odds): array
+    {
+        if ($odds === []) {
+            return $options;
+        }
+
+        return array_map(static fn(BetOption $option): BetOption => new BetOption(
+            $option->id,
+            $option->label,
+            $option->position,
+            $odds[$option->position] ?? null,
+            $odds[$option->position] ?? null,
+            $option->finalOdds,
+        ), $options);
+    }
+    /** @param list<float|null> $odds */
+    private function anchor(array $odds): ?DateTimeImmutable
+    {
+        return array_filter($odds, static fn(?float $value): bool => $value !== null) === []
+            ? null
+            : new DateTimeImmutable();
     }
 }
 
@@ -391,9 +479,9 @@ final class BetTestStakeStore implements StakeStore
     public function findByBet(int $betId): array { return array_values(array_filter($this->stakes, static fn(Stake $stake): bool => $stake->betId === $betId)); }
     public function findById(int $id): ?Stake { return null; }
     public function findByIdForUpdate(int $id): ?Stake { return $this->findById($id); }
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake { throw new \LogicException(); }
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake { throw new \LogicException(); }
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake { throw new \LogicException(); }
-    public function setPaid(int $id, bool $isPaid, ?float $oddsAtBet = null): Stake { throw new \LogicException(); }
+    public function setPaid(int $id, bool $isPaid): Stake { throw new \LogicException(); }
     public function setCancelled(int $id, bool $isCancelled): Stake { throw new \LogicException(); }
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void
     {

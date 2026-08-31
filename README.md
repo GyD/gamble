@@ -14,8 +14,8 @@ L'application s'appuie sur Twitch pour identifier ses utilisateurs. Son système
 - **Contacts** : participants aux paris, qu'ils disposent ou non d'un compte utilisateur dans l'application.
 - **Groupes** : ensembles de contacts permettant d'organiser les participants.
 - **Paris** : événements ou propositions créés par un organisateur, puis ouverts, fermés et réglés selon leur cycle de vie.
-- **Cotes** : calculées selon le mode du pari (`fixed_odds` ou `pari_mutuel`) ; en `fixed_odds`, une cote contractuelle est capturée au moment du paiement de chaque mise ; en `pari_mutuel`, les cotes sont indicatives jusqu'à la clôture et dépendent du pool net final.
-- **Rémunération du bookmaker** : deux paramètres distincts, configurables par pari et indépendants l'un de l'autre. La **marge bookmaker** de `fixed_odds` existe déjà au niveau du pari, vaut 10 % par défaut et est intégrée aux cotes proposées via l'overround, sans prélèvement au règlement. La **commission bookmaker** de `pari_mutuel` est une notion séparée, également configurable par pari, qui vaut 10 % par défaut et est prélevée sur le pool avant la répartition des gains.
+- **Cotes** : en `fixed_odds`, le bookmaker saisit lui-même la cote de chaque choix et cette cote est figée contractuellement à la création de chaque mise ; en `pari_mutuel`, les cotes sont indicatives jusqu'à la clôture et dépendent du pool net final.
+- **Rémunération du bookmaker** : deux notions distinctes et indépendantes. En `fixed_odds`, la **marge bookmaker** n'est pas saisie : elle se déduit des cotes elles-mêmes (`somme(1 / cote) - 1`) et n'entraîne aucun prélèvement au règlement, le bookmaker pouvant donc perdre s'il a mal coté. En `pari_mutuel`, la **commission bookmaker** est configurable par pari, vaut 10 % par défaut et est prélevée sur le pool avant la répartition des gains.
 - **Mises** : participations rattachées à un pari et à un contact, saisies, stockées et affichées en dollars entiers.
 - **Paiements** : suivi des mises payées, non payées ou à rembourser et des gains versés ou à verser ; les transferts sont réalisés hors de l'application.
 - **Statistiques** : vues agrégées des paris, mises et résultats.
@@ -67,21 +67,24 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - choix du mode `fixed_odds` ou `pari_mutuel` à la création du pari, verrouillé dès qu'une mise existe ;
 - explications du fonctionnement de chaque mode de pari dans les formulaires de création et de modification, complétées d'un tableau comparatif repliable, et rappel du mode actif sur la page de consultation ;
 - conversion des paris antérieurs en `pari_mutuel`, leur marge bookmaker devenant leur commission mutuelle, afin de préserver leur comportement financier historique ;
-- probabilités initiales et courantes par option, avec bouton de répartition automatique du pourcentage restant ;
-- modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds`, expliqués dans les formulaires par un bloc chiffré propre au mode sélectionné, complété d'un tableau comparatif repliable ;
-- cote informative `quoted_odds` à la création d'une mise et cote contractuelle immuable `odds_at_bet` capturée au paiement ;
+- cotes de chaque choix saisies à la main par le bookmaker en `fixed_odds`, un choix non coté n'acceptant aucune mise ;
+- marge bookmaker déduite des cotes saisies et affichée en lecture seule, sans aucun paramètre de marge à renseigner ;
+- page « Ajuster les cotes » exposant, choix par choix, le montant encaissé, le montant en attente, les gains à verser et le résultat du bookmaker si ce choix gagne, puis permettant de republier les cotes ;
+- modes d'évolution des cotes `fixed`, `dynamic_low`, `dynamic_normal` et `dynamic_high` en `fixed_odds`, `fixed` par défaut, expliqués dans les formulaires par un bloc chiffré propre au mode sélectionné, complété d'un tableau comparatif repliable ;
+- dérive des cotes proposées orientée par l'exposition réellement prise et pondérée par le volume échangé depuis la dernière cotation manuelle, plafonnée à 25 % et jamais sous `minimum_odds` ;
+- recotation manuelle réinitialisant la dérive, les mises antérieures ne l'alimentant plus ;
+- cote contractuelle immuable `odds_at_bet` figée à la création de chaque mise `fixed_odds`, avec calcul du gain garanti affiché avant validation ;
 - poids de marché réduit des mises impayées via la configuration `unpaid_bet_market_weight` ;
-- affichage des cotes comme indicatives tant qu'elles concernent de futures mises, une mise `fixed_odds` payée conservant sa cote contractuelle ;
-- réutilisation de la marge bookmaker existante du pari en `fixed_odds`, conservée à 10 % par défaut et limitée entre 0 % et 25 %, appliquée aux cotes proposées via l'overround ;
-- commission bookmaker distincte pour `pari_mutuel`, configurable par pari, à 10 % par défaut, prélevée sur le pool lors de la clôture ;
+- affichage de la cote proposée, garantie sur la prochaine mise en `fixed_odds` et purement indicative en `pari_mutuel` ;
+- commission bookmaker propre au `pari_mutuel`, configurable par pari, à 10 % par défaut, prélevée sur le pool lors de la clôture ;
 - affichage du seul paramètre correspondant au mode sélectionné dans le formulaire de pari, l'autre étant masqué ;
-- garde-fous centralisés du recalcul dynamique : probabilité minimale, probabilité maximale, variation maximale par recalcul et référence de liquidité ;
+- paramètres de marché centralisés dans `config/settings.php` : écart maximal par mode d'évolution, référence de liquidité, cote plancher et poids des mises impayées ;
 - en `pari_mutuel`, répartition du pool net entre les gagnants proportionnellement à leurs mises gagnantes, avec distribution déterministe des unités restantes ;
 - absence de rémunération du bookmaker lorsqu'un pari est annulé ;
 - suivi et affichage du pot total, de la rémunération prélevée par le bookmaker, du montant effectivement redistribué et du résultat net du bookmaker ;
 - en `pari_mutuel`, conservation de la totalité du pot par le bookmaker lorsque le choix gagnant ne comporte aucune mise payée ;
 - enregistrement d'un état financier définitif lors du règlement afin que les cotes retenues, la rémunération du bookmaker et les gains ne varient plus après le règlement ;
-- sérialisation des opérations de marché sur la ligne du pari afin que deux paiements simultanés ne capturent pas des cotes incohérentes.
+- sérialisation des opérations de marché sur la ligne du pari afin que deux mises simultanées ne figent pas des cotes incohérentes.
 
 ### À construire
 
@@ -92,7 +95,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 
 Les règles détaillées sont définies dans la section [Betting modes and odds](#betting-modes-and-odds) ci-dessous, qui constitue la référence fonctionnelle du projet sur ce sujet.
 
-En résumé : en `fixed_odds`, la cote est capturée contractuellement au paiement de chaque mise et n'évolue plus ensuite ; en `pari_mutuel`, le payout dépend du pool net final et de la répartition des mises gagnantes. La rémunération du bookmaker suit la même distinction : marge intégrée aux cotes en `fixed_odds`, commission prélevée sur le pool en `pari_mutuel`. Dans les deux modes, une mise impayée peut influencer les estimations affichées, mais ne constitue jamais de l'argent disponible pour le règlement financier. Les données financières sont figées lors du règlement afin de conserver un historique stable et auditable.
+En résumé : en `fixed_odds`, le bookmaker saisit les cotes lui-même et la cote est figée contractuellement dès la création de chaque mise, sans jamais évoluer ensuite ; en `pari_mutuel`, le payout dépend du pool net final et de la répartition des mises gagnantes. La rémunération du bookmaker suit la même distinction : marge portée par les cotes saisies en `fixed_odds`, commission prélevée sur le pool en `pari_mutuel`. Dans les deux modes, une mise impayée peut influencer les cotes proposées aux prochains parieurs, mais ne constitue jamais de l'argent disponible pour le règlement financier. Les données financières sont figées lors du règlement afin de conserver un historique stable et auditable.
 
 Le produit dispose actuellement de son socle d'identité, de sécurité et d'administration, ainsi que des modules Contacts, Groupes, Paris, Mises et Statistiques.
 
@@ -110,7 +113,7 @@ Chaque lot doit inclure son modèle de données, ses règles métier, ses permis
 
 ## Betting modes and odds
 
-Cette section est la référence fonctionnelle du projet pour tout ce qui concerne les modes de pari, les probabilités, les cotes, les mises payées, impayées et annulées, le calcul dynamique du marché et le règlement financier.
+Cette section est la référence fonctionnelle du projet pour tout ce qui concerne les modes de pari, les cotes saisies par le bookmaker, son exposition, les mises payées, impayées et annulées, la dérive des cotes proposées et le règlement financier.
 
 ### 1. Modes de pari
 
@@ -127,28 +130,22 @@ Les paris antérieurs à cette fonctionnalité sont convertis en `pari_mutuel`, 
 
 ### 2. Fixed odds
 
-En `fixed_odds`, les cotes proposées aux nouvelles mises peuvent évoluer au fil du temps. Une mise possède deux notions distinctes concernant la cote.
+En `fixed_odds`, **le bookmaker saisit lui-même la cote de chaque choix**. Aucune probabilité n'est demandée ni stockée : la cote est la seule donnée de cotation.
 
-#### `quoted_odds` — cote informative
-
-Cote observée ou annoncée lorsque la mise est créée.
-
-Elle est informative uniquement. Elle peut notamment être enregistrée lorsqu'une personne téléphone pour annoncer une mise avant de la payer.
-
-Elle n'est jamais utilisée pour le règlement financier.
+Une option non cotée reste `null` et **n'accepte aucune mise** : il n'y aurait aucun contrat à passer.
 
 #### `odds_at_bet` — cote contractuelle définitive
 
-- reste `null` tant que la mise n'est pas payée ;
-- est capturée au moment exact du paiement ;
-- une fois définie, elle est immuable.
+- est figée **à la création de la mise**, à partir de la cote alors proposée ;
+- est immuable ensuite : ni le paiement, ni une modification de montant, ni une recotation ne la changent ;
+- reste `null` pour les mises antérieures à cette fonctionnalité et pour les mises `pari_mutuel`.
 
 Exemple :
 
 ```text
-mise créée alors que la cote vaut 2.10   →  quoted_odds = 2.10
-mise non payée                           →  odds_at_bet = null
-au paiement, la cote vaut 1.95           →  odds_at_bet = 1.95
+cote proposée sur le choix : 2.10   →  mise créée      →  odds_at_bet = 2.10
+le bookmaker recote à 1.80          →  mise inchangée  →  odds_at_bet = 2.10
+mise payée plus tard                →  mise inchangée  →  odds_at_bet = 2.10
 ```
 
 Le règlement utilise ensuite :
@@ -157,115 +154,92 @@ Le règlement utilise ensuite :
 payout = stake × odds_at_bet
 ```
 
-Ni `quoted_odds`, ni la cote actuelle, ni la cote de clôture ne sont utilisées pour calculer le gain.
+Une mise sans cote contractuelle est remboursée à hauteur de son montant, et une mise gagnante ne peut jamais rapporter moins que sa propre mise.
 
-### 3. Probabilités initiales
+### 3. Marge du bookmaker en fixed odds
 
-En `fixed_odds`, chaque option possède :
-
-- `initial_probability` : probabilité fixée à l'ouverture ;
-- `current_probability` : probabilité courante, recalculée dynamiquement.
-
-À l'ouverture : `current_probability = initial_probability`.
-
-Le formulaire laisse les probabilités vides par défaut. Deux saisies sont
-acceptées : aucune probabilité, auquel cas les choix sont équiprobables, ou une
-probabilité par choix. Une saisie partielle est refusée.
-
-Le bouton « Répartir » complète uniquement les champs vides en leur partageant
-le pourcentage restant, sans toucher aux valeurs déjà saisies. Avec trois choix
-vides il produit 33.34 / 33.33 / 33.33 ; si un choix est déjà à 60 %, les deux
-champs vides reçoivent 20 % chacun.
-
-Les probabilités sont toujours normalisées afin que leur somme fasse 100 %.
-
-### 4. Conversion des probabilités en cotes et marge du bookmaker
-
-Cote équitable :
+La marge n'est pas un paramètre saisi : elle **se lit dans les cotes**. Un livre entièrement coté vaut :
 
 ```text
-fair_odds = 1 / probability
+marge = somme(1 / cote) - 1
 ```
 
-En `fixed_odds`, la rémunération du bookmaker est une **marge intégrée aux cotes**, obtenue par overround. Ce paramètre existe déjà au niveau du pari : il est saisi en pourcentage, vaut **10 % par défaut** et reste limité entre 0 % et 25 %. Il est persisté via `bookmaker_rate_bps` (`1000` = 10 %) et exposé par `Bet::$bookmakerRateBps`. Ce mécanisme est conservé, car il représente bien cette marge.
+Elle est affichée à titre indicatif et reste `null` tant qu'un choix n'est pas coté. Trois choix cotés `2.73` portent ainsi une marge d'environ 10 %.
 
-La marge intervient uniquement lors de la transformation :
+Cette marge n'est jamais prélevée comme une commission sur un pot lors du règlement : elle est déjà contenue dans `odds_at_bet`. Le bookmaker peut donc perdre de l'argent sur un pari `fixed_odds` s'il a mal coté.
 
-```text
-current_probability  →  offered_odds
-```
+La commission du `pari_mutuel` est une notion **séparée**, documentée au point 8.
 
-La cote proposée est donc systématiquement inférieure à la cote équitable, la différence constituant la marge du bookmaker.
+### 4. Exposition du bookmaker
 
-Cette marge n'est jamais prélevée comme une commission sur un pot lors du règlement. Le payout d'une mise gagnante reste :
+Pour coter, le bookmaker consulte son exposition choix par choix, depuis la page **Ajuster les cotes**. Elle est calculée à partir des cotes **figées sur chaque mise**, jamais des cotes actuelles : ce qu'il doit est déjà contractuel.
 
-```text
-payout = stake × odds_at_bet
-```
+| Colonne                        | Contenu                                                        |
+|--------------------------------|----------------------------------------------------------------|
+| Misé                           | montant encaissé, et montant encore en attente de paiement      |
+| À verser si gagnant            | somme des `stake × odds_at_bet` du choix                        |
+| Si ce choix gagne (encaissé)   | total encaissé − à verser, sur l'argent réellement collecté     |
+| …une fois tout encaissé        | même calcul en supposant toutes les mises payées                |
 
-Aucun prélèvement supplémentaire n'est appliqué au règlement d'un pari `fixed_odds` : la marge est déjà contenue dans `odds_at_bet`.
-
-La commission du `pari_mutuel` est une notion **séparée**, documentée au point 10. Les deux paramètres valent 10 % par défaut, mais ils ne sont pas conceptuellement liés et doivent pouvoir évoluer indépendamment.
+Un résultat très négatif signale un choix trop chargé au prix actuel : sa cote doit être raccourcie, ou celle des autres allongée.
 
 ### 5. Modes d'évolution des cotes
 
 Un pari `fixed_odds` dispose d'un mode d'évolution parmi :
 
-| Mode             | Effet                                             |
-|------------------|---------------------------------------------------|
-| `fixed`          | les mises ne modifient pas les probabilités       |
-| `dynamic_low`    | influence faible du marché sur les probabilités   |
-| `dynamic_normal` | influence modérée du marché sur les probabilités  |
-| `dynamic_high`   | influence forte du marché sur les probabilités    |
+| Mode             | Écart maximal | Effet                                              |
+|------------------|---------------|----------------------------------------------------|
+| `fixed`          | `0 %`         | les cotes restent celles saisies par le bookmaker  |
+| `dynamic_low`    | `5 %`         | les cotes s'écartent légèrement des cotes saisies  |
+| `dynamic_normal` | `12 %`        | équilibre recommandé                               |
+| `dynamic_high`   | `25 %`        | les cotes suivent nettement l'exposition prise     |
 
-En mode dynamique, la probabilité courante d'une option est calculée ainsi :
+Le mode par défaut est `fixed` : les cotes saisies à la main sont respectées tant que le bookmaker ne demande pas explicitement une dérive.
+
+La dérive ne touche que les cotes **proposées aux prochaines mises**. Les mises déjà prises conservent la cote figée à leur création.
+
+#### Sens de la dérive
+
+Le sens vient de l'exposition : la part de gains potentiels portée par un choix est comparée à la part que **sa propre cote** implique.
 
 ```text
-current_probability = (1 - w) × initial_probability + w × market_probability
+part_impliquée = (1 / cote) / somme(1 / cote)
+part_exposée   = gains_potentiels_du_choix / gains_potentiels_totaux
 ```
 
-Le poids du marché augmente progressivement avec le volume :
+Un choix qui concentre plus d'exposition que son prix ne le suppose voit sa cote baisser, les autres montent. Un livre déjà équilibré n'est pas touché, et un livre partiellement coté est publié tel quel.
+
+#### Intensité de la dérive
+
+L'intensité vient du volume échangé, afin qu'un marché fin ne bouge presque pas :
 
 ```text
-volume_factor = total_effective_stake / (total_effective_stake + liquidity_reference)
-w             = max_market_weight × volume_factor
+volume_factor = effective_volume / (effective_volume + liquidity_reference)
+écart_maximal = max_odds_drift × volume_factor
 ```
 
-Valeurs de départ de `max_market_weight` :
+Seules les mises prises **après la dernière cotation manuelle** (`odds_anchored_at`) alimentent le volume et l'exposition de la dérive. Recoter à la main remet donc le compteur à zéro : seules les mises suivantes peuvent faire bouger les nouvelles cotes.
 
-| Mode             | `max_market_weight` |
-|------------------|---------------------|
-| `dynamic_low`    | `0.20`              |
-| `dynamic_normal` | `0.40`              |
-| `dynamic_high`   | `0.65`              |
+Les cotes proposées sont publiées à deux décimales et ne descendent jamais sous `minimum_odds`.
 
-#### `liquidity_reference`
+#### Paramètres centralisés
 
-`liquidity_reference` est un paramètre métier centralisé et configurable. Il contrôle le volume à partir duquel le marché commence à avoir une influence significative sur les probabilités :
+Aucune valeur n'est codée en dur dans les services de marché. Tout est porté par `config/settings.php` :
 
-- lorsque `total_effective_stake` est très inférieur à `liquidity_reference`, le `volume_factor` reste proche de `0` et les probabilités restent proches des probabilités initiales ;
-- lorsque `total_effective_stake` égale `liquidity_reference`, le `volume_factor` vaut `0.5` et le poids du marché atteint la moitié de `max_market_weight` ;
-- lorsque `total_effective_stake` dépasse largement `liquidity_reference`, le `volume_factor` tend vers `1` et le poids du marché tend vers `max_market_weight`.
+| Paramètre                  | Valeur par défaut                           | Rôle                                                   |
+|----------------------------|---------------------------------------------|--------------------------------------------------------|
+| `max_odds_drift_bps`       | `0` / `500` / `1200` / `2500` selon le mode | écart maximal autorisé, en points de base              |
+| `liquidity_reference`      | `500`                                       | volume à partir duquel la dérive devient significative  |
+| `minimum_odds`             | `1.01`                                      | cote plancher publiable                                |
+| `unpaid_bet_market_weight` | `0.50`                                      | poids d'une mise active non payée                      |
 
-Aucune valeur ne doit être codée en dur dans le service de calcul. La valeur par défaut est `500` et est centralisée dans `config/settings.php`, au même endroit que les autres paramètres de marché.
+Aucun mode ne peut dépasser un écart de 25 %, plafond absolu porté par le code.
 
-#### Garde-fous du recalcul dynamique
+`liquidity_reference` contrôle le volume à partir duquel le marché pèse réellement :
 
-Le recalcul dynamique doit être encadré par des garde-fous centralisés et configurables. Valeurs initiales proposées :
-
-| Paramètre                                  | Valeur initiale | Rôle                                                        |
-|--------------------------------------------|-----------------|-------------------------------------------------------------|
-| `minimum_probability`                      | `0.02`          | probabilité plancher d'une option                           |
-| `maximum_probability`                      | `0.98`          | probabilité plafond d'une option                            |
-| `max_probability_change_per_recalculation` | `0.05`          | variation maximale d'une probabilité lors d'un seul recalcul |
-
-Règles :
-
-- une option ne doit jamais tomber sous `minimum_probability` ni dépasser `maximum_probability` ;
-- un recalcul individuel ne doit pas faire varier une probabilité de plus de `max_probability_change_per_recalculation`, afin d'éviter les mouvements brusques provoqués par une mise isolée ;
-- après application de ces limites, les probabilités sont renormalisées afin que leur somme reste égale à 100 %.
-
-Ces paramètres, ainsi que `liquidity_reference`, `max_market_weight` et `unpaid_bet_market_weight`, doivent être centralisés en configuration et jamais dupliqués ou codés en dur dans plusieurs services.
+- très en dessous, le `volume_factor` reste proche de `0` et les cotes restent celles saisies ;
+- à égalité, le `volume_factor` vaut `0.5` et la moitié de l'écart maximal s'applique ;
+- très au-dessus, le `volume_factor` tend vers `1` et l'écart maximal est presque atteint.
 
 ### 6. Mises impayées
 
@@ -285,45 +259,30 @@ Pour les estimations :
 effective_stake = paid_stake + unpaid_active_stake × unpaid_bet_market_weight
 ```
 
-Une mise téléphonique impayée peut donc faire évoluer le marché avant son paiement.
+Une mise téléphonique impayée peut donc faire évoluer les cotes proposées avant son paiement.
 
-### 8. Paiement d'une mise `fixed_odds`
+### 8. Paiement et annulation d'une mise
 
-Lorsqu'une mise passe de non payée à payée :
+Le paiement d'une mise ne fait que solder l'argent : il fait passer son poids de marché de `unpaid_bet_market_weight` à `1.00`, mais **ne touche jamais sa cote contractuelle**, déjà figée à la création. Le passage impayé → payé est atomique afin d'éviter les incohérences en cas de paiements simultanés.
 
-1. lire la cote actuellement disponible ;
-2. enregistrer cette cote dans `odds_at_bet` ;
-3. rendre `odds_at_bet` immuable ;
-4. marquer la mise comme payée ;
-5. passer son poids de marché de `unpaid_bet_market_weight` à `1.00` ;
-6. recalculer ensuite les cotes destinées aux futures mises.
+Une mise annulée ou refusée a un poids de marché de `0` et n'influence plus les estimations.
 
-La cote doit être capturée avant le recalcul provoqué par le paiement.
-
-Le passage impayé → payé est atomique afin d'éviter les incohérences en cas de paiements simultanés.
-
-### 9. Annulation
-
-Une mise annulée ou refusée a un poids de marché de `0`.
-
-Elle n'influence plus les estimations.
-
-### 10. Pari mutuel et commission du bookmaker
+### 9. Pari mutuel et commission du bookmaker
 
 En `pari_mutuel`, aucune cote n'est garantie. Les mises alimentent un pool commun.
 
 Contrairement à `fixed_odds`, la rémunération du bookmaker n'est pas une marge intégrée aux cotes : c'est une **commission prélevée sur le pool** à la clôture, avant toute redistribution.
 
-Cette commission est une notion métier **distincte** de la marge `fixed_odds`. Elle est configurable par pari, avec une valeur par défaut proposée de **10 %**, et sera persistée dans son propre paramètre, par exemple `mutuel_commission_rate_bps` ou tout nom équivalent respectant les conventions du projet.
+Cette commission est une notion métier **distincte** de la marge `fixed_odds`. Elle est configurable par pari, vaut **10 % par défaut**, reste limitée entre 0 % et 25 % et est persistée dans `mutuel_commission_rate_bps` (`1000` = 10 %).
 
-Un pari peut donc porter deux valeurs par défaut identiques sans qu'elles soient liées :
+Les deux rémunérations sont indépendantes :
 
-| Paramètre                              | Mode concerné  | Valeur par défaut | Nature                          |
-|----------------------------------------|----------------|-------------------|---------------------------------|
-| `bookmaker_rate_bps` (champ existant)  | `fixed_odds`   | 10 %              | marge intégrée aux cotes        |
-| `mutuel_commission_rate_bps` (à créer) | `pari_mutuel`  | 10 %              | commission prélevée sur le pool |
+| Rémunération                 | Mode concerné | Valeur par défaut | Nature                          |
+|------------------------------|---------------|-------------------|---------------------------------|
+| marge lue dans les cotes     | `fixed_odds`  | portée par les cotes saisies | marge intégrée aux cotes |
+| `mutuel_commission_rate_bps` | `pari_mutuel` | 10 %              | commission prélevée sur le pool |
 
-Modifier l'une ne doit jamais modifier l'autre : chacune évolue indépendamment.
+En `fixed_odds`, il n'existe plus aucun paramètre de marge à saisir : la marge découle des cotes. Le champ `bookmaker_rate_bps` a été supprimé.
 
 À la clôture, `commission_rate` désigne la commission `pari_mutuel` du pari :
 
@@ -341,7 +300,7 @@ Le payout inclut la mise initiale.
 
 Le `net_pool` est ensuite intégralement redistribué aux gagnants : aucune marge supplémentaire n'est appliquée par cote, puisqu'il n'existe aucune cote contractuelle dans ce mode.
 
-### 11. Mises impayées en pari mutuel
+### 10. Mises impayées en pari mutuel
 
 Les mises impayées peuvent influencer l'estimation affichée avant la clôture, avec le même `unpaid_bet_market_weight`, mais elles sont exclues du règlement financier.
 
@@ -352,7 +311,7 @@ Il faut donc distinguer deux pools :
 | `effective_pool` | mises payées + mises impayées actives × `unpaid_bet_market_weight` | estimations indicatives |
 | `final_pool`     | uniquement les mises payées et financièrement éligibles           | règlement financier     |
 
-### 12. Rendement indicatif en pari mutuel
+### 11. Rendement indicatif en pari mutuel
 
 Avant la clôture, on peut afficher :
 
@@ -362,18 +321,20 @@ indicative_odds = estimated_net_pool / effective_stake_on_option
 
 Cette valeur est uniquement indicative et doit être présentée comme non garantie. Le rendement définitif est calculé lors de la clôture, à partir du `final_pool`.
 
-### 13. Différence fondamentale entre les deux modes
+### 12. Différence fondamentale entre les deux modes
 
-| Dimension                     | `fixed_odds`                                     | `pari_mutuel`                                   |
-|-------------------------------|--------------------------------------------------|-------------------------------------------------|
-| Cote contractuelle            | `odds_at_bet`, capturée au paiement              | aucune                                          |
-| Payout                        | `stake × odds_at_bet`                            | `bettor_stake / total_winning_stake × net_pool` |
-| Moment de fixation            | au paiement de chaque mise                       | à la clôture du pari                            |
-| Cotes pendant l'ouverture     | indicatives, évolution dynamique possible        | indicatives                                     |
-| Rémunération du bookmaker     | marge intégrée aux cotes via l'overround         | commission prélevée sur le pool                 |
-| Moment du prélèvement         | aucun prélèvement au règlement                   | à la clôture, avant redistribution              |
+| Dimension                 | `fixed_odds`                                     | `pari_mutuel`                                   |
+|---------------------------|--------------------------------------------------|-------------------------------------------------|
+| Cotes                     | saisies à la main par le bookmaker               | aucune, seul le pool compte                     |
+| Cote contractuelle        | `odds_at_bet`, figée à la création de la mise    | aucune                                          |
+| Payout                    | `stake × odds_at_bet`                            | `bettor_stake / total_winning_stake × net_pool` |
+| Moment de fixation        | à la création de chaque mise                     | à la clôture du pari                            |
+| Cotes pendant l'ouverture | garanties dès la création de la mise             | indicatives                                     |
+| Rémunération du bookmaker | marge lue dans les cotes saisies                 | commission prélevée sur le pool                 |
+| Moment du prélèvement     | aucun prélèvement au règlement                   | à la clôture, avant redistribution              |
+| Risque du bookmaker       | réel, il peut perdre s'il a mal coté             | nul, il ne verse que le pool encaissé           |
 
-En `fixed_odds`, une mise payée possède une cote contractuelle et la marge du bookmaker est déjà contenue dans cette cote. En `pari_mutuel`, aucune cote contractuelle n'existe : le payout dépend du pool net final, obtenu après prélèvement de la commission, et de la répartition des mises gagnantes.
+En `fixed_odds`, chaque mise possède une cote contractuelle et la marge du bookmaker est déjà contenue dans cette cote. En `pari_mutuel`, aucune cote contractuelle n'existe : le payout dépend du pool net final, obtenu après prélèvement de la commission, et de la répartition des mises gagnantes.
 
 #### État financier définitif
 
@@ -388,23 +349,23 @@ Le règlement fige un état financier composé de quatre montants, afin que les 
 
 Le prélèvement et le résultat sont deux notions distinctes :
 
-- en `fixed_odds`, aucun prélèvement n'a lieu au règlement, donc `final_bookmaker_share` vaut toujours `0`. Le résultat provient de l'overround déjà intégré aux cotes contractuelles et peut être négatif si les gagnants ont été payés plus que le pot ;
+- en `fixed_odds`, aucun prélèvement n'a lieu au règlement, donc `final_bookmaker_share` vaut toujours `0`. Le résultat provient de la marge déjà contenue dans les cotes contractuelles et peut être négatif si les gagnants ont été payés plus que le pot ;
 - en `pari_mutuel`, `final_bookmaker_share` correspond à la commission prélevée sur le pool. Lorsque le choix gagnant ne comporte aucune mise payée, rien n'est redistribué et le résultat vaut la totalité du pot.
 
-Les cotes finales sont également figées : elles sont enregistrées telles que retenues au règlement et ne sont jamais recalculées à partir de mises ultérieures.
+Les cotes finales sont également figées dans `final_odds` : elles sont enregistrées telles que retenues au règlement et ne sont jamais recalculées à partir de mises ultérieures.
 
 #### Paramètre affiché selon le mode
 
-Le formulaire de pari n'expose que le paramètre correspondant au mode sélectionné, l'autre étant masqué :
+Le formulaire de pari n'expose que ce qui concerne le mode sélectionné :
 
-| Mode           | Libellé affiché             | Paramètre sous-jacent                    |
-|----------------|-----------------------------|------------------------------------------|
-| `fixed_odds`   | **Marge bookmaker (%)**     | `bookmaker_rate_bps`, champ existant     |
-| `pari_mutuel`  | **Commission bookmaker (%)**| commission `pari_mutuel` dédiée          |
+| Mode          | Affiché                                                             |
+|---------------|---------------------------------------------------------------------|
+| `fixed_odds`  | une cote par choix, le mode d'évolution, et la marge en lecture seule |
+| `pari_mutuel` | **Commission bookmaker (%)**, alimentant `mutuel_commission_rate_bps` |
 
-Le libellé actuel « Taux bookmaker (%) » devra donc être remplacé par « Marge bookmaker (%) » en `fixed_odds`, afin de ne plus laisser croire à un prélèvement au règlement.
+La page **Ajuster les cotes** complète le formulaire : elle affiche l'exposition choix par choix et permet de republier les cotes à tout moment tant que le pari est ouvert.
 
-### 14. Règle essentielle concernant les impayés
+### 13. Règle essentielle concernant les impayés
 
 Dans les deux modes, une mise impayée peut influencer les estimations.
 
@@ -415,16 +376,15 @@ Ne jamais confondre :
 - **marché indicatif** : alimenté par l'`effective_stake`, qui inclut les impayés pondérés ;
 - **règlement financier** : basé uniquement sur les mises payées et financièrement éligibles.
 
-### 15. Historique futur
+### 14. Historique futur
 
 Les données suivantes doivent pouvoir être conservées ultérieurement.
 
 Pour `fixed_odds` :
 
-- évolution des probabilités ;
-- évolution des cotes ;
-- volume du marché ;
-- poids du marché.
+- évolution des cotes saisies et des cotes proposées ;
+- évolution de l'exposition par choix ;
+- volume du marché depuis la dernière cotation.
 
 Pour `pari_mutuel` :
 

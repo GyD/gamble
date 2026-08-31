@@ -37,8 +37,8 @@ final class StakeServiceTest extends TestCase
         $this->contacts = new StakeTestContactStore();
         $this->audit = new StakeTestAuditLogger();
         $this->bets->bets[1] = new Bet(1, 7, 'Winner?', null, null, BetStatus::Open, null, [
-            new BetOption(10, 'Blue', 0),
-            new BetOption(11, 'Red', 1),
+            new BetOption(10, 'Blue', 0, 2.00, 2.00),
+            new BetOption(11, 'Red', 1, 2.00, 2.00),
         ]);
         $this->contacts->contacts[20] = new Contact(20, 'Alice', '1234', null, null);
         $this->service = new StakeService(new PDO('sqlite::memory:'), $this->stakes, $this->bets, $this->contacts, $this->audit);
@@ -54,6 +54,57 @@ final class StakeServiceTest extends TestCase
         self::assertSame([10, 11], array_column($this->stakes->stakes, 'betOptionId'));
         self::assertSame(['stake.created', 'stake.created'], array_column($this->audit->entries, 'action'));
         self::assertSame(12, $this->audit->entries[0]['after']['amount']);
+    }
+
+    public function testTheOddsOfferedAreFrozenOnTheStakeAtCreation(): void
+    {
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+
+        self::assertSame(2.00, $stake->oddsAtBet);
+        // The contract is worth stake x odds, whatever the odds become later.
+        self::assertSame(200, $stake->potentialPayout());
+        self::assertSame(2.00, $this->audit->entries[0]['after']['odds_at_bet']);
+    }
+
+    public function testFrozenOddsSurvivePaymentAndAmountChanges(): void
+    {
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $this->bets->bets[1] = $this->bets->bets[1]->withOptions([
+            new BetOption(10, 'Blue', 0, 1.20, 1.20),
+            new BetOption(11, 'Red', 1, 4.00, 4.00),
+        ]);
+
+        $updated = $this->service->update(7, 1, $stake->id, 20, 10, '150', null);
+        $paid = $this->service->setPaid(7, 1, $stake->id, true, null);
+
+        self::assertSame(2.00, $updated->oddsAtBet);
+        self::assertSame(2.00, $paid->oddsAtBet);
+        self::assertSame(300, $paid->potentialPayout());
+    }
+
+    public function testAnUnpricedOptionAcceptsNoStake(): void
+    {
+        $this->bets->bets[1] = $this->bets->bets[1]->withOptions([
+            new BetOption(10, 'Blue', 0),
+            new BetOption(11, 'Red', 1),
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('This option has no odds yet: price it before taking a stake.');
+
+        $this->service->create(7, 1, 20, 10, '100', null);
+    }
+
+    public function testPariMutuelStakesCarryNoContractualOdds(): void
+    {
+        $bet = $this->bets->bets[1];
+        $this->bets->bets[1] = new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description,
+            $bet->closesAt, $bet->status, null, $bet->options, null, null, null, BettingMode::PariMutuel);
+
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+
+        // The payout only comes out of the pool at settlement.
+        self::assertNull($stake->oddsAtBet);
     }
 
     /** @param string $amount */
@@ -324,30 +375,30 @@ final class StakeTestStore implements StakeStore
         return $this->findById($id);
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake
     {
         $id = count($this->stakes) + 1;
-        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, false, false, null, $quotedOdds);
+        return $this->stakes[$id] = new Stake($id, $betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, false, false, null, $oddsAtBet, new DateTimeImmutable());
     }
 
     public function update(int $id, int $betOptionId, int $contactId, int $amount): Stake
     {
         $stake = $this->stakes[$id];
-        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->quotedOdds, $stake->oddsAtBet);
+        return $this->stakes[$id] = new Stake($id, $stake->betId, $betOptionId, $contactId, $amount, 'Alice', $betOptionId === 10 ? 'Blue' : 'Red', false, $stake->isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
     }
 
-    public function setPaid(int $id, bool $isPaid, ?float $oddsAtBet = null): Stake
+    public function setPaid(int $id, bool $isPaid): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->quotedOdds, $stake->oddsAtBet ?? $oddsAtBet);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $isPaid, $stake->isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
     }
 
     public function setCancelled(int $id, bool $isCancelled): Stake
     {
         $stake = $this->stakes[$id];
 
-        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->quotedOdds, $stake->oddsAtBet);
+        return $this->stakes[$id] = new Stake($stake->id, $stake->betId, $stake->betOptionId, $stake->contactId, $stake->amount, $stake->contactName, $stake->optionLabel, $stake->contactArchived, $stake->isPaid, $isCancelled, $stake->finalPayout, $stake->oddsAtBet, $stake->createdAt);
     }
 
     public function setFinalPayouts(int $betId, array $payoutsByStakeId): void {}
@@ -401,13 +452,13 @@ final class StakeTestBetStore implements BetStore
         ?DateTimeImmutable $closesAt,
         array $options,
         BettingMode $bettingMode = BettingMode::FixedOdds,
-        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::DynamicNormal,
-        array $initialProbabilities = [],
+        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::Fixed,
+        array $odds = [],
     ): Bet {
         throw new \LogicException();
     }
 
-    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options, array $initialProbabilities = []): Bet
+    public function update(int $id, string $question, ?string $description, ?DateTimeImmutable $closesAt, array $options, array $odds = []): Bet
     {
         throw new \LogicException();
     }
@@ -416,10 +467,9 @@ final class StakeTestBetStore implements BetStore
     {
         throw new \LogicException();
     }
-    public function setBookmakerRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
+    public function setOptionOdds(int $id, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function setMutuelCommissionRate(int $id, int $rateBps): Bet { throw new \LogicException(); }
     public function setBettingMode(int $id, BettingMode $bettingMode, OddsEvolutionMode $oddsEvolutionMode): Bet { throw new \LogicException(); }
-    public function updateCurrentProbabilities(int $id, array $probabilitiesByOptionId): void {}
     public function settleFinancials(int $id, int $winningOptionId, int $pot, int $bookmakerShare, int $redistributed, int $bookmakerResult, array $oddsByOptionId): Bet { throw new \LogicException(); }
     public function delete(int $id): void { throw new \LogicException(); }
 }

@@ -1,0 +1,62 @@
+{% extends 'layout.html.twig' %}
+
+{% block title %}Cotes · {{ bet.question }} · {{ app_name|default('Gamble') }}{% endblock %}
+
+{% block content %}
+    <header class="page-header page-header-row page-header-back">
+        <div><h1>Cotes</h1><p class="form-help">{{ bet.question }}</p></div>
+        <a class="button button-secondary" href="/bets/{{ bet.id }}">Retour</a>
+    </header>
+
+    {#
+        Pricing desk: two figures matter for each choice. "Si ce choix gagne
+        (encaissé)" is the result on the money actually collected, "…une fois
+        tout encaissé" adds the stakes still pending. A deeply negative figure
+        means the choice is over-backed at its current price.
+    #}
+    <section class="bet-card" aria-labelledby="bet-exposure-title">
+        <h2 id="bet-exposure-title">Votre exposition</h2>
+        <div class="bet-statistics-summary">
+            <article><strong>{{ exposure.paidStake|number_format(0, ',', ' ') }} $</strong><span>Encaissé</span></article>
+            <article><strong>{{ exposure.unpaidStake|number_format(0, ',', ' ') }} $</strong><span>En attente</span></article>
+            <article><strong>{{ exposure.worstPaidResult|number_format(0, ',', ' ') }} $</strong><span>Pire cas encaissé</span></article>
+            <article><strong>{{ exposure.worstPotentialResult|number_format(0, ',', ' ') }} $</strong><span>Pire cas total</span></article>
+        </div>
+        <p class="form-help">Le pire cas est le résultat du choix qui vous coûterait le plus s'il gagnait. Négatif, vous versez plus que ce que vous avez pris.</p>
+    </section>
+
+    <form method="post" action="/bets/{{ bet.id }}/odds" class="bet-form form-section">
+        <input type="hidden" name="{{ csrf.name_key }}" value="{{ csrf.name }}"><input type="hidden" name="{{ csrf.value_key }}" value="{{ csrf.value }}">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Choix</th>
+                        <th scope="col">Misé</th>
+                        <th scope="col">À verser si gagnant</th>
+                        <th scope="col">Si ce choix gagne (encaissé)</th>
+                        <th scope="col">…une fois tout encaissé</th>
+                        <th scope="col">Cote proposée</th>
+                        <th scope="col">Nouvelle cote</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for option in exposure.options %}
+                        <tr>
+                            <th scope="row">{{ option.label }}</th>
+                            <td data-label="Misé">{{ option.paidStake|number_format(0, ',', ' ') }} ${% if option.unpaidStake > 0 %} <span class="form-help">+ {{ option.unpaidStake|number_format(0, ',', ' ') }} $ en attente</span>{% endif %}</td>
+                            <td data-label="À verser si gagnant">{{ option.paidPayout|number_format(0, ',', ' ') }} ${% if option.unpaidPayout > 0 %} <span class="form-help">+ {{ option.unpaidPayout|number_format(0, ',', ' ') }} $</span>{% endif %}</td>
+                            <td data-label="Si ce choix gagne (encaissé)">{{ exposure.paidResult(option.optionId)|number_format(0, ',', ' ') }} $</td>
+                            <td data-label="…une fois tout encaissé">{{ exposure.potentialResult(option.optionId)|number_format(0, ',', ' ') }} $</td>
+                            <td data-label="Cote proposée">{{ option.offeredOdds is null ? '—' : option.offeredOdds|number_format(2, ',', ' ') }}</td>
+                            <td data-label="Nouvelle cote"><input name="odds[{{ option.optionId }}]" type="number" min="1.01" max="1000" step="0.01" value="{{ option.odds is null ? '' : option.odds|number_format(2, '.', '') }}" aria-label="Nouvelle cote du choix {{ option.label }}"></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="form-help">Marge portée par les cotes saisies : {{ bet.oddsMargin is null ? 'non calculable tant que tous les choix ne sont pas cotés' : (bet.oddsMargin * 100)|number_format(2, ',', ' ') ~ ' %' }}.</p>
+        <p class="form-help">Les mises déjà prises gardent la cote figée à leur création. Publier de nouvelles cotes remet la dérive à zéro : seules les mises suivantes pourront les faire bouger. Laissez un champ vide pour retirer un choix de la vente.</p>
+        <button class="button button-primary" type="submit">Publier les cotes</button>
+    </form>
+{% endblock %}

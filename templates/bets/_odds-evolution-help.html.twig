@@ -7,38 +7,39 @@
       current selection.
 
     Maintenance: the percentages and the odds quoted below are hardcoded. They
-    come from market.max_market_weight, liquidity_reference and
+    come from market.max_odds_drift_bps, liquidity_reference and
     unpaid_bet_market_weight in config/settings.php, and must be recomputed
     whenever those values change. Every example uses the same reference case:
-    three equiprobable options, a 10 % bookmaker margin, so odds start at 2,73
-    everywhere, and a single paid stake of 500 $ on the first option.
+    three choices priced by hand at 2,73 (a 10 % margin), then a single paid
+    stake of 500 $ on the first choice.
 #}
 {% set evolution_modes = mode|default(null) is null ? ['fixed', 'dynamic_low', 'dynamic_normal', 'dynamic_high'] : [mode] %}
 
 {% for evolution_mode in evolution_modes %}
-    <div class="bet-mode-explanation" data-odds-evolution-help="{{ evolution_mode }}"{% if evolution_modes|length > 1 and evolution_mode != 'dynamic_normal' %} hidden{% endif %}>
+    <div class="bet-mode-explanation" data-odds-evolution-help="{{ evolution_mode }}"{% if evolution_modes|length > 1 and evolution_mode != 'fixed' %} hidden{% endif %}>
         {% if evolution_mode == 'fixed' %}
-            <p><strong>Les cotes ne bougent jamais.</strong> Elles restent celles calculées à l'ouverture, quelles que soient les mises placées ensuite.</p>
-            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ sur le choix 1, les trois cotes valent toujours 2,73.</p>
-            <p>À réserver aux paris où vous maîtrisez déjà les probabilités et ne voulez aucune surprise.</p>
+            <p><strong>Les cotes ne bougent jamais toutes seules.</strong> Elles restent celles que vous avez saisies, quelles que soient les mises placées ensuite. Vous gardez la main : à vous de les ajuster depuis « Ajuster les cotes ».</p>
+            <p class="bet-mode-example">Exemple : trois choix cotés 2,73. Après 500 $ sur le choix 1, les trois cotes valent toujours 2,73.</p>
         {% elseif evolution_mode == 'dynamic_low' %}
-            <p><strong>Les cotes s'ajustent légèrement</strong> selon les mises reçues. Le marché pèse au maximum <strong>20 %</strong> : vos probabilités initiales gardent la main.</p>
-            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ payés sur le choix 1, sa cote descend à 2,27 et les deux autres montent à 3,03.</p>
+            <p><strong>Les cotes s'écartent légèrement</strong> de celles que vous avez saisies, au maximum de <strong>5 %</strong>, pour rééquilibrer le livre sans vous déposséder de votre cotation.</p>
+            <p class="bet-mode-example">Exemple : trois choix cotés 2,73. Après 500 $ payés sur le choix 1, sa cote descend à 2,66 et les deux autres montent à 2,80.</p>
         {% elseif evolution_mode == 'dynamic_normal' %}
-            <p><strong>Équilibre recommandé.</strong> Le marché pèse au maximum <strong>40 %</strong> : les cotes suivent les mises sans s'éloigner brutalement de vos estimations.</p>
-            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ payés sur le choix 1, sa cote descend à 1,95 et les deux autres montent à 3,41.</p>
+            <p><strong>Équilibre recommandé.</strong> L'écart atteint au maximum <strong>12 %</strong> : les cotes suivent l'engagement pris sur chaque choix sans s'éloigner brutalement de votre cotation.</p>
+            <p class="bet-mode-example">Exemple : trois choix cotés 2,73. Après 500 $ payés sur le choix 1, sa cote descend à 2,57 et les deux autres montent à 2,89.</p>
         {% else %}
-            <p><strong>Les cotes suivent nettement les mises.</strong> Le marché pèse au maximum <strong>65 %</strong> : le comportement des parieurs prend le dessus sur vos estimations.</p>
-            <p class="bet-mode-example">Exemple : trois choix à 2,73. Après 500 $ payés sur le choix 1, sa cote tombe à 1,65 et les deux autres montent à 4,04.</p>
+            <p><strong>Les cotes suivent nettement les mises.</strong> L'écart atteint au maximum <strong>25 %</strong> : le marché protège votre exposition en priorité.</p>
+            <p class="bet-mode-example">Exemple : trois choix cotés 2,73. Après 500 $ payés sur le choix 1, sa cote tombe à 2,39 et les deux autres montent à 3,07.</p>
         {% endif %}
 
         {% if evolution_mode != 'fixed' %}
-            <p>Trois règles s'appliquent à tous les modes dynamiques :</p>
+            <p>Quatre règles s'appliquent à tous les modes dynamiques :</p>
             <ul>
-                <li><strong>Une mise déjà payée garde sa cote.</strong> Seuls les prochains parieurs voient les cotes ajustées.</li>
-                <li><strong>Les petits paris bougent peu.</strong> L'influence du marché grandit avec les montants misés : à 100 $ elle n'est que de 6,7 % et la cote du choix 1 descend seulement à 2,41, contre 20 % et 1,95 à 500 $.</li>
-                <li><strong>Une mise non payée ne compte qu'à moitié.</strong> Les mêmes 500 $ en attente de paiement donnent 2,15 au lieu de 1,95.</li>
+                <li><strong>Une mise déjà prise garde sa cote.</strong> Elle est figée à la création de la mise : seuls les prochains parieurs voient les cotes ajustées.</li>
+                <li><strong>Le sens de l'écart vient de votre exposition.</strong> Un choix qui concentre déjà plus de gains à verser que sa cote ne le suppose voit sa cote baisser, les autres montent.</li>
+                <li><strong>Les petits paris bougent peu.</strong> L'écart grandit avec les montants engagés : à 100 $ misés, la cote du choix 1 ne descend qu'à 2,68 en mode modéré, contre 2,57 à 500 $.</li>
+                <li><strong>Une mise non payée ne compte qu'à moitié.</strong> Les mêmes 500 $ en attente de paiement donnent 2,62 au lieu de 2,57.</li>
             </ul>
+            <p>Recoter à la main remet le compteur à zéro : seules les mises prises après votre nouvelle cotation la font bouger.</p>
         {% endif %}
     </div>
 {% endfor %}
@@ -47,14 +48,14 @@
     <details class="bet-mode-comparison">
         <summary>Comparer les quatre modes</summary>
         <table>
-            <thead><tr><td></td><th scope="col">Influence maximale du marché</th><th scope="col">Cote du choix misé</th><th scope="col">Cote des deux autres</th></tr></thead>
+            <thead><tr><td></td><th scope="col">Écart maximal</th><th scope="col">Cote du choix misé</th><th scope="col">Cote des deux autres</th></tr></thead>
             <tbody>
-                <tr><th scope="row">Fixe</th><td data-label="Influence maximale du marché">0 %</td><td data-label="Cote du choix misé">2,73</td><td data-label="Cote des deux autres">2,73</td></tr>
-                <tr><th scope="row">Dynamique faible</th><td data-label="Influence maximale du marché">20 %</td><td data-label="Cote du choix misé">2,27</td><td data-label="Cote des deux autres">3,03</td></tr>
-                <tr><th scope="row">Dynamique modérée</th><td data-label="Influence maximale du marché">40 %</td><td data-label="Cote du choix misé">1,95</td><td data-label="Cote des deux autres">3,41</td></tr>
-                <tr><th scope="row">Dynamique forte</th><td data-label="Influence maximale du marché">65 %</td><td data-label="Cote du choix misé">1,65</td><td data-label="Cote des deux autres">4,04</td></tr>
+                <tr><th scope="row">Fixe</th><td data-label="Écart maximal">0 %</td><td data-label="Cote du choix misé">2,73</td><td data-label="Cote des deux autres">2,73</td></tr>
+                <tr><th scope="row">Dynamique faible</th><td data-label="Écart maximal">5 %</td><td data-label="Cote du choix misé">2,66</td><td data-label="Cote des deux autres">2,80</td></tr>
+                <tr><th scope="row">Dynamique modérée</th><td data-label="Écart maximal">12 %</td><td data-label="Cote du choix misé">2,57</td><td data-label="Cote des deux autres">2,89</td></tr>
+                <tr><th scope="row">Dynamique forte</th><td data-label="Écart maximal">25 %</td><td data-label="Cote du choix misé">2,39</td><td data-label="Cote des deux autres">3,07</td></tr>
             </tbody>
         </table>
-        <p class="form-help">Cotes obtenues sur trois choix équiprobables cotés 2,73, après une mise payée de 500 $ sur le premier choix.</p>
+        <p class="form-help">Cotes obtenues sur trois choix cotés 2,73 à la main, après une mise payée de 500 $ sur le premier choix.</p>
     </details>
 {% endif %}

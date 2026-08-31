@@ -11,12 +11,15 @@ use App\Repository\StakeStore;
 use InvalidArgumentException;
 
 /**
- * Entry point of every market read and recalculation.
+ * Entry point of every market read.
  *
  * The bet row acts as the serialisation lock of its own market: any operation
- * able to change the indicative state (stake creation, payment, cancellation,
+ * able to change the offered odds (stake creation, payment, cancellation,
  * amount change) must lock the bet first so two concurrent operations never
- * recalculate the same market from two different states.
+ * read the same market from two different states.
+ *
+ * Nothing is persisted here: the offered odds are always derived from the odds
+ * priced by the bookmaker and from the stakes placed since.
  */
 final readonly class MarketRecalculator
 {
@@ -24,6 +27,7 @@ final readonly class MarketRecalculator
         private BetStore $bets,
         private StakeStore $stakes,
         private MarketServiceRegistry $markets = new MarketServiceRegistry(),
+        private ExposureCalculator $exposures = new ExposureCalculator(),
     ) {
     }
 
@@ -37,20 +41,20 @@ final readonly class MarketRecalculator
         return $this->bets->findByIdForUpdate($betId) ?? throw new InvalidArgumentException('Unknown bet.');
     }
 
-    /** Indicative state of the market of a bet. */
+    /** Odds currently offered on the options of a bet. */
     public function quote(Bet $bet): MarketQuote
     {
         return $this->markets->forBet($bet)->quote($bet, $this->stakes->findByBet($bet->id));
     }
 
-    /** Odds currently offered on an option, or null when none can be quoted. */
+    /** Odds currently offered on an option, or null when the option is unpriced. */
     public function currentOdds(Bet $bet, int $betOptionId): ?float
     {
         return $this->quote($bet)->odds($betOptionId);
     }
 
     /**
-     * Returns the bet with its options carrying the indicative odds.
+     * Returns the bet with its options carrying the odds currently offered.
      *
      * A settled bet keeps the odds recorded at settlement.
      */
@@ -62,25 +66,14 @@ final readonly class MarketRecalculator
         $quote = $this->quote($bet);
 
         return $bet->withOptions(array_map(
-            static fn($option) => $option->withOdds($quote->odds($option->id)),
+            static fn($option) => $option->withOfferedOdds($quote->odds($option->id)),
             $bet->options,
         ));
     }
 
-    /**
-     * Persists the current probabilities of the options.
-     *
-     * Must be called inside a transaction, after the bet has been locked.
-     */
-    public function recalculate(Bet $bet): void
+    /** What the bookmaker collected and what they owe on each option. */
+    public function exposure(Bet $bet): BetExposure
     {
-        if (!$bet->isFixedOdds() || $bet->options === []) {
-            return;
-        }
-        $quote = $this->quote($bet);
-        if ($quote->probabilitiesByOptionId === []) {
-            return;
-        }
-        $this->bets->updateCurrentProbabilities($bet->id, $quote->probabilitiesByOptionId);
+        return $this->exposures->calculate($this->withOdds($bet), $this->stakes->findByBet($bet->id));
     }
 }

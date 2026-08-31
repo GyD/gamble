@@ -34,7 +34,6 @@ final class PariMutuelMarketServiceTest extends TestCase
         self::assertSame(3.6, $quote->odds(10));
         self::assertSame(1.2, $quote->odds(11));
         self::assertSame(4000.0, $quote->effectivePool);
-        self::assertEqualsWithDelta(0.25, $quote->probabilitiesByOptionId[10], 0.000_001);
     }
 
     public function testAnOptionWithoutStakeHasNoIndicativeOdds(): void
@@ -142,7 +141,7 @@ final class PariMutuelMarketServiceTest extends TestCase
         return new Bet(1, 7, 'Winner?', null, null, BetStatus::Open, null, [
             new BetOption(10, 'Blue', 1),
             new BetOption(11, 'Red', 2),
-        ], 1000, null, null, null, BettingMode::PariMutuel, OddsEvolutionMode::DynamicNormal, $commissionRateBps);
+        ], null, null, null, BettingMode::PariMutuel, OddsEvolutionMode::Fixed, $commissionRateBps);
     }
 
     private function stake(int $id, int $optionId, int $amount, bool $isPaid): Stake

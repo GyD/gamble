@@ -35,14 +35,12 @@ final readonly class PariMutuelMarketService implements MarketService
         $estimatedNetPool = $effectivePool * (1.0 - ($bet->mutuelCommissionRateBps / 10_000));
 
         $odds = [];
-        $probabilities = [];
         foreach ($optionIds as $optionId) {
             $onOption = $effective[$optionId];
             $odds[$optionId] = $onOption <= 0.0 ? null : round($estimatedNetPool / $onOption, self::ODDS_SCALE);
-            $probabilities[$optionId] = $effectivePool <= 0.0 ? 0.0 : $onOption / $effectivePool;
         }
 
-        return new MarketQuote($odds, $probabilities, $effectivePool);
+        return new MarketQuote($odds, $effectivePool);
     }
 
     public function settle(Bet $bet, array $stakes, int $winningOptionId): BetFinancials

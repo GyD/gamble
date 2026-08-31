@@ -58,7 +58,7 @@ final readonly class BetController
                 $this->ipAddress($request),
                 $this->nullableStringValue($body, 'betting_mode'),
                 $this->nullableStringValue($body, 'odds_evolution_mode'),
-                $this->optionalStringList($body, 'probabilities'),
+                $this->optionalStringList($body, 'odds'),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
@@ -127,10 +127,52 @@ final readonly class BetController
                 $this->nullableStringValue($body, 'closes_at'),
                 $this->stringList($body, 'options'),
                 $this->ipAddress($request),
-                $this->nullableStringValue($body, 'bookmaker_percentage'),
+                $this->nullableStringValue($body, 'mutuel_percentage'),
                 $this->nullableStringValue($body, 'betting_mode'),
                 $this->nullableStringValue($body, 'odds_evolution_mode'),
-                $this->optionalStringList($body, 'probabilities'),
+                $this->optionalStringList($body, 'odds'),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return $this->badRequest($response, $exception->getMessage());
+        }
+
+        return $this->redirect($response);
+    }
+
+    /**
+     * Odds pricing desk: the bookmaker sees what each option already owes and
+     * types the odds offered to the next stakes.
+     *
+     * @param array<string, string> $args
+     */
+    public function odds(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        try {
+            $bet = $this->bet($args);
+        } catch (InvalidArgumentException $exception) {
+            return $this->badRequest($response, $exception->getMessage());
+        }
+        if ($bet === null) {
+            return $response->withStatus(404);
+        }
+
+        return $this->render($request, $response, 'bets/odds.html.twig', [
+            'bet' => $this->service->withOdds($bet),
+            'exposure' => $this->service->exposure($bet),
+        ]);
+    }
+
+    /** @param array<string, string> $args */
+    public function priceOdds(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        try {
+            $betId = $this->existingBetId($args);
+            $body = (array) $request->getParsedBody();
+            $this->service->anchorOptionOdds(
+                $this->actor($request)->id,
+                $betId,
+                $this->stringMap($body, 'odds'),
+                $this->ipAddress($request),
             );
         } catch (InvalidArgumentException $exception) {
             return $this->badRequest($response, $exception->getMessage());
@@ -289,6 +331,27 @@ final readonly class BetController
     private function optionalStringList(array $body, string $key): array
     {
         return array_key_exists($key, $body) ? $this->stringList($body, $key) : [];
+    }
+
+    /**
+     * Values submitted keyed by identifier, as in `odds[42]`.
+     *
+     * @param array<string, mixed> $body
+     * @return array<int|string, string>
+     */
+    private function stringMap(array $body, string $key): array
+    {
+        $values = $body[$key] ?? null;
+        if (!is_array($values)) {
+            throw new InvalidArgumentException(sprintf('Invalid %s.', $key));
+        }
+        foreach ($values as $value) {
+            if (!is_string($value)) {
+                throw new InvalidArgumentException(sprintf('Invalid %s.', $key));
+            }
+        }
+
+        return $values;
     }
 
     /** @param array<string, mixed> $context */

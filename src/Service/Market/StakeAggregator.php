@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace App\Service\Market;
 
 use App\Domain\Stake\Stake;
+use DateTimeImmutable;
 
 /**
- * Splits stakes between the indicative market and the financial settlement.
+ * Splits stakes between the offered odds and the financial settlement.
  *
- * An unpaid stake may move the indicative market but is never money available
- * for the settlement.
+ * An unpaid stake may move the offered odds but is never money available for
+ * the settlement.
  */
 final readonly class StakeAggregator
 {
     /**
-     * Weighted stakes used by the indicative market.
+     * Weighted stakes moving the offered odds.
      *
      * @param list<int> $optionIds
      * @param list<Stake> $stakes
@@ -32,6 +33,58 @@ final readonly class StakeAggregator
         }
 
         return $totals;
+    }
+
+    /**
+     * Weighted potential payout carried by each option.
+     *
+     * The drift direction is read from what the bookmaker owes, not from what
+     * was staked: two stakes of the same amount taken at different odds do not
+     * expose the book the same way. Only the stakes placed after the odds were
+     * priced count, so correcting the odds restarts the drift.
+     *
+     * @param list<int> $optionIds
+     * @param list<Stake> $stakes
+     * @return array<int, float>
+     */
+    public function potentialPayoutByOption(
+        array $optionIds,
+        array $stakes,
+        float $unpaidWeight,
+        ?DateTimeImmutable $since = null,
+    ): array {
+        $totals = array_fill_keys($optionIds, 0.0);
+        foreach ($stakes as $stake) {
+            if (!array_key_exists($stake->betOptionId, $totals) || !$stake->isPlacedAfter($since)) {
+                continue;
+            }
+            $totals[$stake->betOptionId] += (float) $stake->potentialPayout() * $stake->marketWeight($unpaidWeight);
+        }
+
+        return $totals;
+    }
+
+    /**
+     * Weighted volume traded since the given instant, driving the drift intensity.
+     *
+     * @param list<int> $optionIds
+     * @param list<Stake> $stakes
+     */
+    public function effectiveVolume(
+        array $optionIds,
+        array $stakes,
+        float $unpaidWeight,
+        ?DateTimeImmutable $since = null,
+    ): float {
+        $volume = 0.0;
+        foreach ($stakes as $stake) {
+            if (!in_array($stake->betOptionId, $optionIds, true) || !$stake->isPlacedAfter($since)) {
+                continue;
+            }
+            $volume += (float) $stake->amount * $stake->marketWeight($unpaidWeight);
+        }
+
+        return $volume;
     }
 
     /**

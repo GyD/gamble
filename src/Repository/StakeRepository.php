@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Domain\Stake\Stake;
+use DateTimeImmutable;
 use PDO;
 use RuntimeException;
 
 final readonly class StakeRepository implements StakeStore
 {
     private const COLUMNS = 'stakes.id, stakes.bet_id, stakes.bet_option_id, stakes.contact_id, stakes.amount,
-                    stakes.final_payout, stakes.is_paid, stakes.is_cancelled, stakes.quoted_odds, stakes.odds_at_bet,
+                    stakes.final_payout, stakes.is_paid, stakes.is_cancelled, stakes.odds_at_bet, stakes.created_at,
                     contacts.name AS contact_name, contacts.archived_at AS contact_archived_at,
                     bet_options.label AS option_label';
 
@@ -68,18 +69,18 @@ final readonly class StakeRepository implements StakeStore
         return $this->findById($id);
     }
 
-    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $quotedOdds = null): Stake
+    public function create(int $betId, int $betOptionId, int $contactId, int $amount, ?float $oddsAtBet = null): Stake
     {
         $statement = $this->pdo->prepare(
-            'INSERT INTO stakes (bet_id, bet_option_id, contact_id, amount, quoted_odds)
-             VALUES (:bet_id, :bet_option_id, :contact_id, :amount, :quoted_odds)',
+            'INSERT INTO stakes (bet_id, bet_option_id, contact_id, amount, odds_at_bet)
+             VALUES (:bet_id, :bet_option_id, :contact_id, :amount, :odds_at_bet)',
         );
         $statement->execute([
             'bet_id' => $betId,
             'bet_option_id' => $betOptionId,
             'contact_id' => $contactId,
             'amount' => $amount,
-            'quoted_odds' => $quotedOdds,
+            'odds_at_bet' => $oddsAtBet,
         ]);
 
         return $this->findById((int)$this->pdo->lastInsertId())
@@ -109,19 +110,12 @@ final readonly class StakeRepository implements StakeStore
         $statement->execute(['id' => $id]);
     }
 
-    public function setPaid(int $id, bool $isPaid, ?float $oddsAtBet = null): Stake
+    public function setPaid(int $id, bool $isPaid): Stake
     {
-        // Once captured, the contractual odds are immutable.
-        $statement = $oddsAtBet === null
-            ? $this->pdo->prepare('UPDATE stakes SET is_paid = :is_paid WHERE id = :id')
-            : $this->pdo->prepare(
-                'UPDATE stakes SET is_paid = :is_paid, odds_at_bet = COALESCE(odds_at_bet, :odds_at_bet) WHERE id = :id',
-            );
-        $parameters = ['id' => $id, 'is_paid' => (int)$isPaid];
-        if ($oddsAtBet !== null) {
-            $parameters['odds_at_bet'] = $oddsAtBet;
-        }
-        $statement->execute($parameters);
+        // The contractual odds were frozen when the stake was created: paying it
+        // settles the cash, never the price.
+        $statement = $this->pdo->prepare('UPDATE stakes SET is_paid = :is_paid WHERE id = :id');
+        $statement->execute(['id' => $id, 'is_paid' => (int)$isPaid]);
 
         return $this->findById($id) ?? throw new RuntimeException('Unable to load the updated stake.');
     }
@@ -209,8 +203,8 @@ final readonly class StakeRepository implements StakeStore
             (bool)$row['is_paid'],
             (bool)$row['is_cancelled'],
             $row['final_payout'] === null ? null : (int)$row['final_payout'],
-            $row['quoted_odds'] === null ? null : (float)$row['quoted_odds'],
             $row['odds_at_bet'] === null ? null : (float)$row['odds_at_bet'],
+            $row['created_at'] === null ? null : new DateTimeImmutable((string)$row['created_at']),
         );
     }
 }

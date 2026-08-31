@@ -22,7 +22,7 @@ interface BetStore
 
     /**
      * @param list<string> $options
-     * @param list<float|null> $initialProbabilities probability of each option, aligned with $options
+     * @param list<float|null> $odds odds priced on each option, aligned with $options
      */
     public function create(
         int $ownerUserId,
@@ -31,13 +31,13 @@ interface BetStore
         ?DateTimeImmutable $closesAt,
         array $options,
         BettingMode $bettingMode = BettingMode::FixedOdds,
-        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::DynamicNormal,
-        array $initialProbabilities = [],
+        OddsEvolutionMode $oddsEvolutionMode = OddsEvolutionMode::Fixed,
+        array $odds = [],
     ): Bet;
 
     /**
      * @param list<string> $options
-     * @param list<float|null> $initialProbabilities probability of each option, aligned with $options
+     * @param list<float|null> $odds odds priced on each option, aligned with $options
      */
     public function update(
         int $id,
@@ -45,19 +45,21 @@ interface BetStore
         ?string $description,
         ?DateTimeImmutable $closesAt,
         array $options,
-        array $initialProbabilities = [],
+        array $odds = [],
     ): Bet;
 
     public function changeStatus(int $id, BetStatus $status, ?int $winningOptionId): Bet;
-
-    public function setBookmakerRate(int $id, int $rateBps): Bet;
 
     public function setMutuelCommissionRate(int $id, int $rateBps): Bet;
 
     public function setBettingMode(int $id, BettingMode $bettingMode, OddsEvolutionMode $oddsEvolutionMode): Bet;
 
-    /** @param array<int, float> $probabilitiesByOptionId */
-    public function updateCurrentProbabilities(int $id, array $probabilitiesByOptionId): void;
+    /**
+     * Prices the options of a bet and anchors the drift on the new odds.
+     *
+     * @param array<int, float|null> $oddsByOptionId
+     */
+    public function setOptionOdds(int $id, array $oddsByOptionId): Bet;
 
     /** @param array<int, float|null> $oddsByOptionId */
     public function settleFinancials(
