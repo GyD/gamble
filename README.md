@@ -87,14 +87,14 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - suivi et affichage du pot total, de la rémunération prélevée par le bookmaker, du montant effectivement redistribué et du résultat net du bookmaker ;
 - en `pari_mutuel`, conservation de la totalité du pot par le bookmaker lorsque le choix gagnant ne comporte aucune mise payée ;
 - enregistrement d'un état financier définitif lors du règlement afin que les cotes retenues, la rémunération du bookmaker et les gains ne varient plus après le règlement ;
-- sérialisation des opérations de marché sur la ligne du pari afin que deux mises simultanées ne figent pas des cotes incohérentes.
-
-### À construire
-
+- sérialisation des opérations de marché sur la ligne du pari afin que deux mises simultanées ne figent pas des cotes incohérentes ;
 - self-exclusion à l'encaissement d'une mise `fixed_odds` impayée : sa propre contribution retirée du calcul de la cote à laquelle elle serait elle-même encaissée, alors qu'elle continue de peser sur la cote publique destinée aux nouvelles mises ;
 - capture de cette cote d'encaissement dans `odds_at_bet` lors du premier paiement, à la place de la cote publique actuelle ;
 - gain estimé d'une mise impayée calculé sur sa cote d'encaissement plutôt que sur la cote publique incluant sa propre influence ;
-- projection indicative des impayés, dans l'exposition du bookmaker, valorisée à la cote d'encaissement de chaque mise ;
+- projection indicative des impayés, dans l'exposition du bookmaker, valorisée à la cote d'encaissement de chaque mise.
+
+### À construire
+
 - ajout du résultat net, du montant retourné et du retour sur investissement aux statistiques ;
 - extension de l'audit aux futurs modules métier.
 

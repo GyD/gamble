@@ -281,8 +281,8 @@ final class StakeControllerTest extends TestCase
 
     public function testUnpaidStakeShowsTheAnnouncedOddsAndAnEstimatedPayout(): void
     {
-        // Announced at 3.00 but now offered at 2.00: the projection follows the
-        // current price, since nothing is contracted yet.
+        // Announced at 3.00 but the option is now priced 2.00, and the drift is
+        // disabled: the stake would be paid at 2.00, since nothing is contracted.
         $this->stakes->stakes = [
             1 => new Stake(1, 1, 10, 20, 1000, 'Alice', 'Blue', false, false, false, null, null, null, 3.00),
         ];
@@ -290,9 +290,32 @@ final class StakeControllerTest extends TestCase
         $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
 
         self::assertStringContainsString('Cote annoncée à la prise : 3,00', $body);
-        self::assertStringContainsString('Cote actuellement proposée : 2,00', $body);
+        self::assertStringContainsString('Cote si encaissée maintenant : 2,00', $body);
         self::assertStringContainsString('gain estimé si encaissée maintenant et gagnante : 2 000 $', $body);
         self::assertStringNotContainsString('Cote contractuelle', $body);
+        // Public and payment odds agree here, so no confusing second price.
+        self::assertStringNotContainsString('Cote publique proposée aux nouvelles mises', $body);
+    }
+
+    public function testTheEstimatedPayoutOfAnUnpaidStakeIgnoresItsOwnInfluence(): void
+    {
+        // The stake weighs on the public odds it will never obtain itself: the
+        // estimated payout must come from its self-excluded payment odds.
+        $this->bets->bets[1] = new Bet(1, 1, 'Winner?', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 0, 2.50),
+            new BetOption(11, 'Red', 1, 2.50),
+        ], null, null, null, BettingMode::FixedOdds, OddsEvolutionMode::DynamicNormal);
+        $this->stakes->stakes = [
+            1 => new Stake(1, 1, 10, 20, 100, 'Alice', 'Blue', false, false, false, null, null, new DateTimeImmutable(), 2.50),
+        ];
+
+        $body = (string)$this->controller()->index($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        // Alone on the market, Alice sees the priced odds again once her own
+        // contribution is taken out, while the public price is degraded.
+        self::assertStringContainsString('Cote si encaissée maintenant : 2,50', $body);
+        self::assertStringContainsString('gain estimé si encaissée maintenant et gagnante : 250 $', $body);
+        self::assertStringContainsString('Cote publique proposée aux nouvelles mises : 2,47', $body);
     }
 
     public function testPaidStakeShowsItsContractualOddsAndAGuaranteedPayout(): void

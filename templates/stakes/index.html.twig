@@ -96,15 +96,20 @@
                     {% else %}
                         {#
                             The unpaid stake has no contract yet: it is projected at
-                            the price currently offered on its own choice.
+                            the odds it would actually capture, its own influence
+                            excluded. The public odds are only shown as context, and
+                            never as the price this stake would obtain.
                         #}
                         {% set stake_option = bet.options|filter(option => option.id == stake.betOptionId)|first %}
-                        {% set projected_odds = stake_option ? stake_option.offeredOdds : null %}
+                        {% set public_odds = stake_option ? stake_option.offeredOdds : null %}
+                        {% set quoted_payment_odds = payment_odds|default({}) %}
+                        {% set settlement_odds = quoted_payment_odds[stake.id] is defined ? quoted_payment_odds[stake.id] : public_odds %}
                         <p class="form-help">
                             {{ stake.quotedOdds is null ? 'Aucune cote annoncée à la prise de la mise.' : 'Cote annoncée à la prise : ' ~ stake.quotedOdds|number_format(2, ',', ' ') ~ '.' }}
-                            {{ projected_odds is null ? 'Ce choix n\'est plus coté : à l\'encaissement, la mise serait simplement remboursée si elle gagne.' : 'Cote actuellement proposée : ' ~ projected_odds|number_format(2, ',', ' ') ~ ' — gain estimé si encaissée maintenant et gagnante : ' ~ stake.payoutAt(projected_odds)|number_format(0, ',', ' ') ~ ' $.' }}
+                            {{ settlement_odds is null ? 'Ce choix n\'est plus coté : à l\'encaissement, la mise serait simplement remboursée si elle gagne.' : 'Cote si encaissée maintenant : ' ~ settlement_odds|number_format(2, ',', ' ') ~ ' — gain estimé si encaissée maintenant et gagnante : ' ~ stake.payoutAt(settlement_odds)|number_format(0, ',', ' ') ~ ' $.' }}
+                            {% if settlement_odds is not null and public_odds is not null and public_odds != settlement_odds %}Cote publique proposée aux nouvelles mises : {{ public_odds|number_format(2, ',', ' ') }} — elle inclut l'influence de cette mise, qui ne s'applique pas à elle-même.{% endif %}
                         </p>
-                        <p class="form-help">Rien n'est encore contractuel : la cote sera figée au moment de l'encaissement, à celle proposée alors.</p>
+                        <p class="form-help">Rien n'est encore contractuel : la cote sera figée au moment de l'encaissement, à celle proposée alors, hors influence de cette mise.</p>
                     {% endif %}
                 {% endif %}
                 {% if stake.finalPayout is not null %}

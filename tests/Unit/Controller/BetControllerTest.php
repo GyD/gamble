@@ -159,6 +159,32 @@ final class BetControllerTest extends TestCase
         self::assertStringContainsString('<strong>1 000 $</strong><span>Projection des impayés</span>', $html);
     }
 
+    public function testTheOddsPageProjectsEachUnpaidStakeAtItsOwnPaymentOdds(): void
+    {
+        // Two unpaid stakes on a drifting market: each is projected at the price
+        // it would actually capture, its own contribution excluded.
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Mine', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 1, 2.50),
+            new BetOption(11, 'Red', 2, 2.50),
+        ], null, null, null, BettingMode::FixedOdds, OddsEvolutionMode::DynamicNormal);
+        $stakes = new ControllerBetStakeStore();
+        $stakes->stakes = [
+            new Stake(1, 1, 10, 20, 100, 'Alice', 'Blue', false, false, false, null, null, new DateTimeImmutable(), 2.50),
+            new Stake(2, 1, 11, 21, 100, 'Bob', 'Red', false, false, false, null, null, new DateTimeImmutable(), 2.50),
+        ];
+
+        $html = (string) $this->controller($store, $stakes)
+            ->odds($this->request('GET'), new Response(), ['id' => '1'])->getBody();
+
+        // Once Alice excludes herself, only Bob's stake remains and it loads the
+        // other option, so Alice is quoted 2.53 rather than the public 2.50.
+        // Bob is quoted symmetrically: 100 x 2.53 twice.
+        self::assertStringContainsString('<strong>506 $</strong><span>Projection des impayés</span>', $html);
+        // The public price, carrying both stakes, would have projected 500 only.
+        self::assertStringNotContainsString('<strong>500 $</strong><span>Projection des impayés</span>', $html);
+    }
+
     public function testTheOddsPageOffersThePricingAssistant(): void
     {
         $store = new ControllerBetStore();

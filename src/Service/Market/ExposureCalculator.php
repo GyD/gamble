@@ -12,13 +12,19 @@ use App\Domain\Stake\Stake;
  *
  * Two natures of engagement are kept strictly apart. A paid stake owes its
  * frozen `odds_at_bet`: that debt is contractual and never recomputed. An unpaid
- * stake owes nothing yet, so it is only projected at the odds currently offered:
- * that figure is an estimation, and it moves with the market.
+ * stake owes nothing yet, so it is only projected at the odds it would actually
+ * capture if it were paid now, its own influence excluded: that figure is an
+ * estimation, and it moves with the market.
  */
 final readonly class ExposureCalculator
 {
-    /** @param list<Stake> $stakes */
-    public function calculate(Bet $bet, array $stakes): BetExposure
+    /**
+     * @param list<Stake> $stakes
+     * @param array<int, float|null> $paymentOddsByStakeId payment odds of each
+     *        unpaid stake, self-excluded; an unlisted stake falls back to the
+     *        odds publicly offered on its option
+     */
+    public function calculate(Bet $bet, array $stakes, array $paymentOddsByStakeId = []): BetExposure
     {
         $options = [];
         foreach ($bet->options as $option) {
@@ -36,9 +42,15 @@ final readonly class ExposureCalculator
                     continue;
                 }
                 $unpaidStake += $stake->amount;
-                // Projected at today's price: this stake has no contract yet.
-                $unpaidPayout += $stake->payoutAt($option->offeredOdds);
+                // Projected at the price this very stake would capture: it has
+                // no contract yet, and it never prices itself.
+                $unpaidPayout += $stake->payoutAt(
+                    array_key_exists($stake->id, $paymentOddsByStakeId)
+                        ? $paymentOddsByStakeId[$stake->id]
+                        : $option->offeredOdds,
+                );
             }
+
             $options[] = new OptionExposure(
                 $option->id,
                 $option->label,

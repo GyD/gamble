@@ -120,6 +120,99 @@ final class StakeServiceTest extends TestCase
         self::assertSame(200, $paidAgain->potentialPayout());
     }
 
+    public function testPaymentCapturesTheOddsQuotedWithoutTheStakeItself(): void
+    {
+        // Alone on a drifting market, the stake degrades the public price. The
+        // captured contract must be the price quoted without its own influence.
+        $this->bets->bets[1] = $this->drifting([2.50, 2.50]);
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $publicOdds = $this->service->withOdds($this->bets->bets[1])->options[0]->offeredOdds;
+
+        $paid = $this->service->setPaid(7, 1, $stake->id, true, null);
+
+        self::assertSame(2.47, $publicOdds);
+        self::assertSame(2.50, $paid->oddsAtBet);
+        self::assertSame(250, $paid->potentialPayout());
+        self::assertSame(2.50, $this->audit->entries[1]['after']['odds_at_bet']);
+    }
+
+    public function testThePublicOddsAreOnlyRecalculatedAfterTheCapture(): void
+    {
+        $this->bets->bets[1] = $this->drifting([2.50, 2.50]);
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+
+        $paid = $this->service->setPaid(7, 1, $stake->id, true, null);
+        $publicOddsAfterPayment = $this->service->withOdds($this->bets->bets[1])->options[0]->offeredOdds;
+
+        // Its weight moved from 0.50 to 1.00 only after the contract was signed,
+        // so the next bettors see a shorter price than the one it captured.
+        self::assertSame(2.50, $paid->oddsAtBet);
+        self::assertSame(2.45, $publicOddsAfterPayment);
+        self::assertLessThan((float) $paid->oddsAtBet, (float) $publicOddsAfterPayment);
+    }
+
+    public function testTheOtherStakesStillMoveTheCapturedOdds(): void
+    {
+        // Money on Red lengthens Blue: the stake captures that market movement,
+        // only its own contribution is excluded.
+        $this->bets->bets[1] = $this->drifting([2.50, 2.50]);
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $onRed = $this->service->create(7, 1, 20, 11, '400', null);
+        $this->service->setPaid(7, 1, $onRed->id, true, null);
+
+        $paid = $this->service->setPaid(7, 1, $stake->id, true, null);
+
+        self::assertSame(2.50, $paid->quotedOdds);
+        self::assertNotNull($paid->oddsAtBet);
+        self::assertGreaterThan(2.50, $paid->oddsAtBet);
+    }
+
+    public function testUnpayingAndRepayingNeverCapturesTheOddsAgain(): void
+    {
+        $this->bets->bets[1] = $this->drifting([2.50, 2.50]);
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $captured = $this->service->setPaid(7, 1, $stake->id, true, null)->oddsAtBet;
+        // The market moves a lot in between.
+        $this->service->setPaid(7, 1, $this->service->create(7, 1, 20, 11, '900', null)->id, true, null);
+
+        $unpaid = $this->service->setPaid(7, 1, $stake->id, false, null);
+        $paidAgain = $this->service->setPaid(7, 1, $stake->id, true, null);
+
+        self::assertSame(2.50, $captured);
+        self::assertSame($captured, $unpaid->oddsAtBet);
+        self::assertSame($captured, $paidAgain->oddsAtBet);
+    }
+
+    public function testRefundingAStakeNeverCapturesTheOddsAgain(): void
+    {
+        $this->bets->bets[1] = $this->drifting([2.50, 2.50]);
+        $stake = $this->service->create(7, 1, 20, 10, '100', null);
+        $captured = $this->service->setPaid(7, 1, $stake->id, true, null)->oddsAtBet;
+        $this->bets->bets[1] = $this->withStatus(BetStatus::Cancelled);
+
+        $refunded = $this->service->setRefunded(7, 1, $stake->id, true, null);
+        $notRefunded = $this->service->setRefunded(7, 1, $stake->id, false, null);
+
+        self::assertSame($captured, $refunded->oddsAtBet);
+        self::assertSame($captured, $notRefunded->oddsAtBet);
+    }
+
+    public function testEachUnpaidStakeIsQuotedWithoutItselfOnly(): void
+    {
+        $this->bets->bets[1] = $this->drifting([2.50, 2.50]);
+        $onBlue = $this->service->create(7, 1, 20, 10, '100', null);
+        $onRed = $this->service->create(7, 1, 20, 11, '300', null);
+
+        $paymentOdds = $this->service->paymentOddsByStake($this->bets->bets[1]);
+
+        self::assertSame([$onBlue->id, $onRed->id], array_keys($paymentOdds));
+        // Each stake keeps seeing the other, so their prices differ.
+        self::assertNotSame($paymentOdds[$onBlue->id], $paymentOdds[$onRed->id]);
+        // And neither equals the public price, which carries both of them.
+        $public = $this->service->withOdds($this->bets->bets[1]);
+        self::assertNotSame($public->options[0]->offeredOdds, $paymentOdds[$onBlue->id]);
+    }
+
     public function testRefundCancellationNeverCapturesNewContractualOdds(): void
     {
         // A legacy stake paid without contractual odds: the refund flow must not
@@ -403,6 +496,19 @@ final class StakeServiceTest extends TestCase
         $bet = $this->bets->bets[1];
 
         return new Bet($bet->id, $bet->ownerUserId, $bet->question, $bet->description, $bet->closesAt, $status, $winningOptionId, $bet->options);
+    }
+
+    /**
+     * A bet whose offered odds drift with the exposure taken.
+     *
+     * @param list<float|null> $odds
+     */
+    private function drifting(array $odds): Bet
+    {
+        return new Bet(1, 7, 'Winner?', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 0, $odds[0]),
+            new BetOption(11, 'Red', 1, $odds[1]),
+        ], null, null, null, BettingMode::FixedOdds, OddsEvolutionMode::DynamicNormal);
     }
 }
 

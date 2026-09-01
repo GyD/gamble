@@ -64,6 +64,9 @@ final readonly class StakeController
         return $this->render($request, $response, 'stakes/index.html.twig', [
             'bet' => $this->service->withOdds($bet),
             'stakes' => $this->stakes->findByBet($bet->id),
+            // Odds each unpaid stake would actually capture, its own influence
+            // excluded: never the public odds it degraded itself.
+            'payment_odds' => $this->service->paymentOddsByStake($bet),
             'contacts' => $contacts,
             'contact_groups' => $contactGroups,
             'can_create' => $isMutable && $this->authorization->can($actor, 'stakes.create'),

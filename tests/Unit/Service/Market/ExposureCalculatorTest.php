@@ -134,6 +134,54 @@ final class ExposureCalculatorTest extends TestCase
         self::assertSame(0, $exposure->worstPotentialResult());
     }
 
+    public function testEachUnpaidStakeIsProjectedAtItsOwnPaymentOdds(): void
+    {
+        // Two unpaid stakes on the same option, each quoted its own payment odds:
+        // no stake is ever valued at a price it degraded itself.
+        $exposure = $this->calculator->calculate(
+            $this->bet(),
+            [$this->unpaidStake(1, 10, 100, 2.50), $this->unpaidStake(2, 10, 200, 2.50)],
+            [1 => 2.50, 2 => 2.40],
+        );
+
+        // 100 x 2.50 + 200 x 2.40 = 730, not 300 x the public 2.00.
+        self::assertSame(730, $exposure->option(10)?->unpaidPayout);
+        self::assertSame(730, $exposure->indicativePayout());
+    }
+
+    public function testAnUnpaidStakeWithoutPaymentOddsFallsBackOnThePublicPrice(): void
+    {
+        $exposure = $this->calculator->calculate($this->bet(), [$this->unpaidStake(1, 10, 100, 2.50)], []);
+
+        // Nothing quoted for that stake: the offered odds are used instead.
+        self::assertSame(200, $exposure->option(10)?->unpaidPayout);
+    }
+
+    public function testAnUnpaidStakeQuotedOnAnUnpricedOptionIsOnlyWorthItsAmount(): void
+    {
+        $exposure = $this->calculator->calculate(
+            $this->bet(),
+            [$this->unpaidStake(1, 10, 250, 2.50)],
+            [1 => null],
+        );
+
+        self::assertSame(250, $exposure->option(10)?->unpaidPayout);
+    }
+
+    public function testPaymentOddsNeverTouchTheContractualExposure(): void
+    {
+        $exposure = $this->calculator->calculate(
+            $this->bet(),
+            [$this->stake(1, 10, 100, true, 3.00)],
+            // A paid stake owes its frozen odds, whatever is quoted elsewhere.
+            [1 => 1.10],
+        );
+
+        self::assertSame(300, $exposure->option(10)?->paidPayout);
+        self::assertSame(300, $exposure->contractualPayout());
+        self::assertSame(0, $exposure->indicativePayout());
+    }
+
     private function bet(?float $odds = 2.00): Bet
     {
         return new Bet(1, 7, 'Winner?', null, null, BetStatus::Open, null, [

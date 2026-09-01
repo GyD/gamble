@@ -111,9 +111,10 @@ final readonly class StakeService
             if ($before->contactArchived) {
                 throw new InvalidArgumentException('Archived contacts cannot have their stakes changed.');
             }
-            // Payment is the moment the contract is signed: the odds currently
-            // offered are captured before the payment moves the market, so a
-            // stake is never paid at a price it moved itself.
+            // Payment is the moment the contract is signed: the odds the stake
+            // would capture are computed before the payment moves the market,
+            // and without its own influence, so a stake is never paid at a
+            // price it moved itself.
             $this->captureContractualOdds($bet, $before, $isPaid);
             $after = $this->stakes->setPaid($stakeId, $isPaid);
             $this->auditLogs->record($actorUserId, 'stake.payment_status_changed', 'stake', (string)$stakeId, $this->snapshot($before), $this->snapshot($after), $ipAddress);
@@ -209,6 +210,20 @@ final readonly class StakeService
         return $this->market->withOdds($bet);
     }
 
+    /**
+     * Odds each unpaid stake of a bet would capture if it were paid right now.
+     *
+     * A stake never prices itself: its own indicative contribution is taken out
+     * of the market, every other stake included. Two unpaid stakes of the same
+     * bet may therefore be quoted differently.
+     *
+     * @return array<int, float|null> odds keyed by stake id
+     */
+    public function paymentOddsByStake(Bet $bet): array
+    {
+        return $this->market->paymentOddsByStake($bet);
+    }
+
     private function mutableBet(int $betId): Bet
     {
         $bet = $this->lockedBet($betId);
@@ -254,6 +269,11 @@ final readonly class StakeService
     /**
      * Captures the contractual odds of a stake becoming paid, once and for all.
      *
+     * The captured price is the payment odds of the stake: the market quoted
+     * without its own indicative contribution, every other stake included. Its
+     * own weight only moves to `100 %` afterwards, so the public odds offered
+     * to the next bettors are recalculated after the capture, never before.
+     *
      * Only the first move to a truly paid state signs a contract. Unpaying a
      * stake never clears its odds, and paying it again never reprices it: the
      * historical commitment stays attached to the stake. Refund handling goes
@@ -266,7 +286,7 @@ final readonly class StakeService
             return;
         }
 
-        $odds = $this->market->currentOdds($bet, $stake->betOptionId);
+        $odds = $this->market->paymentOdds($bet, $stake);
         if ($odds === null) {
             throw new InvalidArgumentException('This option has no odds yet: price it before paying the stake.');
         }

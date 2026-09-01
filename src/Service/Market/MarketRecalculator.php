@@ -6,6 +6,7 @@ namespace App\Service\Market;
 
 use App\Domain\Bet\Bet;
 use App\Domain\Bet\BetStatus;
+use App\Domain\Stake\Stake;
 use App\Repository\BetStore;
 use App\Repository\StakeStore;
 use InvalidArgumentException;
@@ -23,12 +24,16 @@ use InvalidArgumentException;
  */
 final readonly class MarketRecalculator
 {
+    private PaymentOddsCalculator $paymentOdds;
+
     public function __construct(
         private BetStore $bets,
         private StakeStore $stakes,
         private MarketServiceRegistry $markets = new MarketServiceRegistry(),
         private ExposureCalculator $exposures = new ExposureCalculator(),
+        ?PaymentOddsCalculator $paymentOdds = null,
     ) {
+        $this->paymentOdds = $paymentOdds ?? new PaymentOddsCalculator($this->markets);
     }
 
     /**
@@ -71,9 +76,39 @@ final readonly class MarketRecalculator
         ));
     }
 
+    /**
+     * Odds a stake would capture if it were paid right now.
+     *
+     * The stake never prices itself: its own influence is taken out of the
+     * market before the odds are quoted, while every other stake keeps its
+     * usual weight.
+     */
+    public function paymentOdds(Bet $bet, Stake $stake): ?float
+    {
+        return $this->paymentOdds->forStake($bet, $this->stakes->findByBet($bet->id), $stake);
+    }
+
+    /**
+     * Payment odds of every stake of a bet still waiting for its contract.
+     *
+     * @return array<int, float|null> odds keyed by stake id
+     */
+    public function paymentOddsByStake(Bet $bet): array
+    {
+        return $this->paymentOdds->byStake($bet, $this->stakes->findByBet($bet->id));
+    }
+
     /** What the bookmaker collected and what they owe on each option. */
     public function exposure(Bet $bet): BetExposure
     {
-        return $this->exposures->calculate($this->withOdds($bet), $this->stakes->findByBet($bet->id));
+        $stakes = $this->stakes->findByBet($bet->id);
+
+        return $this->exposures->calculate(
+            $this->withOdds($bet),
+            $stakes,
+            // Each unpaid stake is projected at its own payment odds, so it is
+            // never valued at a price it degraded itself.
+            $this->paymentOdds->byStake($bet, $stakes),
+        );
     }
 }
