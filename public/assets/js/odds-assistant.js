@@ -64,11 +64,33 @@ document.querySelectorAll('[data-odds-assistant]').forEach((assistant) => {
         .slice(0, count)
         .map((input) => Number(input.value));
 
+    // The bounds are carried by the odds inputs themselves, whose `min` is
+    // server-rendered from the configured `minimum_odds`: the assistant never
+    // hardcodes a value the form would not accept.
+    const boundsOf = (inputs) => inputs.reduce((bounds, input) => {
+        const min = Number(input.min);
+        const max = Number(input.max);
+
+        return {
+            floor: Number.isFinite(min) && min > bounds.floor ? min : bounds.floor,
+            ceiling: Number.isFinite(max) && max < bounds.ceiling ? max : bounds.ceiling,
+        };
+    }, {floor: 0, ceiling: Infinity});
+
     // cote = 1 / (probabilite_normalisee x (1 + marge_cible))
-    const oddsFrom = (values, margin) => {
+    const oddsFrom = (values, margin, bounds) => {
         const total = values.reduce((sum, value) => sum + value, 0);
 
-        return values.map((value) => Math.round((1 / ((value / total) * (1 + margin))) * 100) / 100);
+        // Generated odds obey exactly the same constraints as typed ones: a
+        // near-certain or a near-impossible choice would otherwise be priced
+        // outside the range the form accepts.
+        return values.map((value) => Math.min(
+            bounds.ceiling,
+            Math.max(
+                bounds.floor,
+                Math.round((1 / ((value / total) * (1 + margin))) * 100) / 100,
+            ),
+        ));
     };
 
     const apply = () => {
@@ -88,7 +110,7 @@ document.querySelectorAll('[data-odds-assistant]').forEach((assistant) => {
             return;
         }
 
-        const odds = oddsFrom(values, margin);
+        const odds = oddsFrom(values, margin, boundsOf(inputs));
         inputs.forEach((input, index) => {
             input.value = odds[index].toFixed(2);
             input.setCustomValidity('');

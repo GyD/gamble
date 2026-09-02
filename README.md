@@ -76,7 +76,7 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - cote contractuelle immuable `odds_at_bet` capturée au paiement de la mise `fixed_odds`, la cote annoncée à la création étant conservée dans `quoted_odds` à titre purement informatif ;
 - gain estimé à la cote actuellement proposée tant que la mise n'est pas payée, gain garanti à la cote contractuelle une fois payée ;
 - exposition séparée en dette contractuelle, portée par les seules mises payées à leur cote figée, et projection indicative des mises impayées à la cote actuellement proposée ;
-- assistant facultatif de cotation initiale en `fixed_odds`, préremplissant les cotes de tous les choix à partir des probabilités saisies et d'une marge cible, sans jamais persister de probabilité ;
+- assistant facultatif de cotation initiale en `fixed_odds`, préremplissant les cotes de tous les choix à partir des probabilités saisies et d'une marge cible, sans jamais persister de probabilité ni générer de cote sous `minimum_odds` ;
 - poids de marché réduit des mises impayées via la configuration `unpaid_bet_market_weight` ;
 - affichage de la cote actuellement proposée en `fixed_odds`, cette cote ne devenant contractuelle qu'au paiement, et purement indicative en `pari_mutuel` ;
 - commission bookmaker propre au `pari_mutuel`, configurable par pari, à 10 % par défaut, prélevée sur le pool lors de la clôture ;
@@ -91,7 +91,8 @@ Les règles détaillées de cycle de vie, de règlement et de calcul seront pré
 - self-exclusion à l'encaissement d'une mise `fixed_odds` impayée : sa propre contribution retirée du calcul de la cote à laquelle elle serait elle-même encaissée, alors qu'elle continue de peser sur la cote publique destinée aux nouvelles mises ;
 - capture de cette cote d'encaissement dans `odds_at_bet` lors du premier paiement, à la place de la cote publique actuelle ;
 - gain estimé d'une mise impayée calculé sur sa cote d'encaissement plutôt que sur la cote publique incluant sa propre influence ;
-- projection indicative des impayés, dans l'exposition du bookmaker, valorisée à la cote d'encaissement de chaque mise.
+- projection indicative des impayés, dans l'exposition du bookmaker, valorisée à la cote d'encaissement de chaque mise ;
+- aucune self-exclusion en `pari_mutuel`, où la mise fait partie du pool dont dépend son propre rendement indicatif.
 
 ### À construire
 
@@ -189,23 +190,25 @@ Une mise impayée pèse sur le marché avec `unpaid_bet_market_weight`. Sans pr�
 
 La règle : **une mise ne déplace jamais sa propre cote d'encaissement.** Toutes les autres mises, payées comme impayées, continuent de l'influencer normalement.
 
-Exemple sans autre mouvement :
+Exemple sans autre mouvement, en `dynamic_normal` :
 
 ```text
 cote publique de A avant Alice        = 2.50
 Alice crée 100 $ impayés sur A        → quoted_odds = 2.50
-cote publique de A pour un nouveau    = 2.44   (l'influence d'Alice compte)
+cote publique de A pour un nouveau    = 2.47   (l'influence d'Alice compte)
 cote d'encaissement d'Alice           = 2.50   (sa propre influence est retirée)
 ```
 
-Si Alice paie immédiatement, `odds_at_bet = 2.50`. Son poids passe **ensuite** de `0.50` à `1.00`, et le marché est recalculé pour les mises suivantes.
+Les cotes sont arrondies au centième, et l'ampleur du recul dépend du mode d'évolution : le même mouvement donnerait `2.44` en `dynamic_high` et `2.50` en `fixed`.
+
+Si Alice paie immédiatement, `odds_at_bet = 2.50`. Son poids passe **ensuite** de `0.50` à `1.00`, le marché est recalculé pour les mises suivantes et la cote publique de A tombe à `2.45`.
 
 La self-exclusion ne fige rien : la cote d'encaissement reflète toujours le marché **au moment du paiement**, mouvements des autres parieurs inclus.
 
 ```text
 cote publique de A avant Alice        = 2.50
 Alice crée 100 $ impayés sur A        → quoted_odds = 2.50
-cote publique de A pour un nouveau    = 2.44
+cote publique de A pour un nouveau    = 2.47
 
 … beaucoup d'argent arrive ensuite sur B …
 
@@ -215,9 +218,11 @@ son poids passe de 0.50 à 1.00, recalcul
 cote publique de A pour un nouveau    = 2.70
 ```
 
-Alice touche contractuellement `2.80` alors que la cote publique suivante vaut `2.70` : c'est correct, puisque l'écart vient du passage de son propre poids à `100 %`.
+Les valeurs `2.80` et `2.70` illustrent l'ordre des opérations, sans dépendre d'un montant précis arrivé sur B. Alice touche contractuellement `2.80` alors que la cote publique suivante vaut `2.70` : c'est correct, puisque l'écart vient du passage de son propre poids à `100 %`.
 
 > **La cote d'encaissement n'est pas `quoted_odds`.** La self-exclusion ne signifie **pas** `odds_at_bet = quoted_odds` : `quoted_odds` reste une trace historique de la création, jamais une cote de paiement. La seule chose retirée du calcul est la contribution indicative de la mise elle-même ; tous les mouvements causés par les autres mises sont conservés.
+
+> **La self-exclusion ne concerne que le `fixed_odds`.** En `pari_mutuel`, une mise impayée n'a aucune cote à s'auto-dégrader : le rendement indicatif dépend du pool, et la mise fait partie de ce pool. Rien n'est donc retiré du calcul, et aucune cote d'encaissement n'est produite.
 
 Chaque mise impayée exclut **uniquement** sa propre contribution : les autres mises impayées continuent de peser sur sa cote d'encaissement avec leur poids indicatif.
 
@@ -339,6 +344,14 @@ Les probabilités sont toujours normalisées à 100 % avant le calcul : leur som
 
 Les champs de probabilité sont vides au départ : tant qu'un choix n'a pas de probabilité strictement positive, l'assistant refuse de générer les cotes et le signale.
 
+Les cotes générées respectent exactement les bornes des champs qu'elles remplissent : elles sont arrondies au centième et ramenées dans l'intervalle `minimum_odds` à `1000`. Une probabilité écrasante serait sinon cotée sous le plancher, et l'assistant produirait un formulaire invalide.
+
+| Probabilités saisies | Marge cible | Cotes générées               | Effet             |
+|----------------------|-------------|------------------------------|-------------------|
+| `99.9 / 0.05 / 0.05` | `50 %`      | `1.01 / 1333.33 / 1333.33`   | plancher appliqué |
+
+Le plancher appliqué est celui de la configuration : l'assistant le lit sur les champs de cote, qui le portent depuis `minimum_odds`, et n'en connaît aucune valeur en dur.
+
 Une fois les cotes générées :
 
 - le bookmaker peut les corriger librement ;
@@ -374,6 +387,8 @@ La self-exclusion ne retire donc **pas** les mises impayées du moteur de march�
 | Projection des impayés         | somme des `stake × cote d'encaissement` des mises actives non payées |
 | Si ce choix gagne (encaissé)   | total encaissé − à verser, sur l'argent réellement collecté     |
 | …une fois tout encaissé        | même calcul en supposant les impayés payés à leur cote d'encaissement |
+
+> **La projection des impayés n'est pas `total impayé × cote publique`.** Chaque mise est projetée à **sa propre** cote d'encaissement, laquelle exclut sa contribution : deux mises de `100 $` peuvent donc être projetées à des cotes différentes, et leur somme dépasse ce que la cote publique laisserait attendre. Multiplier le total impayé par la cote publique sous-estime l'engagement.
 
 Un résultat très négatif signale un choix trop chargé au prix actuel : sa cote doit être raccourcie, ou celle des autres allongée.
 

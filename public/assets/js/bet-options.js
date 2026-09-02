@@ -29,12 +29,16 @@ document.querySelectorAll('[data-add-option]').forEach((button) => {
 
         field.append(label, input);
 
-        if (fields.querySelector('[data-odds-input]') !== null) {
+        const existingOdds = fields.querySelector('[data-odds-input]');
+
+        if (existingOdds !== null) {
             const odds = document.createElement('input');
             odds.className = 'bet-option-odds';
             odds.name = 'odds[]';
             odds.type = 'number';
-            odds.min = '1.01';
+            // The floor is server-rendered from the configured minimum odds:
+            // a new choice must accept exactly what the existing ones accept.
+            odds.min = existingOdds.min;
             odds.max = '1000';
             odds.step = '0.01';
             odds.setAttribute('aria-label', `Cote du choix ${position}`);

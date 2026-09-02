@@ -56,7 +56,7 @@
                             <td data-label="Si ce choix gagne (encaissé)">{{ exposure.paidResult(option.optionId)|number_format(0, ',', ' ') }} $</td>
                             <td data-label="…une fois tout encaissé">{{ exposure.potentialResult(option.optionId)|number_format(0, ',', ' ') }} $</td>
                             <td data-label="Cote proposée">{{ option.offeredOdds is null ? '—' : option.offeredOdds|number_format(2, ',', ' ') }}</td>
-                            <td data-label="Nouvelle cote"><input name="odds[{{ option.optionId }}]" type="number" min="1.01" max="1000" step="0.01" value="{{ option.odds is null ? '' : option.odds|number_format(2, '.', '') }}" aria-label="Nouvelle cote du choix {{ option.label }}" data-odds-input></td>
+                            <td data-label="Nouvelle cote"><input name="odds[{{ option.optionId }}]" type="number" min="{{ minimum_odds|number_format(2, '.', '') }}" max="1000" step="0.01" value="{{ option.odds is null ? '' : option.odds|number_format(2, '.', '') }}" aria-label="Nouvelle cote du choix {{ option.label }}" data-odds-input></td>
                         </tr>
                     {% endfor %}
                 </tbody>

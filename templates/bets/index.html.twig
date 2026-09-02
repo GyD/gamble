@@ -56,8 +56,8 @@
                 <fieldset class="bet-options"><legend>Choix</legend>
                     <p class="form-help">Entre 2 et 20 choix uniques.</p>
                     <div class="bet-option-fields" data-option-fields>
-                        <div class="form-field"><label for="bet-option-1">Choix 1</label><input id="bet-option-1" name="options[]" type="text" maxlength="120" required><input class="bet-option-odds" name="odds[]" type="number" min="1.01" max="1000" step="0.01" aria-label="Cote du choix 1" data-fixed-odds-only data-odds-input></div>
-                        <div class="form-field"><label for="bet-option-2">Choix 2</label><input id="bet-option-2" name="options[]" type="text" maxlength="120" required><input class="bet-option-odds" name="odds[]" type="number" min="1.01" max="1000" step="0.01" aria-label="Cote du choix 2" data-fixed-odds-only data-odds-input></div>
+                        <div class="form-field"><label for="bet-option-1">Choix 1</label><input id="bet-option-1" name="options[]" type="text" maxlength="120" required><input class="bet-option-odds" name="odds[]" type="number" min="{{ minimum_odds|number_format(2, '.', '') }}" max="1000" step="0.01" aria-label="Cote du choix 1" data-fixed-odds-only data-odds-input></div>
+                        <div class="form-field"><label for="bet-option-2">Choix 2</label><input id="bet-option-2" name="options[]" type="text" maxlength="120" required><input class="bet-option-odds" name="odds[]" type="number" min="{{ minimum_odds|number_format(2, '.', '') }}" max="1000" step="0.01" aria-label="Cote du choix 2" data-fixed-odds-only data-odds-input></div>
                     </div>
                     <div class="bet-options-actions">
                         <button class="button button-secondary" type="button" data-add-option>Ajouter un choix</button>

@@ -9,6 +9,7 @@ use App\Domain\User\User;
 use App\Repository\BetStore;
 use App\Security\AuthorizationService;
 use App\Service\BetService;
+use App\Service\Market\MarketSettings;
 use App\Service\StatisticsService;
 use App\Service\StakeService;
 use InvalidArgumentException;
@@ -25,6 +26,7 @@ final readonly class BetController
         private Environment $twig,
         private StatisticsService $statistics,
         private StakeService $stakes,
+        private MarketSettings $market = new MarketSettings(),
     ) {
     }
 
@@ -363,6 +365,9 @@ final readonly class BetController
         $context['can_view_groups'] = $this->authorization->can($actor, 'groups.view');
         $context['can_view_statistics'] = $this->authorization->can($actor, 'statistics.view');
         $context['can_view_users'] = $this->authorization->can($actor, 'users.view');
+        // Lowest odds the bookmaker may offer: the forms and the pricing
+        // assistant must share the configured floor instead of hardcoding one.
+        $context['minimum_odds'] = $this->market->minimumOdds;
         $context['csrf'] = [
             'name_key' => 'csrf_name', 'name' => $request->getAttribute('csrf_name'),
             'value_key' => 'csrf_value', 'value' => $request->getAttribute('csrf_value'),

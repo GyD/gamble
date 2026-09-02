@@ -21,6 +21,7 @@ use App\Domain\Stake\Stake;
 use App\Security\AuthorizationService;
 use App\Security\PermissionResolver;
 use App\Service\BetService;
+use App\Service\Market\MarketSettings;
 use App\Service\StatisticsService;
 use App\Service\StakeService;
 use DateTimeImmutable;
@@ -223,6 +224,30 @@ final class BetControllerTest extends TestCase
         }
     }
 
+    public function testOddsFieldsAdvertiseTheConfiguredMinimumOdds(): void
+    {
+        // The pricing assistant reads its floor from the `min` attribute of the
+        // odds fields, so that attribute must carry the configured minimum odds
+        // rather than a value hardcoded in the templates.
+        $store = new ControllerBetStore();
+        $store->bets[1] = new Bet(1, 1, 'Mine', null, null, BetStatus::Open, null, [
+            new BetOption(10, 'Blue', 1, 2.00, 2.00),
+            new BetOption(11, 'Red', 2, 2.00, 2.00),
+        ]);
+        $controller = $this->controller($store, market: new MarketSettings(minimumOdds: 1.25));
+
+        $pages = [
+            (string) $controller->index($this->request('GET'), new Response())->getBody(),
+            (string) $controller->edit($this->request('GET'), new Response(), ['id' => '1'])->getBody(),
+            (string) $controller->odds($this->request('GET'), new Response(), ['id' => '1'])->getBody(),
+        ];
+
+        foreach ($pages as $html) {
+            self::assertSame(2, substr_count($html, 'min="1.25"'));
+            self::assertStringNotContainsString('min="1.01"', $html);
+        }
+    }
+
     public function testIndexShowsLinkToBetStakes(): void
     {
         $store = new ControllerBetStore();
@@ -343,6 +368,7 @@ final class BetControllerTest extends TestCase
         ControllerBetStore $store,
         ?ControllerBetStakeStore $stakes = null,
         bool $stakesEdit = true,
+        ?MarketSettings $market = null,
     ): BetController
     {
         $stakes ??= new ControllerBetStakeStore();
@@ -364,6 +390,7 @@ final class BetControllerTest extends TestCase
             new Environment(new FilesystemLoader(dirname(__DIR__, 3) . '/templates')),
             new StatisticsService(new ControllerBetStatisticsStore()),
             new StakeService(new PDO('sqlite::memory:'), $stakes, $store, new ControllerBetContactStore(), new ControllerBetAuditLogger()),
+            $market ?? new MarketSettings(),
         );
     }
 

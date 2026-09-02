@@ -47,7 +47,7 @@
         <fieldset class="bet-options"><legend>Choix</legend>
             <p class="form-help">{{ has_stakes ? 'Des mises existent : les choix ne peuvent plus être modifiés.' : 'Entre 2 et 20 choix uniques.' }}</p>
             <div class="bet-option-fields" data-option-fields>
-                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}><input class="bet-option-odds" name="odds[]" type="number" min="1.01" max="1000" step="0.01" value="{{ option.odds is null ? '' : option.odds|number_format(2, '.', '') }}" aria-label="Cote du choix {{ loop.index }}" data-fixed-odds-only data-odds-input{% if bet.bettingMode.value != 'fixed_odds' %} hidden disabled{% endif %}></div>{% endfor %}
+                {% for option in bet.options %}<div class="form-field"><label for="bet-option-{{ loop.index }}">Choix {{ loop.index }}</label><input id="bet-option-{{ loop.index }}" name="options[]" type="text" maxlength="120" value="{{ option.label }}" required{% if has_stakes %} readonly{% endif %}><input class="bet-option-odds" name="odds[]" type="number" min="{{ minimum_odds|number_format(2, '.', '') }}" max="1000" step="0.01" value="{{ option.odds is null ? '' : option.odds|number_format(2, '.', '') }}" aria-label="Cote du choix {{ loop.index }}" data-fixed-odds-only data-odds-input{% if bet.bettingMode.value != 'fixed_odds' %} hidden disabled{% endif %}></div>{% endfor %}
             </div>
             {% if not has_stakes %}
                 <div class="bet-options-actions">
